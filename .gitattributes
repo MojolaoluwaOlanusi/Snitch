@@ -1,0 +1,41 @@
+# === Handle Line Endings Consistently ===
+* text=auto eol=lf
+
+# === Treat Shell Scripts as Text ===
+*.sh text eol=lf
+
+# === Treat Batch Files as Text ===
+*.bat text eol=crlf
+
+# === Mark Binary Files (prevent git diff) ===
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.mp4 binary
+*.mp3 binary
+*.mov binary
+*.webm binary
+*.woff binary
+*.woff2 binary
+
+# === Documentation ===
+*.md text
+*.txt text
+
+# === Source Code ===
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.env text eol=lf
