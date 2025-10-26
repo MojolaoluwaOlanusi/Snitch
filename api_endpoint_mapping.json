@@ -1,0 +1,17 @@
+{
+  "frontend_found": {},
+  "backend_provides": [
+    "/api/auth/signup",
+    "/api/auth/login",
+    "/api/posts",
+    "/api/posts/",
+    "/api/media/upload-url",
+    "/api/messages/threads",
+    "/api/messages/threads/:id/messages",
+    "/api/comments",
+    "/api/comments/:targetType/:targetId",
+    "/api/reposts",
+    "/api/admin/warn/:userId",
+    "/api/incognito/toggle"
+  ]
+}

@@ -1,0 +1,56 @@
+version: '3.8'
+services:
+  mongo:
+    image: mongo:6.0
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  redis:
+    image: redis:7.0
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-06-05T00-00-00Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+  backend:
+    build: ./backend
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/snitch
+      - REDIS_URL=redis://redis:6379
+      - S3_ENDPOINT=http://minio:9000
+      - AWS_ACCESS_KEY_ID=minio
+      - AWS_SECRET_ACCESS_KEY=minio123
+      - PORT=4000
+    ports:
+      - "4000:4000"
+    depends_on:
+      - mongo
+      - redis
+      - minio
+
+  frontend:
+    build: ./frontend
+    environment:
+      - VITE_API_BASE=http://localhost:4000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:
+  minio-data:

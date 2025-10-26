@@ -1,0 +1,28 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#1e3a8a" />
+            <stop offset="50%" stop-color="#2563eb" />
+            <stop offset="100%" stop-color="#60a5fa" />
+        </linearGradient>
+    </defs>
+
+    <!-- Hexagon Background -->
+    <path
+            d="M50 10 L85 30 L85 70 L50 90 L15 70 L15 30 Z"
+            fill="url(#hexGradient)"
+    />
+
+    <!-- Letter S -->
+    <text
+            x="50"
+            y="68"
+            text-anchor="middle"
+            fill="white"
+            font-size="48"
+            font-family="system-ui, -apple-system, sans-serif"
+            font-weight="900"
+    >
+        S
+    </text>
+</svg>

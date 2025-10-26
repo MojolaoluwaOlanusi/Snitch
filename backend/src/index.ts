@@ -1,0 +1,35 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import mongoose from 'mongoose';
+import http from 'http';
+import { Server as IOServer } from 'socket.io';
+import authRoutes from './routes/auth';
+import postRoutes from './routes/posts';
+import mediaRoutes from './routes/media';
+import messagesRoutes from './routes/messages';
+import incognitoRoutes from './routes/incognito';
+import adminRoutes from './routes/admin';
+import repostsRoutes from './routes/reposts';
+import commentsRoutes from './routes/comments';
+dotenv.config();
+const app = express();
+app.use(cors()); app.use(express.json({limit:'20mb'}));
+app.use('/api/auth', authRoutes);
+app.use('/api/posts', postRoutes);
+app.use('/api/media', mediaRoutes);
+app.use('/api/messages', messagesRoutes);
+app.use('/api/comments', commentsRoutes);
+app.use('/api/reposts', repostsRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/incognito', incognitoRoutes);
+
+app.get('/api/health', (req,res)=>res.json({ok:true}));
+const server = http.createServer(app);
+const io = new IOServer(server, { cors: { origin: '*' } });
+globalThis.io = io;
+io.on('connection', s=> console.log('socket connected', s.id));
+const PORT = process.env.PORT || 4000;
+mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/snitch').then(()=> {
+  server.listen(PORT, ()=> console.log('Backend listening on', PORT));
+}).catch(e=>{ console.error(e); process.exit(1); });
