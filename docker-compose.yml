@@ -29,8 +29,8 @@ services:
   backend:
     build: ./backend
     environment:
-      - MONGO_URI=mongodb://mongo:27017/snitch
-      - REDIS_URL=redis://redis:6379
+      - MONGO_URI=mongodb+srv://Mojolaoluwa:Darasimi_2010@xagjpbm.mongodb.net/?retryWrites=true&w=majority
+      - REDIS_URL=redis://default:XhAmQXFNSrLez0F9Wd0sioDlmmT5dtiZ@redis-14756.c258.us-east-1-4.ec2.redns.redis-cloud.com:14756
       - S3_ENDPOINT=http://minio:9000
       - AWS_ACCESS_KEY_ID=minio
       - AWS_SECRET_ACCESS_KEY=minio123
