@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import http from 'http';
-import { Server as IOServer } from 'socket.io';
+import { Server  } from 'socket.io';
 import authRoutes from './routes/auth';
 import postRoutes from './routes/posts';
 import mediaRoutes from './routes/media';
@@ -26,10 +26,14 @@ app.use('/api/incognito', incognitoRoutes);
 
 app.get('/api/health', (req,res)=>res.json({ok:true}));
 const server = http.createServer(app);
-const io = new IOServer(server, { cors: { origin: '*' } });
+const io = new Server(server, { cors: { origin: '*' } });
 globalThis.io = io;
 io.on('connection', s=> console.log('socket connected', s.id));
 const PORT = process.env.PORT || 4000;
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/snitch').then(()=> {
+mongoose.connect(process.env.MONGO_URI || 'mongodb://Mojolaoluwa:Darasimi_2010@ac-e1zdj3f-shard-00-00.xagjpbm.mongodb.net:27017,ac-e1zdj3f-shard-00-01.xagjpbm.mongodb.net:27017,ac-e1zdj3f-shard-00-02.xagjpbm.mongodb.net:27017/?ssl=true&replicaSet=atlas-e1zdj3f-shard-0&authSource=admin&retryWrites=true&w=majority').then(()=> {
   server.listen(PORT, ()=> console.log('Backend listening on', PORT));
 }).catch(e=>{ console.error(e); process.exit(1); });
+
+io.on("connection", (socket) => {
+    console.log("socket connected:", socket.id);
+});
