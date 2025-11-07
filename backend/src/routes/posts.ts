@@ -1,6 +1,6 @@
 import express from 'express';
-import Post from '../models/Post';
-import {User} from '../models/User';
+import Post from '../models/Post.ts';
+import {User} from '../models/User.ts';
 const router = express.Router();
 // simple middleware to set req.user from Authorization header (bearer token)
 import jwt from 'jsonwebtoken';

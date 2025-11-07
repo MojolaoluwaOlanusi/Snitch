@@ -1,16 +1,16 @@
-// backend/src/middlewares/sendMail.ts
 import nodemailer from 'nodemailer';
 
-const transport = nodemailer.createTransport({
-    service: 'gmail', // or configure custom SMTP
+const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: 587, // 👈 Use STARTTLS port
+    secure: false, // 👈 false for STARTTLS
     auth: {
-        user: process.env.NODE_CODE_SENDING_EMAIL_ADDRESS,
-        pass: process.env.NODE_CODE_SENDING_EMAIL_PASSWORD,
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
     },
-    // allow self-signed local env if explicitly turned off
     tls: {
-        rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false',
+        rejectUnauthorized: false, // allow self-signed certs
     },
 });
 
-export default transport;
+export default transporter;

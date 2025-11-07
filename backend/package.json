@@ -2,8 +2,9 @@
   "name": "snitch-backend",
   "version": "0.1.0",
   "main": "dist/index.js",
+  "type": "module",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "nodemon",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "start:worker": "node dist/worker/processor.js"
@@ -14,7 +15,7 @@
     "bcryptjs": "^3.0.2",
     "bullmq": "^5.61.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.0.3",
+    "dotenv": "^16.6.1",
     "express": "^4.18.2",
     "ioredis": "^5.3.2",
     "jsonwebtoken": "^9.0.0",
@@ -31,6 +32,8 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.4.2",
     "@types/nodemailer": "^7.0.3",
+    "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.1.6"
   }

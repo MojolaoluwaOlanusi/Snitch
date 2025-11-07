@@ -2,9 +2,9 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import {User} from '../models/User';
-import transport from '../middleware/sendMail';
-import {doHash, doHashValidation, hmacProcess} from '../utils/hashing';
+import {User} from '../models/User.ts';
+import transport from '../middleware/sendMail.ts';
+import {doHash, doHashValidation, hmacProcess} from '../utils/hashing.ts';
 
 
 const router = express.Router();

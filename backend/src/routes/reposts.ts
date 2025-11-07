@@ -1,5 +1,5 @@
 import express from 'express';
-import Post from '../models/Post';
+import Post from '../models/Post.ts';
 import jwt from 'jsonwebtoken';
 const router = express.Router();
 async function auth(req:any,res:any,next:any){ const h=req.headers.authorization; if(!h) return res.status(401).json({ error:'unauth' }); try{ const token = h.split(' ')[1]; const decoded:any = jwt.verify(token, process.env.JWT_SECRET || 'devsecret'); req.userId = decoded.id; next(); }catch(e){ return res.status(401).json({ error:'invalid' }); } }

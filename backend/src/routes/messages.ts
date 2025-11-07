@@ -1,5 +1,5 @@
 import express from 'express';
-import Message, {Thread} from '../models/Message';
+import Message, {Thread} from '../models/Message.ts';
 import jwt from 'jsonwebtoken';
 
 const router = express.Router();

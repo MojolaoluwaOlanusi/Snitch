@@ -1,6 +1,6 @@
 import express from 'express';
-import { User } from '../models/User';
-import Warning from '../models/Warning';
+import { User } from '../models/User.ts';
+import Warning from '../models/Warning.ts';
 import jwt from 'jsonwebtoken';
 
 const router = express.Router();

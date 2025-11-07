@@ -1,6 +1,6 @@
 import express from 'express';
-import Comment from '../models/Comment';
-import Post from '../models/Post';
+import Comment from '../models/Comment.ts';
+import Post from '../models/Post.ts';
 import jwt from 'jsonwebtoken';
 const router = express.Router();
 
