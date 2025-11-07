@@ -31,24 +31,79 @@ router.post('/send-verification-code', async (req, res) => {
         if (!user) return res.status(404).json({ success: false, message: 'User not found' });
         if (user.verified) return res.status(400).json({ success: false, message: 'Already verified' });
 
-        const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
+        const code = Math.floor(100000 + Math.random() * 900000).toString();// 6 digits
+        const htmlContent =  `
+          <div style="
+              font-family: system-ui, -apple-system, sans-serif;
+              background: linear-gradient(135deg, #1e3a8a, #2563eb, #60a5fa);
+              color: white;
+              text-align: center;
+              padding: 40px 20px;
+              border-radius: 12px;
+          ">
+              <!-- Logo -->
+              <div style="margin-bottom: 20px;">
+                  <svg viewBox="0 0 100 100" width="80" height="80" xmlns="http://www.w3.org/2000/svg">
+                      <defs>
+                          <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                              <stop offset="0%" stop-color="#1e3a8a" />
+                              <stop offset="50%" stop-color="#2563eb" />
+                              <stop offset="100%" stop-color="#60a5fa" />
+                          </linearGradient>
+                      </defs>
+                      <path
+                          d="M50 10 L85 30 L85 70 L50 90 L15 70 L15 30 Z"
+                          fill="url(#hexGradient)"
+                      />
+                      <text
+                          x="50"
+                          y="68"
+                          text-anchor="middle"
+                          fill="white"
+                          font-size="48"
+                          font-family="system-ui, -apple-system, sans-serif"
+                          font-weight="900"
+                      >
+                          SNITCH
+                      </text>
+                  </svg>
+              </div>
+        
+              <h1 style="font-size: 28px; margin-bottom: 10px;">Email Verification</h1>
+              <p style="font-size: 16px; opacity: 0.9; margin-bottom: 30px;">
+                  Please use the code below to verify your Snitch account.
+              </p>
+        
+              <div style="
+                  display: inline-block;
+                  background: white;
+                  color: #1e3a8a;
+                  font-size: 32px;
+                  font-weight: bold;
+                  letter-spacing: 4px;
+                  padding: 15px 30px;
+                  border-radius: 8px;
+                  margin-bottom: 30px;
+              ">
+                  ${code}
+              </div>
+        
+              <p style="font-size: 14px; opacity: 0.8;">
+                  This code will expire in 5 minutes. If you didn’t request this, please ignore this email.
+              </p>
+          </div>
+          `;
         // Save hashed code and timestamp as Date
         user.verificationCode = hmacProcess(code);
         user.verificationCodeValidation = new Date();
         await user.save();
 
-        const html = `<div style="font-family:Arial,sans-serif">
-      <h2>Snitch — Verification Code</h2>
-      <p>Your verification code is:</p>
-      <div style="font-size:28px;font-weight:700">${code}</div>
-      <p>This code expires in 10 minutes.</p>
-    </div>`;
 
         await transport.sendMail({
             from: process.env.NODE_CODE_SENDING_EMAIL_ADDRESS,
             to: email,
             subject: 'Your Snitch verification code',
-            html,
+            html: htmlContent,
         });
 
         res.json({ success: true, message: 'Code sent' });
@@ -105,22 +160,77 @@ router.post('/send-forgot-password-code', async (req, res) => {
         if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
         const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const htmlContent =  `
+          <div style="
+              font-family: system-ui, -apple-system, sans-serif;
+              background: linear-gradient(135deg, #1e3a8a, #2563eb, #60a5fa);
+              color: white;
+              text-align: center;
+              padding: 40px 20px;
+              border-radius: 12px;
+          ">
+              <!-- Logo -->
+              <div style="margin-bottom: 20px;">
+                  <svg viewBox="0 0 100 100" width="80" height="80" xmlns="http://www.w3.org/2000/svg">
+                      <defs>
+                          <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                              <stop offset="0%" stop-color="#1e3a8a" />
+                              <stop offset="50%" stop-color="#2563eb" />
+                              <stop offset="100%" stop-color="#60a5fa" />
+                          </linearGradient>
+                      </defs>
+                      <path
+                          d="M50 10 L85 30 L85 70 L50 90 L15 70 L15 30 Z"
+                          fill="url(#hexGradient)"
+                      />
+                      <text
+                          x="50"
+                          y="68"
+                          text-anchor="middle"
+                          fill="white"
+                          font-size="48"
+                          font-family="system-ui, -apple-system, sans-serif"
+                          font-weight="900"
+                      >
+                          SNITCH
+                      </text>
+                  </svg>
+              </div>
+        
+              <h1 style="font-size: 28px; margin-bottom: 10px;">Email Verification</h1>
+              <p style="font-size: 16px; opacity: 0.9; margin-bottom: 30px;">
+                  Please use the code below to verify your Snitch account.
+              </p>
+        
+              <div style="
+                  display: inline-block;
+                  background: white;
+                  color: #1e3a8a;
+                  font-size: 32px;
+                  font-weight: bold;
+                  letter-spacing: 4px;
+                  padding: 15px 30px;
+                  border-radius: 8px;
+                  margin-bottom: 30px;
+              ">
+                  ${code}
+              </div>
+        
+              <p style="font-size: 14px; opacity: 0.8;">
+                  This code will expire in 5 minutes. If you didn’t request this, please ignore this email.
+              </p>
+          </div>
+          `;
         user.forgotPasswordCode = hmacProcess(code);
         user.forgotPasswordCodeValidation = new Date();
         await user.save();
 
-        const html = `<div style="font-family:Arial,sans-serif">
-      <h2>Password reset</h2>
-      <p>Use the following code to reset your password:</p>
-      <div style="font-size:28px;font-weight:700">${code}</div>
-      <p>This code expires in 10 minutes.</p>
-    </div>`;
 
         await transport.sendMail({
             from: process.env.NODE_CODE_SENDING_EMAIL_ADDRESS,
             to: email,
             subject: 'Your password reset code',
-            html,
+            html: htmlContent,
         });
 
         res.json({ success: true, message: 'Reset code sent' });
