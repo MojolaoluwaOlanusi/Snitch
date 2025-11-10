@@ -18,6 +18,13 @@ export interface UserDocument extends Document {
     verificationCodeValidation?: Date;
     forgotPasswordCode?: string;
     forgotPasswordCodeValidation?: Date;
+    adminInvite: {
+        codeHash: String,
+        createdAt: Date,
+        expiresAt: Date,
+        issuedBy: Schema.Types.ObjectId,
+        targetEmail: String
+    };
 }
 
 const UserSchema = new Schema<UserDocument>({
@@ -42,6 +49,13 @@ const UserSchema = new Schema<UserDocument>({
     forgotPasswordCode: { type: String, select: false },
     forgotPasswordCodeValidation: { type: Date, select: false },
     createdAt: { type: Date, default: Date.now },
+    adminInvite: {
+        codeHash: String,
+        createdAt: Date,
+        expiresAt: Date,
+        issuedBy: Schema.Types.ObjectId,
+        targetEmail: String
+    },
 });
 
 export const User = model<UserDocument>('User', UserSchema);

@@ -13,6 +13,12 @@ import { Profile } from './components/pages/Profile';
 import { ComposeTweet } from './components/ComposeTweet';
 import { NoInternet } from './components/NoInternet';
 import { FeedSkeleton } from './components/LoadingSkeleton';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import AdminLogin from './components/pages/Admin/LoginAdmin';
+import AdminDashboard from './components/pages/Admin/Dashboard';
+// ... other imports
+
+
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -77,6 +83,14 @@ export default function App() {
     switch (currentPage) {
       case 'home':
         return <SnitchHome onPostClick={handlePostClick} theme={theme} />;
+        case 'admin':
+            return (<BrowserRouter>
+                <Routes>
+                    <Route path="/admin" element={<AdminLogin />} />
+                    <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                    {/* other routes */}
+                </Routes>
+            </BrowserRouter>);
       case 'discover':
         return <SnitchDiscover onPostClick={handlePostClick} theme={theme} />;
       case 'warps':

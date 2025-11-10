@@ -171,5 +171,63 @@ router.get('/admins', async (req, res) => {
     }
 });
 
+// Generate a six-digit admin invite code (expires in 15 minutes)
+// POST /api/admin/generate-invite  { email (optional), expiresMinutes: number }
+router.post('/generate-invite', auth, requireAdmin, async (req,res)=>{
+    const expiresMinutes = Number(req.body.expiresMinutes) || 15;
+    const targetEmail = req.body.email || null; // optional - email to tie code to
+    const code = String(Math.floor(100000 + Math.random()*900000)); // 6 digits
+    const hash = crypto.createHmac('sha256', process.env.HMAC_VERIFICATION_CODE_SECRET || 'devsecret')
+        .update(code).digest('hex');
+    // store invite as subdocument on admin user or a tiny collection; simplest: store on issuing admin user
+    const invite = {
+        codeHash: hash,
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + expiresMinutes * 60 * 1000),
+        issuedBy: req.userId,
+        targetEmail,
+    };
+    // ensure req.user exists
+    (req.user as any).adminInvite = invite;
+    await (req.user as any).save();
+    // return raw code to admin (they will share it)
+    res.json({ ok: true, code, expiresAt: invite.expiresAt });
+});
+
+// Accept an invite: POST /api/admin/accept-invite { email, code }
+// If code matches any active invite stored on some admin user and (optional) email matches, set that user isAdmin=true
+router.post('/accept-invite', auth, async (req,res)=>{
+    const { code } = req.body;
+    if(!code) return res.status(400).json({ error:'missing_code' });
+
+    // iterate admin users with non-expired invites
+    const admins = await User.find({ isAdmin: true, 'adminInvite.expiresAt': { $gt: new Date() } });
+    const codeHash = crypto.createHmac('sha256', process.env.HMAC_VERIFICATION_CODE_SECRET || 'devsecret')
+        .update(String(code)).digest('hex');
+
+    // find matching invite (simple approach)
+    let matchedAdmin:any = null;
+    for(const a of admins){
+        const inv:any = (a as any).adminInvite;
+        if(!inv) continue;
+        if(inv.codeHash === codeHash && inv.expiresAt > new Date()){
+            matchedAdmin = a;
+            break;
+        }
+    }
+    if(!matchedAdmin) return res.status(404).json({ error:'invalid_or_expired_code' });
+
+    // set current user as admin
+    const me = await User.findById(req.userId);
+    if(!me) return res.status(404).json({ error:'user_not_found' });
+    me.isAdmin = true;
+    // clear invites on matched admin (optional)
+    matchedAdmin.adminInvite = undefined;
+    await matchedAdmin.save();
+    await me.save();
+    res.json({ ok: true, message: 'You are now an admin' });
+});
+
+
 // @ts-ignore
 export default router;

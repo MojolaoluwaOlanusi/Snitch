@@ -107,6 +107,20 @@ router.post('/send-verification-code', async (req, res) => {
         });
 
         res.json({ success: true, message: 'Code sent' });
+        let message = "Failed to send verification code.";
+
+        // Custom error hints
+        if (error.code === "EAUTH") {
+            message =
+                "Invalid SMTP credentials. Please check your Gmail app password or environment variables.";
+        } else if (error.message.includes("Missing credentials")) {
+            message =
+                "Missing SMTP credentials. Ensure SMTP_USER and SMTP_PASS are defined.";
+        } else if (error.code === "ECONNECTION") {
+            message = "Could not connect to the mail server. Check your network or SMTP_HOST.";
+        }
+
+        return res.status(500).json({ success: false, message });
     } catch (err: any) {
         console.error(err);
         res.status(500).json({ success: false, message: err.message });
