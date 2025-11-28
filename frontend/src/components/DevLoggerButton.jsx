@@ -35,7 +35,7 @@ export default function DevLoggerButton() {
     <>
       <button
         onClick={handleExport}
-        className="fixed bottom-5 right-5 bg-indigo-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-indigo-700 z-50 transition"
+        className="fixed bottom-50 right-50 bg-white-600 text-indigo px-4 py-2 rounded-full shadow-lg hover:bg-indigo-700 z-50 transition"
       >
         🧠 Export Logs
       </button>

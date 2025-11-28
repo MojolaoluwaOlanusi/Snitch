@@ -3,7 +3,8 @@ import axios from 'axios';
 
 // @ts-ignore
 const api = axios.create({
-    baseURL: process.env.VITE_API_BASE_URL || 'http://localhost:4500/api',
+    // @ts-ignore
+    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4500/api',
     withCredentials: true,
 });
 

@@ -155,7 +155,7 @@ export function Profile({ onTweetClick, onBack, accountType = 'personal', accoun
               </svg>
             </div>
             <div className="text-gray-500 mb-3">@johndoe</div>
-            
+
             {/* Account Type and Status Badges */}
             <div className="flex items-center gap-2 mb-3">
               <Badge variant="outline" className={`flex items-center gap-1 ${getAccountTypeColor()}`}>
