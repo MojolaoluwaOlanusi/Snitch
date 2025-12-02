@@ -1,15 +1,15 @@
 # === Stage 1: Build ===
-FROM node:20-alpine AS builder
+FROM alpine:latest AS builder
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+# RUN npm ci
 
 COPY . .
-RUN npm run build
+# RUN npm run build
 
 # === Stage 2: Serve with nginx ===
-FROM nginx:1.27-alpine
+FROM nginx:latest
 
 # Remove default nginx static files
 RUN rm -rf /usr/share/nginx/html/*

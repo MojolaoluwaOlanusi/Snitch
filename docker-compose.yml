@@ -1,56 +1,56 @@
 version: '3.8'
 services:
-  mongo:
-    image: mongo:6.0
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
+  # mongo:
+  #   image: mongo:latest
+  #   restart: unless-stopped
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - mongo-data:/data/db
 
   redis:
-    image: redis:7.0
+    image: redis:latest
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "6378:6378"
 
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-06-05T00-00-00Z
+    image: quay.io/minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio123
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9002:9002"
+      - "9003:9003"
     volumes:
       - minio-data:/data
 
   backend:
     build: ./backend
     environment:
-      - MONGO_URI=mongodb+srv://Mojolaoluwa:Darasimi_2010@xagjpbm.mongodb.net/?retryWrites=true&w=majority
+      - MONGO_URI=process.env.MONGO_URI
       - REDIS_URL=redis://default:XhAmQXFNSrLez0F9Wd0sioDlmmT5dtiZ@redis-14756.c258.us-east-1-4.ec2.redns.redis-cloud.com:14756
       - S3_ENDPOINT=http://minio:9000
       - AWS_ACCESS_KEY_ID=minio
       - AWS_SECRET_ACCESS_KEY=minio123
-      - PORT=4000
+      - PORT=4500
     ports:
-      - "4000:4000"
+      - "4500:4500"
     depends_on:
-      - mongo
+      # - mongo
       - redis
       - minio
 
   frontend:
     build: ./frontend
     environment:
-      - VITE_API_BASE=http://localhost:4000
+      - VITE_API_BASE=http://localhost:4500
     ports:
       - "5173:5173"
     depends_on:
       - backend
 
 volumes:
-  mongo-data:
+  # mongo-data:
   minio-data:

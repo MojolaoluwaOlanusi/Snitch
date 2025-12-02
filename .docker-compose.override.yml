@@ -10,13 +10,13 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
-      - PORT=4000
-      - MONGO_URI=mongodb://mongo:27017/snitch
-    command: npm run dev
+      - PORT=4500
+      - MONGO_URI=process.env.MONGO_URI
+    # command: npm run dev
     ports:
-      - "4000:4000"
+      - "4500:4500"
     depends_on:
-      - mongo
+      # - mongo
 
   frontend:
     build:
@@ -27,20 +27,20 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
-      - VITE_API_URL=http://localhost:4000/api
-    command: npm run dev
+      - VITE_API_URL=http://localhost:4500/api
+    # command: npm run dev
     ports:
       - "5173:5173"
     depends_on:
       - backend
 
-  mongo:
-    image: mongo:7
-    restart: always
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
+  # mongo:
+  #   image: mongo:latest
+  #   restart: always
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - mongo-data:/data/db
 
 volumes:
-  mongo-data:
+  # mongo-data:
