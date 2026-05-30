@@ -14,9 +14,9 @@ function HomePage() {
     return (
         <div className="w-full flex flex-col md:flex-row h-screen">
             <Sidebar/>
-            <div className="flex-col items-center bg-white blue-200 rounded-lg w-full h-screen">
+            <div className="flex-col items-center bg-white  rounded-lg w-full h-screen">
                 <div className="items-center justify-items-center">
-                    <header className="items-center justify-content w-full">
+                    <header className="items-center justify-center w-full">
                         <div className='flex w-full border-b border-gray-300'>
                             <div
                                 className={

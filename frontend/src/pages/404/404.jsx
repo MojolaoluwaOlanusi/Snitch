@@ -8,7 +8,11 @@ const NotFoundPage = () => {
 			style={{ backgroundImage: `url('/404.png')` }}
 		>
             <div className="top-0 left-0 absolute">
-                <Link to={"/"} className="items-center justify-center content-center">
+                <Link
+                    to={"/"}
+                    className="items-center justify-center content-center"
+                    aria-label="Go to home page"
+                >
                 <SnitchLogoSmall />
             </Link>
             </div>

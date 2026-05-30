@@ -35,6 +35,7 @@ export default function App() {
           <Route path="/posts" element={<Layout><Posts /></Layout>} />
           <Route path="/events" element={<Layout><Events /></Layout>} />
           <Route path="/settings" element={<Layout><Settings /></Layout>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </>
       ) : (
         <Route path="*" element={<Navigate to="/login" />} />

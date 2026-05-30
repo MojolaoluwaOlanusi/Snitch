@@ -1,30 +1,6 @@
 import {useChatStore} from "@/store/useChatStore";
 import Sidebar from "../../components/common/Sidebar";
-import {useAuthStore} from "@/store/useAuthStore";
 import {SnitchLogo} from "@/components/svgs/snitch";
-
-const ChatPage =  () => {
-
-    const { authUser} = useAuthStore();
-
-    const formatTime = (date) => {
-        return new Date(date).toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-        });
-    };
-
-    return (
-        <div className="w-full flex flex-col md:flex-row h-screen">
-            <Sidebar/>
-            <div className="flex-col items-center bg-white rounded-lg w-full h-screen">
-                <p>Hello  this is a chat upgrade!!!</p>
-            </div>
-        </div>
-    );
-}
-export default ChatPage;
 
 const NoConversationPlaceholder = () => (
     <div className="flex flex-col items-center justify-center h-full space-y-6">
@@ -35,3 +11,16 @@ const NoConversationPlaceholder = () => (
         </div>
     </div>
 );
+
+const ChatPage =  () => {
+
+    return (
+        <div className="w-full flex flex-col md:flex-row h-screen">
+            <Sidebar/>
+            <div className="flex-col items-center bg-white rounded-lg w-full h-screen">
+                <NoConversationPlaceholder />
+            </div>
+        </div>
+    );
+}
+export default ChatPage;

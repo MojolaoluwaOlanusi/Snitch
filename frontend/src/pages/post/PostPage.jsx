@@ -57,7 +57,7 @@ const PostPage = () => {
                             </div>
                         )}
                         <div className="rounded-l-lg p-4">
-                            <text className="text-black font-bold font-sans rounded-lg">{singlePost?.text}</text>
+                            <p className="text-black font-bold font-sans rounded-lg">{singlePost?.text}</p>
                         </div>
                     </div>
                 )

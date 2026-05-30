@@ -42,7 +42,7 @@ const NotificationPage = () => {
                             <li>
                                 <button
                                     onClick={deleteNotifications}
-                                    disabled={notifications?.length === 0}
+                                    disabled={isGettingNotifications || !notifications || notifications.length === 0}
                                     className="text-red-500"
                                 >
                                     Delete all notifications

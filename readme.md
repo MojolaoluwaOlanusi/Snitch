@@ -18,7 +18,7 @@ This README combines: quick start & CI info, a concise socket event contract sum
   - [Typing / presence](#typing--presence)
   - [Reactions](#reactions)
   - [WebRTC signaling & call lifecycle](#webrtc-signaling--call-lifecycle)
-  - [Call control events](#call-control-events)
+  - [Call control events](`#call-control-events-client---server`)
 - [TypeScript API types (copy into frontend)](#typescript-api-types-copy-into-frontend)
 - [HTTP presign endpoint (upload to MINIO / S3)](#http-presign-endpoint-upload-to-minio--s3)
 - [Contributing & notes](#contributing--notes)
@@ -191,10 +191,11 @@ Example: get a presigned PUT URL
 
 ```bash
 curl -X POST \ 
-  -H "Authorization: Bearer $TOKEN" \ 
-  -H "Content-Type: application/json" \ 
-  -d '{"filename":"video.mp4","contentType":"video/mp4","size":123456}' \ 
-  https://api.example.com/api/media/presign
+        curl -X POST \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{"filename":"video.mp4","contentType":"video/mp4","size":123456}' \
+   https://api.example.com/api/media/presign
 ```
 
 Client upload (PUT)

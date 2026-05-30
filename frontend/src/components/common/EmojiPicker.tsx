@@ -39,7 +39,19 @@ const EmojiPicker: React.FC<Props> = ({ inputRef, value, setValue }) => {
     // Load recent emojis
     useEffect(() => {
         const stored = localStorage.getItem("recentEmojis");
-        if (stored) setRecent(JSON.parse(stored));
+        try {
+            const stored = localStorage.getItem("recentEmojis");
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (Array.isArray(parsed)) {
+                    setRecent(parsed);
+                } else {
+                    setRecent([]);
+                }
+            }
+        } catch (err) {
+            setRecent([]);
+        }
     }, []);
 
     const saveRecent = (emoji: string) => {

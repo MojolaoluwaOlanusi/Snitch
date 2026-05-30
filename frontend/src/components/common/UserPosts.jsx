@@ -65,13 +65,9 @@ const UserPosts = () => {
                 </div>
             )}
             {!isGettingUserPosts && userPosts?.length === 0 && (
-                <p className="text-center my-4">No posts yet</p>
-            )}
-            {!isGettingUserPosts && isMyProfile && userPosts?.length === 0 && (
-                <p className='text-center my-4'>You don't have any Posts. Create a post today 😍 </p>
-            )}
-            {!isGettingUserPosts && !isMyProfile && userPosts?.length === 0 && (
-                <p className='text-center my-4'>This User doesn't have any posts 😔 </p>
+                <p className='text-center my-4'>
+                    {isMyProfile === true ? "You don't have any Posts. Create a post today 😍" : isMyProfile === false ? "This User doesn't have any posts 😔" : "No posts yet"}
+                </p>
             )}
             {!isGettingUserPosts && userPosts && (
                 <div className="overflow-auto w-full h-screen">

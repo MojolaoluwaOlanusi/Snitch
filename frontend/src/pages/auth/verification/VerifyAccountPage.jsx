@@ -19,7 +19,7 @@ function ForgotPasswordPage() {
                 <div className="w-full flex flex-col md:flex-row bg-white rounded-2xl">
                     <div className="p-20 flex items-center justify-center md:border-r bg-">
                         <div className="w-full max-w-md">
-                            <Link to={`/profile/${authUser?.username}`}>
+                            <Link to={authUser?.username ? `/profile/${authUser.username}` : "/"}>
                                 <FaArrowLeft className='w-4 h-4' />
                             </Link>
                             {/* HEADING TEXT */}

@@ -52,9 +52,12 @@ const EditProfileModal = ({ authUser }) => {
 						onSubmit={(e) => {
 							e.preventDefault();
 							updateProfile(formData);
-                            if (changePasswordData.oldPassword !== ""){
-                                changePassword(changePasswordData);
-                            }
+							// only attempt a password change when both fields are provided (non-empty after trimming)
+							const oldPwd = (changePasswordData.oldPassword || '').trim();
+							const newPwd = (changePasswordData.newPassword || '').trim();
+							if (oldPwd.length > 0 && newPwd.length > 0) {
+								changePassword({ oldPassword: oldPwd, newPassword: newPwd });
+							}
 						}}
 					>
 						<div className='flex flex-wrap gap-2'>

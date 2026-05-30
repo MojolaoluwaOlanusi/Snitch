@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import api from '../lib/api';
+import api, { setAuthToken } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
-const accessToken = '8faf706b7031dec317d2b87357ab5bb179a11ed0e4ee1874d4f272be0f0c6f25bdd944d5024fa7546c5d9dbedd3c5e859ab06c6c54379095cb9e052e3b19f203';
-
 
 export default function AdminLogin(){
   const [email,setEmail]=useState('');
@@ -12,12 +10,14 @@ export default function AdminLogin(){
   async function submit(e:any){
     e.preventDefault();
     try {
-      const r = await api.post('/auth/login',{email,password,Headers: {
-        'Authorization': `Bearer ${accessToken}`
-      }
-      });
-      localStorage.setItem('adminToken',r.data.token);
-      nav('/');
+        const r = await api.post('/auth/login', { email, password });
+        const token = r.data?.token;
+        if (token) {
+          setAuthToken(token);
+          nav('/');
+        } else {
+          alert('Login succeeded but no token returned');
+        }
     } catch(e:any){ alert(e?.response?.data?.message || String(e)); }
   }
 

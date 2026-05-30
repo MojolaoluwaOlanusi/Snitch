@@ -17,7 +17,7 @@ function ForgotPasswordPage() {
         <div className="bg-blue-200 flex items-center justify-center">
             <div className="flex items-center justify-center py-40 px-40">
                 <div className="w-full flex flex-col md:flex-row bg-white rounded-2xl">
-                    <div className="p-20 flex items-center justify-center md:border-r bg-">
+                    <div className="p-20 flex items-center justify-center md:border-r">
                         <div className="w-full max-w-md">
                             {/* HEADING TEXT */}
                             <div className="text-center mb-8 w-[350px]">

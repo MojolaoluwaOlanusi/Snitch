@@ -1,17 +1,19 @@
+import { useId } from 'react';
 export function SnitchLogo({ className = "w-32 h-32" }) {
+    const uid = useId().replace(/:/g, '');
     return (
         <div className={`${className} relative flex items-center justify-center`}>
             <svg viewBox="0 0 200 200" className="w-full h-full">
                 <defs>
-                    <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <linearGradient id={`hexGradient-${uid}`} x1="0%" y1="0%" x2="100%" y2="100%">
                         <stop offset="0%" stopColor="#1e3a8a" />
                         <stop offset="50%" stopColor="#2563eb" />
                         <stop offset="100%" stopColor="#60a5fa" />
                     </linearGradient>
-                    <filter id="shadow">
+                    <filter id={`shadow-${uid}`}>
                         <feDropShadow dx="0" dy="4" stdDeviation="6" floodOpacity="0.3" />
                     </filter>
-                    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <linearGradient id={`textGradient-${uid}`} x1="0%" y1="0%" x2="100%" y2="100%">
                         <stop offset="0%" stopColor="#ffffff" />
                         <stop offset="50%" stopColor="#e0f2fe" />
                         <stop offset="100%" stopColor="#bae6fd" />
@@ -21,8 +23,8 @@ export function SnitchLogo({ className = "w-32 h-32" }) {
                 {/* Hexagon Background */}
                 <path
                     d="M100 20 L170 60 L170 140 L100 180 L30 140 L30 60 Z"
-                    fill="url(#hexGradient)"
-                    filter="url(#shadow)"
+                    fill={`url(#hexGradient-${uid})`}
+                    filter={`url(#shadow-${uid})`}
                     className="transition-all duration-300"
                 />
 
@@ -74,7 +76,7 @@ export function SnitchLogo({ className = "w-32 h-32" }) {
                     }}
                 >
                     {/* Front layer with gradient */}
-                    <tspan fill="url(#textGradient)">SNITCH</tspan>
+                    <tspan fill={`url(#textGradient-${uid})`}>SNITCH</tspan>
                 </text>
             </svg>
         </div>
@@ -82,11 +84,12 @@ export function SnitchLogo({ className = "w-32 h-32" }) {
 }
 
 export function SnitchLogoSmall({ className = "w-10 h-10" }) {
+    const uid = useId().replace(/:/g, '');
     return (
         <div className={`${className} relative flex items-center justify-center`}>
             <svg viewBox="0 0 100 100" className="w-full h-full">
                 <defs>
-                    <linearGradient id="hexGradientSmall" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <linearGradient id={`hexGradientSmall-${uid}`} x1="0%" y1="0%" x2="100%" y2="100%">
                         <stop offset="0%" stopColor="#1e3a8a" />
                         <stop offset="50%" stopColor="#2563eb" />
                         <stop offset="100%" stopColor="#60a5fa" />
@@ -96,7 +99,7 @@ export function SnitchLogoSmall({ className = "w-10 h-10" }) {
                 {/* Hexagon */}
                 <path
                     d="M50 10 L85 30 L85 70 L50 90 L15 70 L15 30 Z"
-                    fill="url(#hexGradientSmall)"
+                    fill={`url(#hexGradientSmall-${uid})`}
                 />
 
                 {/* Letter S */}

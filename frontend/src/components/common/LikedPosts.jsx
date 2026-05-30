@@ -34,8 +34,9 @@ const LikedPosts = () => {
     };
 
     const reportFunction = (e, post) => {
-        setReportData(e.target.value);
-        reportPost({id: post?._id, reason: {reason: reportData}});
+        const val = e.target.value;
+        setReportData(val);
+        reportPost({ id: post?._id, reason: { reason: val } });
         setReportSelectVisible(false);
     }
 

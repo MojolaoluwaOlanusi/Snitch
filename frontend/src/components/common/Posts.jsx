@@ -47,7 +47,7 @@ const Posts = () => {
 
     useEffect(() => {
         getFollowingPosts();
-    }, [getPosts]);
+    }, [getFollowingPosts]);
 
     return (
 		<>

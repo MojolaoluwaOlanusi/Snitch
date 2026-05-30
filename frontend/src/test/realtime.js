@@ -1,6 +1,11 @@
 import { io } from 'socket.io-client';
 
-const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5OWM2YWFiZDA4MWVjNDAzZDFhNTc1MSIsImlhdCI6MTc3MjEwMzA3MywiZXhwIjoxNzcyNzA3ODczfQ.FGz_3tLQ82yiaYUM0NoH4f0sy9b7dUrPMe64ZeUuQbw";
+// Avoid hardcoding tokens in source. Prefer providing TEST_TOKEN in the environment when running tests
+// or have the token available in localStorage when running in a browser.
+const token = (typeof process !== 'undefined' && process.env && process.env.TEST_TOKEN)
+  || (typeof localStorage !== 'undefined' && localStorage.getItem('access-token'))
+  || '';
+
 const socket = io(process.env.CLIENT_SOCKET_URL || 'http://localhost:4500', {
     auth: { token }, // handshake auth
     transports: ['websocket'],
