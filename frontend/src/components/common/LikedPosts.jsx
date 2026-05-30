@@ -135,7 +135,7 @@ const LikedPosts = () => {
                                                             }}>
                                                                     <p className={`group-hover:text-gray-700 ${reportSelectVisible ? "hidden" : "flex"}`}>Report post</p>
                                                                     <select
-                                                                        value={reactData}
+                                                                        value={reportData}
                                                                         onChange={(e) => reportFunction(e, post)}
                                                                         className={`${reportSelectVisible ? "flex" : "hidden"}
                                                                          ${!reportSelectVisible ? "hidden" : "flex"}flex-auto`}
