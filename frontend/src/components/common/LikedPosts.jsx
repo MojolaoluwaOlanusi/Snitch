@@ -338,8 +338,9 @@ const LikedPosts = () => {
                                         <select
                                             value={reactData}
                                             onChange={(e) => {
-                                                setReactData(e.target.value);
-                                                reactToPost({id: post?._id , reaction: reactData});
+                                                const reaction = e.target.value;
+                                                setReactData(reaction);
+                                                reactToPost({id: post?._id, reaction});
                                             }}>
                                             <option></option>
                                             <option>👍</option>
