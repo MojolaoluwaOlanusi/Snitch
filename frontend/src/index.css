@@ -27,3 +27,132 @@
     @apply px-4 py-2 inline-block bg-blue-500/10 rounded-lg text-blue-400
     hover:text-blue-500 text-sm transition-colors;
 }
+
+/* Fixes for dialog modal centering and focus/backdrop rendering
+   - Ensure dialog.modals use a consistent backdrop color (semi-transparent black)
+   - Center the dialog content reliably
+   - Prevent very large focus rings from affecting the entire viewport when typing in modal inputs
+*/
+
+/* Use the dialog::backdrop to set semi-transparent black backdrop across browsers */
+dialog.modal::backdrop {
+  background-color: rgba(0,0,0,0.6) !important;
+}
+
+/* Ensure the in-DOM modal-backdrop used by daisyUI also uses the same dark overlay */
+.modal-backdrop {
+  background-color: rgba(0,0,0,0.6) !important;
+  z-index: 998 !important;
+}
+
+/* Bring modal itself above other content */
+dialog.modal, .modal {
+  z-index: 9999 !important;
+}
+
+/* Prevent .input background from coloring the whole modal/backdrop area.
+   Force inputs/textareas inside modal to use a neutral background. */
+dialog.modal .input,
+dialog.modal input.input,
+dialog.modal textarea.input,
+dialog.modal input,
+dialog.modal textarea {
+  background-color: #fff !important;
+  color: inherit !important;
+}
+
+/* Also make sure any focus ring inside the modal doesn't create a large spread */
+dialog.modal :focus {
+  box-shadow: none !important;
+  outline: 2px solid transparent !important;
+}
+
+/* Ensure the dialog container centers its contents */
+dialog.modal {
+  display: grid; /* daisyUI uses grid but reinforce it */
+  place-items: center;
+}
+
+/* Ensure the modal-box inside dialog is centered and has sensible max-width */
+dialog.modal .modal-box {
+  margin: 0 auto;
+  width: auto;
+  max-width: 40rem; /* keep modal a reasonable width */
+}
+
+/* Prevent heavy focus rings or ring spread from inputs inside open dialogs (stops the large blue fill/flicker) */
+dialog.modal input:focus,
+dialog.modal textarea:focus,
+dialog.modal .input:focus {
+  outline: 2px solid transparent !important;
+  box-shadow: none !important;
+}
+
+/* Snitch modal specific overrides (portal-based modal) */
+.snitch-modal-wrapper {
+  position: fixed !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 99999 !important; /* increase to topmost */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.snitch-modal-backdrop {
+  background-color: rgba(0,0,0,0.6) !important;
+  position: fixed !important;
+  inset: 0 !important;
+  pointer-events: auto;
+  will-change: opacity;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.snitch-modal-box {
+  position: relative;
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+  pointer-events: auto;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+  will-change: transform, opacity;
+}
+
+/* Prevent any backdrop-filter or heavy paint from being applied inside the modal */
+.snitch-modal-wrapper,
+.snitch-modal-backdrop,
+.snitch-modal-box {
+  -webkit-filter: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* ensure inputs inside snitch modal are white and don't create large focus rings */
+.snitch-modal-wrapper .snitch-modal-box input,
+.snitch-modal-wrapper .snitch-modal-box textarea,
+.snitch-modal-wrapper .snitch-modal-box .input {
+  background-color: #fff !important;
+  box-shadow: none !important;
+  -webkit-appearance: none !important;
+}
+
+.snitch-modal-wrapper .snitch-modal-box input:focus,
+.snitch-modal-wrapper .snitch-modal-box textarea:focus,
+.snitch-modal-wrapper .snitch-modal-box .input:focus {
+  outline: 2px solid transparent !important;
+  box-shadow: none !important;
+}
+
+/* Disable autofill yellow/blue backgrounds in webkit inside modal inputs */
+.snitch-modal-box input:-webkit-autofill,
+.snitch-modal-box textarea:-webkit-autofill,
+.snitch-modal-box .input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+  box-shadow: 0 0 0 1000px #fff inset !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+/* end of adjustments */

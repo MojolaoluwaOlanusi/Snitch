@@ -6,53 +6,74 @@ import CreatePostRightPanel from "../../components/common/CreatePostRightPanel";
 import {LoaderIcon} from "lucide-react";
 import {useMediaStore} from "../../store/useMediaStore";
 import axiosInstance from "../../lib/axios";
+import MediaSelector from '../../components/common/MediaSelector';
 
 function CreatePostPage () {
     const [formData, setFormData] = useState({ text: "", isWarp: false, url: "", mediaType: "", mentions: [], hashtags: []});
     const { isCreatingPost, createPost, getAllUsers, users } = useUserStore();
     const { authUserId } = useAuthStore();
 
-    const [uploadUrlData, setUploadUrlData] = useState({ contentType: "", folder: "" });
     const [file, setFile] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState("");
 
-    async function uploadFile(data) {
-        const token = localStorage.getItem('access-token');
-        const res = await axiosInstance.post("/media/upload-url", data, {
-            headers: {
-                "Authorization": `Bearer ${token}`
-            }
-        });
+    const handleFileSelect = (f) => {
+        setFile(f);
+        const url = URL.createObjectURL(f);
+        setPreviewUrl(url);
+        const type = f.type ? f.type.split('/')[0] : null;
+        const mediaType = type === 'image' ? 'Image' : type === 'video' ? 'Video' : type === 'audio' ? 'Audio' : '';
+        setFormData((prev) => ({ ...prev, mediaType }));
+    };
 
-        const publicUrl = res.data.publicUrl;
-        const uploadUrl = res.data.uploadUrl;
-
-        localStorage.setItem("uploadUrl", uploadUrl);
-
-        setFormData({...formData, url: publicUrl});
-    }
-
-    const handleFileChange = async (event) => {
-        setFile(event.target.files[0]);
-        await uploadFile(uploadUrlData);
+    const handleRemoveFile = () => {
+        if (previewUrl && previewUrl.startsWith('blob:')) URL.revokeObjectURL(previewUrl);
+        setFile(null);
+        setPreviewUrl("");
+        setFormData((prev) => ({ ...prev, mediaType: '', url: '' }));
     };
 
     const isWarpTrue = useCallback((e) => {
         e.preventDefault();
-        setFormData({ ...formData, isWarp: true })
-    }, [formData]);
+        setFormData((prev) => ({ ...prev, isWarp: true }))
+    }, []);
 
     const isWarpFalse = useCallback((e) => {
         e.preventDefault();
-        setFormData({ ...formData, isWarp: false })
-    }, [formData]);
+        setFormData((prev) => ({ ...prev, isWarp: false }))
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const uploadUrl = localStorage.getItem("uploadUrl");
-        await axiosInstance.put(uploadUrl, file);
-        await createPost(formData);
-        setFile(null);
-        setFormData({ text: "", mediaType: "", isWarp: false, url: "", mentions: [], hashtags: [] });
+        try {
+            // if there's a file, request upload url then put file
+            if (file) {
+                const contentType = file.type;
+                // choose folder based on mediaType (fallback to Images)
+                const folder = formData.mediaType === 'Audio' ? 'Audio' : formData.mediaType === 'Video' ? 'Videos' : 'Images';
+                const token = localStorage.getItem('access-token');
+                const res = await axiosInstance.post('/media/upload-url', { contentType, folder }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const publicUrl = res.data.publicUrl;
+                const uploadUrl = res.data.uploadUrl;
+                // upload file to presigned url
+                await axiosInstance.put(uploadUrl, file, { headers: { 'Content-Type': contentType } });
+                // set the url in payload
+                const payload = { ...formData, url: publicUrl };
+                await createPost(payload);
+            } else {
+                // no file
+                await createPost(formData);
+            }
+
+            // reset
+            if (previewUrl && previewUrl.startsWith('blob:')) URL.revokeObjectURL(previewUrl);
+            setFile(null);
+            setPreviewUrl("");
+            setFormData({ text: "", mediaType: "", isWarp: false, url: "", mentions: [], hashtags: [] });
+        } catch (err) {
+            console.error('Create post failed', err);
+        }
     };
 
     useEffect(() => {
@@ -62,7 +83,7 @@ function CreatePostPage () {
     return (
         <div className="w-full flex flex-col md:flex-row h-screen">
             <Sidebar/>
-            <div className=" sticky flex-col items-center bg-white rounded-lg w-full h-full p-4">
+            <div className=" sticky flex-col items-center bg-base-100 rounded-lg w-full h-full p-4 overflow-auto">
                 <div className="space-y-5">
                     <div>
 
@@ -73,49 +94,26 @@ function CreatePostPage () {
                         <form className="flex flex-col gap-2 w-full" onSubmit={handleSubmit}>
 
                             <div className="rounded-lg ">
-                                <p className="text-gray-700 text-bold text-1xl">Select a MediaType below</p>
-                                <select className="select w-40 h-[30px] p-2 resize-none  bg-gray-200 focus:outline-none  border-blue-400 items-center"
-                                        value={formData.mediaType}
-                                        onChange={(e) => {
-                                            setFormData({...formData, mediaType: e.target.value})
-                                            if (e.target.value === "Audio") {
-                                                setUploadUrlData({...uploadUrlData, contentType: ".mp3", folder: "Audio" });
-                                            }
-                                            if (e.target.value === "Video") {
-                                                setUploadUrlData({...uploadUrlData, contentType: ".mp4", folder: "Videos" });
-                                            }
-                                            if (e.target.value === "Image") {
-                                                setUploadUrlData({...uploadUrlData, contentType: ".png", folder: "Images" });
-                                            }
-                                            if (e.target.value === "None") {
-                                                setUploadUrlData({...uploadUrlData, contentType: ".txt" });
-                                            }
-                                        }}
-                                >
-                                    <option>Select a MediaType</option>
-                                    <option>None</option>
-                                    <option>Audio</option>
-                                    <option>Video</option>
-                                    <option>Image</option>
-                                </select>
-                            </div>
-                            <div className="rounded-lg ">
-                                <p className="text-gray-700 text-bold text-1xl">Enter your post content</p>
-                                <textarea
-                                    name={authUserId}
-                                    className='textarea w-full h-[270px] text-lg resize-none border-none bg-gray-200 p-2 focus:outline-none  border-gray-800'
-                                    placeholder='What do you have to say today.'
-                                    value={formData.text}
-                                    onChange={(e) => setFormData({ ...formData, text: e.target.value })}
-                                />
+                                <div className="rounded-lg ">
+                                    <p className="text-gray-700 text-bold text-1xl">Enter your post content</p>
+                                    <textarea
+                                        name={authUserId}
+                                        className='textarea w-full h-[270px] text-lg resize-none border-none bg-base-100 p-2 focus:outline-none  border-gray-800'
+                                        placeholder='What do you have to say today.'
+                                        value={formData.text}
+                                        onChange={(e) => setFormData({ ...formData, text: e.target.value })}
+                                    />
+                                </div>
                             </div>
                             <div>
                                 <p className="text-gray-700 text-bold text-1xl">Select Media</p>
-                                <div className="justify-center justify-items-center">
-                                    <div className="rounded-lg w-full h-14 bg-gray-200 justify-center justify-items-center flex ">
-                                        <input type='file' onChange={handleFileChange} className="py-3 px-4" />
-                                    </div>
-                                </div>
+                                <MediaSelector
+                                    file={file}
+                                    previewUrl={previewUrl}
+                                    onSelect={handleFileSelect}
+                                    onRemove={handleRemoveFile}
+                                    buttonLabel={'Select Media'}
+                                />
                             </div>
                             <div className="items-center">
                                 <div className="flex flex-row justify-between">
@@ -149,7 +147,7 @@ function CreatePostPage () {
                                         >
                                             <option disabled={true}>Mention someone</option>
                                             {users?.map((user) => (
-                                                <option>{user?.username}</option>
+                                                <option key={user?._id}>{user?.username}</option>
                                             ))}
                                         </select>
                                     </div>
