@@ -14,10 +14,11 @@ import EditPostModal from "../../components/common/EditPostModal";
 
 const FollowingPosts = () => {
 
-    const {isDeleting, isReacting, getPosts, isLiking,
+    const {isReacting, getPosts, isLiking,
         isReposting, isCommenting,likePost, likedPost, deletePost, isEditing,
         reactToPost, reactedToPost, getFollowingPosts, isGettingFollowingPosts, followingPosts,
-        commentPost,repost, reposted, reportPost, isReporting
+        commentPost,repost, reposted, reportPost,
+        editingPostId, deletingPostId, reportingPostId
     } = useUserStore();
     const {authUserId} = useAuthStore();
 
@@ -84,10 +85,10 @@ const FollowingPosts = () => {
                                                     className="btn btn-ghost btn-sm"
                                                     aria-label="Post functions"
                                                 >
-                                                    {isEditing && <LoadingSpinner size='sm'/>}
-                                                    {isDeleting && <LoadingSpinner size='sm' />}
-                                                    {isReporting && <LoadingSpinner size='sm' />}
-                                                    {!isEditing && !isDeleting && !isReporting && <MoreHorizontal className="h-5 w-5" />}
+                                                    {(editingPostId === post?._id) && <LoadingSpinner size='sm'/>}
+                                                    {(deletingPostId === post?._id) && <LoadingSpinner size='sm' />}
+                                                    {(reportingPostId === post?._id) && <LoadingSpinner size='sm' />}
+                                                    {!(editingPostId === post?._id) && !(deletingPostId === post?._id) && !(reportingPostId === post?._id) && <MoreHorizontal className="h-5 w-5" />}
                                                 </button>
 
                                                 <ul
@@ -104,7 +105,7 @@ const FollowingPosts = () => {
                                                                     deletePost(post?._id);
                                                                 }}>
                                                                     <p className="group-hover:text-red-500">Delete post</p>
-                                                                    {!isDeleting && (
+                                                                    {!(deletingPostId === post?._id) && (
                                                                         <FaTrash className='cursor-pointer group-hover:text-red-500'/>
                                                                     )}
                                                                 </div>
@@ -152,7 +153,7 @@ const FollowingPosts = () => {
                                                                             setReportSelectVisible(false);
                                                                         }}>abuse</option>
                                                                     </select>
-                                                                {!isReporting && (
+                                                                {! (reportingPostId === post?._id) && (
                                                                     <MdReportProblem className={`cursor-pointer group-hover:text-gray-700 ${reportSelectVisible ? "hidden" : "flex"}`}/>
                                                                 )}
                                                                 </div>

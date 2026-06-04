@@ -15,9 +15,10 @@ import {MoreHorizontal} from "lucide-react";
 
 const Posts = () => {
 
-    const {isDeleting, isReacting, getPosts, isLiking, isReposting, isCommenting, isGettingPosts, Posts,likePost, likedPost, deletePost,
+    const {isReacting, getPosts, isLiking, isReposting, isCommenting, isGettingPosts, Posts,likePost, likedPost, deletePost,
         reactToPost, reactedToPost, isEditing,
-        commentPost,repost, getFollowingPosts, reposted, reportPost, isReporting
+        commentPost,repost, getFollowingPosts, reposted, reportPost, isReporting,
+        editingPostId, deletingPostId, reportingPostId
     } = useUserStore();
     const {authUserId} = useAuthStore();
 
@@ -84,10 +85,10 @@ const Posts = () => {
                                                     className="btn btn-ghost btn-sm"
                                                     aria-label="Post functions"
                                                 >
-                                                    {isEditing && <LoadingSpinner size='sm'/>}
-                                                    {isDeleting && <LoadingSpinner size='sm' />}
-                                                    {isReporting && <LoadingSpinner size='sm' />}
-                                                    {!isEditing && !isDeleting && !isReporting && <MoreHorizontal className="h-5 w-5" />}
+                                                    {(editingPostId === post?._id) && <LoadingSpinner size='sm'/>}
+                                                    {(deletingPostId === post?._id) && <LoadingSpinner size='sm' />}
+                                                    {(reportingPostId === post?._id) && <LoadingSpinner size='sm' />}
+                                                    {!(editingPostId === post?._id) && !(deletingPostId === post?._id) && !(reportingPostId === post?._id) && <MoreHorizontal className="h-5 w-5" />}
                                                 </button>
 
                                                 <ul
@@ -104,7 +105,7 @@ const Posts = () => {
                                                                     deletePost(post?._id);
                                                                 }}>
                                                                     <p className="group-hover:text-red-500">Delete post</p>
-                                                                    {!isDeleting && (
+                                                                    {!(deletingPostId === post?._id) && (
                                                                         <FaTrash className='cursor-pointer group-hover:text-red-500'/>
                                                                     )}
                                                                 </div>

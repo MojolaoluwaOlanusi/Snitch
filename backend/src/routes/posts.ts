@@ -4,6 +4,8 @@ import Notification from '../models/Notification.ts'
 import {User} from '../models/User.ts';
 import jwt from 'jsonwebtoken';
 import mongoose from "mongoose";
+import { DeleteObjectCommand } from '@aws-sdk/client-s3';
+import s3 from '../config/s3Client.ts';
 
 const router = express.Router();
 
@@ -33,6 +35,50 @@ router.delete('/delete/:id', async (req: any, res: any) => {
     }
 
     try {
+        const post = await Post.findById(id);
+        if (post && post.url) {
+            try {
+                const bucket = process.env.S3_BUCKET || 'snitch-dev';
+                const s3Endpoint = process.env.S3_ENDPOINT; // may be undefined
+                let key: string | null = null;
+
+                try {
+                    const urlObj = new URL(post.url);
+                    // Case 1: custom S3 endpoint like https://s3.example.com/<bucket>/<key>
+                    if (s3Endpoint) {
+                        const base = `${s3Endpoint.replace(/\/$/, '')}/${bucket}`;
+                        if (post.url.startsWith(base)) {
+                            key = post.url.substring(base.length + 1);
+                        }
+                    } else {
+                        // Case 2: aws-style https://<bucket>.s3.amazonaws.com/<key>
+                        const host = urlObj.host; // e.g., bucket.s3.amazonaws.com
+                        if (host.endsWith('.s3.amazonaws.com')) {
+                            // pathname starts with /
+                            key = urlObj.pathname.replace(/^\//, '');
+                        }
+                    }
+                } catch (parseErr) {
+                    // fallback: try to extract after bucket/ in the string
+                    if (post.url.includes(`/${bucket}/`)) {
+                        key = post.url.split(`/${bucket}/`)[1];
+                    }
+                }
+
+                if (key) {
+                    // attempt deletion from S3/Minio
+                    const delCmd = new DeleteObjectCommand({ Bucket: bucket, Key: key });
+                    await s3.send(delCmd);
+                    console.log('Deleted media from S3', key);
+                } else {
+                    console.log('Could not derive S3 key from post.url, skipping media delete:', post.url);
+                }
+            } catch (s3Err) {
+                console.log('Error deleting media from S3/Minio for post:', id, s3Err);
+                // continue to delete the DB record even if media deletion failed
+            }
+        }
+
         await Post.findByIdAndDelete(id);
         res.status(200).json({ success: true, message: "Post deleted successfully" });
     } catch (err: any) {

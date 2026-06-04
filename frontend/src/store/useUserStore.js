@@ -45,6 +45,7 @@ export const useUserStore = create((set) => ({
     isGettingLikedPosts: false,
     isGettingPosts: false,
     followingPosts: [],
+    reportingPostId: null,
 
     getSuggestedUsers: async () => {
         set({ isGettingSuggestedUsers: true });
@@ -492,14 +493,10 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({isGettingPosts: true});
-                set({Posts: res.data});
+                set({ Posts: res.data });
             } catch (error) {
                 console.log("Error in Getting  Posts:", error);
                 toast.error("Failed to get  Posts");
-                set({isGettingPosts: false});
-            } finally {
-                set({isGettingPosts: false});
             }
         }
 
@@ -511,14 +508,10 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingFollowingPosts: true });
                 set({ followingPosts: res.data });
             } catch (error) {
-                console.log("Error in Getting Liked Posts:", error);
-                toast.error("Failed to get Liked Posts!");
-                set({ isGettingFollowingPosts: false });
-            } finally {
-                set({ isGettingFollowingPosts: false });
+                console.log("Error in Getting Following Posts:", error);
+                toast.error("Failed to get Following Posts!");
             }
         }
 
@@ -530,14 +523,10 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingUserPosts: true });
                 set({ userPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting User Posts:", error);
                 toast.error("Failed to get User Posts!, Try refreshing the page.");
-                set({ isGettingUserPosts: false });
-            } finally {
-                set({ isGettingUserPosts: false });
             }
         }
 
@@ -549,18 +538,16 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingLikedPosts: true });
                 set({ likedPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Liked Posts:", error);
                 toast.error("Failed to get Liked Posts!");
-                set({ isGettingLikedPosts: false });
-            } finally {
-                set({ isGettingLikedPosts: false });
             }
         }
 
         try {
+            // set per-post deleting id and flag at start
+            set({ deletingPostId: data, isDeleting: true });
             const token = localStorage.getItem('access-token');
             const user = localStorage.getItem('user');
             await axiosInstance.delete(`/posts/delete/${data}`, {
@@ -569,7 +556,6 @@ export const useUserStore = create((set) => ({
                 }
             });
             set({ deletedPost: true });
-            set({ isDeleting: true });
             await refreshPosts();
             await refreshFollowingPosts();
             if (user) {
@@ -581,9 +567,8 @@ export const useUserStore = create((set) => ({
             console.log("Error in Deleting Post:", error);
             toast.error("Failed to delete post!");
             set({ deletedPost: false });
-            set({ isDeleting: false });
         } finally {
-            set({ isDeleting: false });
+            set({ isDeleting: false, deletingPostId: null });
         }
     },
 
@@ -692,6 +677,7 @@ export const useUserStore = create((set) => ({
     },
 
     editPost: async (data) => {
+        // internal helper: refresh posts data without toggling global loading flags
         async function refreshPosts() {
             try {
                 const token = localStorage.getItem('access-token');
@@ -700,14 +686,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({isGettingPosts: true});
-                set({Posts: res.data});
+                // Only update the posts array; don't flip the global isGettingPosts flag
+                set({ Posts: res.data });
             } catch (error) {
                 console.log("Error in Getting  Posts:", error);
                 toast.error("Failed to get  Posts");
-                set({isGettingPosts: false});
-            } finally {
-                set({isGettingPosts: false});
             }
         }
 
@@ -719,14 +702,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingFollowingPosts: true });
+                // Update followingPosts without toggling the global loading flag
                 set({ followingPosts: res.data });
             } catch (error) {
-                console.log("Error in Getting Liked Posts:", error);
-                toast.error("Failed to get Liked Posts!");
-                set({ isGettingFollowingPosts: false });
-            } finally {
-                set({ isGettingFollowingPosts: false });
+                console.log("Error in Getting Following Posts:", error);
+                toast.error("Failed to get Following Posts!");
             }
         }
 
@@ -738,14 +718,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingUserPosts: true });
+                // Update userPosts without toggling global loader
                 set({ userPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting User Posts:", error);
                 toast.error("Failed to get User Posts!, Try refreshing the page.");
-                set({ isGettingUserPosts: false });
-            } finally {
-                set({ isGettingUserPosts: false });
             }
         }
 
@@ -757,18 +734,44 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingLikedPosts: true });
+                // Update likedPosts without toggling global loader
                 set({ likedPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Liked Posts:", error);
                 toast.error("Failed to get Liked Posts!");
-                set({ isGettingLikedPosts: false });
-            } finally {
-                set({ isGettingLikedPosts: false });
             }
         }
 
         try {
+            // set per-post editing id and flag at start
+            set({ editingPostId: data.id, isEditing: true });
+
+            // If a file was attached, upload it first to get a public url
+            if (data._file) {
+                try {
+                    const file = data._file;
+                    const contentType = file.type;
+                    const mediaType = data.mediaType || (contentType ? (contentType.split('/')[0] === 'image' ? 'Image' : contentType.split('/')[0] === 'video' ? 'Video' : contentType.split('/')[0] === 'audio' ? 'Audio' : '') : '');
+                    const folder = mediaType === 'Audio' ? 'Audio' : mediaType === 'Video' ? 'Videos' : 'Images';
+                    const token = localStorage.getItem('access-token');
+                    const presignRes = await axiosInstance.post('/media/upload-url', { contentType, folder }, { headers: { Authorization: `Bearer ${token}` } });
+                    const publicUrl = presignRes.data.publicUrl;
+                    const uploadUrl = presignRes.data.uploadUrl;
+                    // upload file to presigned url
+                    await axiosInstance.put(uploadUrl, file, { headers: { 'Content-Type': contentType } });
+                    // set the url in the data we will send to edit-post
+                    data.url = publicUrl;
+                    // ensure mediaType set
+                    data.mediaType = mediaType;
+                    delete data._file;
+                } catch (uploadErr) {
+                    console.log('Failed to upload file for edit:', uploadErr);
+                    toast.error('Failed to upload media for post edit');
+                    // continue to attempt edit without new file
+                    delete data._file;
+                }
+            }
+
             const token = localStorage.getItem('access-token');
             const user = localStorage.getItem('user');
             const res = await axiosInstance.put(`/posts/edit-post/${data.id}`, data, {
@@ -776,9 +779,7 @@ export const useUserStore = create((set) => ({
                     "Authorization": `Bearer ${token}`
                 }
             });
-            set({ isEditing: true });
-            set({ editedPost: true });
-            set({ post : res.data });
+            set({ editedPost: true, post : res.data });
             await refreshPosts();
             await refreshFollowingPosts();
             if (user) {
@@ -789,10 +790,11 @@ export const useUserStore = create((set) => ({
         } catch (error) {
             console.log("Error in Editing  Post:", error);
             toast.error("Failed to edit post!");
-            set({ isEditing: false });
+            // reset edited state on error
             set({ editedPost: false });
         } finally {
-            set({ isEditing: false });
+            // always clear editing flags/ids
+            set({ isEditing: false, editingPostId: null });
         }
     },
 
@@ -1158,7 +1160,8 @@ export const useUserStore = create((set) => ({
         }
 
 
-        set({ isReporting: true });
+        // set per-post reporting id and global flag
+        set({ reportingPostId: data.id, isReporting: true });
         try {
             const token = localStorage.getItem('access-token');
             const user = localStorage.getItem('user');
@@ -1179,7 +1182,7 @@ export const useUserStore = create((set) => ({
             toast.error("Failed to report post!");
             set({ isReporting: false });
         } finally {
-            set({ isReporting: false });
+            set({ isReporting: false, reportingPostId: null });
         }
     },
 
