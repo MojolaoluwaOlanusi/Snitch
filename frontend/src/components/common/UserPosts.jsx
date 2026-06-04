@@ -1,12 +1,12 @@
-import {useUserStore} from "@/store/useUserStore";
+import {useUserStore} from "../../store/useUserStore";
 import {useEffect, useState} from "react";
 import PostSkeleton from "../../components/skeletons/PostSkeleton";
 import {Link} from "react-router-dom";
 import {FaRegComment, FaRegHeart, FaTrash} from "react-icons/fa";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import {BiRepost} from "react-icons/bi";
-import {formatPostDate} from "@/utils/date";
-import {useAuthStore} from "@/store/useAuthStore";
+import {formatPostDate} from "../../utils/date";
+import {useAuthStore} from "../../store/useAuthStore";
 import {MdAddReaction, MdReportProblem} from "react-icons/md";
 import {IoClose} from "react-icons/io5";
 import {MoreHorizontal} from "lucide-react";
@@ -23,8 +23,6 @@ const UserPosts = () => {
 
     const [commentData, setCommentData] = useState({ text: "", postId: "" });
     const [reportSelectVisible, setReportSelectVisible] = useState(false);
-    const [reportData, setReportData] = useState("");
-    const [reactData, setReactData] = useState("");
 
     const isMyProfile = authUser?._id === user?._id;
 
@@ -34,8 +32,7 @@ const UserPosts = () => {
     };
 
     const reportFunction = (e, post) => {
-        setReportData(e.target.value);
-        reportPost({id: post?._id, reason: {reason: reportData}});
+        reportPost({id: post?._id, reason: {reason: e.target.value}});
         setReportSelectVisible(false);
     }
 
@@ -133,7 +130,6 @@ const UserPosts = () => {
                                                             }}>
                                                                     <p className={`group-hover:text-gray-700 ${reportSelectVisible ? "hidden" : "flex"}`}>Report post</p>
                                                                     <select
-                                                                        value={reactData}
                                                                         onChange={(e) => reportFunction(e, post)}
                                                                         className={`${reportSelectVisible ? "flex" : "hidden"}
                                                                          ${!reportSelectVisible ? "hidden" : "flex"}flex-auto`}
@@ -186,28 +182,37 @@ const UserPosts = () => {
                                     className="w-full"
                                 >
                                     <div className='flex flex-col gap-3 overflow-hidden'>
-                                        <span className="w-[700px] truncate">{post?.text}</span>
-                                        {post?.mediaType === "Image" && (
-                                            <img
-                                                src={post?.url}
-                                                className='h-80 object-contain rounded-lg border border-gray-700'
-                                                alt=''
-                                            />
-                                        )}
-                                        {post?.mediaType === "Video" && (
-                                            <video
-                                                src={post?.url}
-                                                className='h-80 object-contain rounded-lg border border-gray-700'
-                                                controls={true}
-                                            />
-                                        )}
-                                        {post?.mediaType === "Audio" && (
-                                            <audio
-                                                src={post?.url}
-                                                controls={true}
-                                                className='h-80 object-contain rounded-lg border border-gray-700'
-                                            />
-                                        )}
+                                        <span className="w-[600px] truncate">{post?.text}</span>
+                                        <div
+                                            className="w-full h-[400px] aspect-[4/5] sm:aspect-video rounded-2xl overflow-hidden items-center">
+                                            {post?.mediaType === "Image" && (
+                                                <img
+                                                    src={post?.url}
+                                                    className='w-full h-full object-cover object-center block rounded-lg'
+                                                    alt=''
+                                                    loading="lazy"
+                                                />
+                                            )}
+                                            {post?.mediaType === "Video" && (
+                                                <video
+                                                    src={post?.url}
+                                                    className='w-full h-full object-cover object-center block rounded-lg'
+                                                    controls={true}
+                                                />
+                                            )}
+                                            {post?.mediaType === "Audio" && (
+                                                <div
+                                                    className='w-full h-full object-cover object-center block rounded-lg'
+                                                >
+                                                    <img src="/Snitch_Audio_Waveform(1920 x 1080).png" alt="" className="w-full h-[350px] object-cover object-center block rounded-lg"/>
+                                                    <audio
+                                                        src={post?.url}
+                                                        controls={true}
+                                                        className='w-full'
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </Link>
                                 <div className='flex justify-between mt-3'>
@@ -242,6 +247,7 @@ const UserPosts = () => {
                                                                 className='textarea w-full p-1 rounded text-md resize-none border focus:outline-none  border-gray-800'
                                                                 placeholder='Add a comment...'
                                                                 value={commentData.text}
+                                                                onKeyDown={(e) => e.key === "Enter" && handlePostComment(e)}
                                                                 onChange={(e) => setCommentData({ ...commentData, text: e.target.value, postId: post?._id})}
                                                             />
                                                     <button className='btn btn-primary rounded-full btn-sm text-white px-4'>
@@ -334,10 +340,8 @@ const UserPosts = () => {
 								                    </span>
                                         </div>
                                         <select
-                                            value={reactData}
                                             onChange={(e) => {
-                                                setReactData(e.target.value);
-                                                reactToPost({id: post?._id , reaction: reactData});
+                                                reactToPost({id: post?._id , reaction: e.target.value})
                                             }}>
                                             <option></option>
                                             <option>👍</option>

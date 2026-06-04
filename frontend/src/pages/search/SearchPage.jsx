@@ -1,8 +1,8 @@
 import Sidebar from "../../components/common/Sidebar";
 import {Search} from "lucide-react";
-import {Input} from "@/components/common/input"
-import {useUserStore} from "@/store/useUserStore";
-import LoadingSpinner from "@/components/common/LoadingSpinner";
+import {Input} from "../../components/common/input"
+import {useUserStore} from "../../store/useUserStore";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
 import {useState} from "react";
 
 const SearchPage = () => {

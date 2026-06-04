@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import {useUserStore} from "@/store/useUserStore";
+import {useUserStore} from "../../store/useUserStore";
 import {EditIcon} from "lucide-react";
 import {IoClose} from "react-icons/io5";
 

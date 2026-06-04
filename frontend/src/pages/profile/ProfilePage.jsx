@@ -5,9 +5,9 @@ import UserPosts from "../../components/common/UserPosts";
 import LikedPosts from "../../components/common/LikedPosts";
 import ProfileHeaderSkeleton from "../../components/skeletons/ProfileHeaderSkeleton";
 import EditProfileModal from "../../components/common/EditProfileModal";
-import { Badge } from "@/components/common/badge";
+import { Badge } from "../../components/common/badge";
 import Sidebar from "../../components/common/Sidebar";
-import { VerifiedSvg } from "@/components/svgs/verified";
+import { VerifiedSvg } from "../../components/svgs/verified";
 
 import {AlertTriangle, Briefcase, Building, CheckCircle2, User, Shield, MapPin, EyeOff, EyeIcon} from "lucide-react";
 
@@ -17,12 +17,12 @@ import {GrUserAdmin} from "react-icons/gr";
 import { FaLink } from "react-icons/fa";
 import { MdEdit } from "react-icons/md";
 
-import { formatMemberSinceDate } from "@/utils/date";
-import {useAuthStore} from "@/store/useAuthStore";
-import {useUserStore} from "@/store/useUserStore";
-import {useMediaStore} from "@/store/useMediaStore";
+import { formatMemberSinceDate } from "../../utils/date";
+import {useAuthStore} from "../../store/useAuthStore";
+import {useUserStore} from "../../store/useUserStore";
+import {useMediaStore} from "../../store/useMediaStore";
 import ThemeSelector from "../../components/common/ThemeSelector";
-import axiosInstance from "@/lib/axios";
+import axiosInstance from "../../lib/axios";
 
 
 const ProfilePage = () => {
@@ -125,23 +125,23 @@ const ProfilePage = () => {
                                                 </Badge>
                                             )}
                                         </div>
-                                        <div className="space-x-2 flex flex-row">
-                                            <ThemeSelector />
-                                            <div>
-                                                {isIncognito && (
-                                                    <EyeIcon className="w-5 h-5 hover:text-red-600" onClick={async (e) => {
-                                                        e.preventDefault();
-                                                        await goIncognito();
-                                                    }} />
-                                                )}
-                                                {!isIncognito && (
-                                                    <EyeOff className="w-5 h-5 hover:text-red-600" onClick={async (e) => {
-                                                        e.preventDefault();
-                                                        await goIncognito();
-                                                    }} />
-                                                )}
-                                            </div>
-                                        </div>
+                                        {/*<div className="space-x-2 flex flex-row">*/}
+                                        {/*    <ThemeSelector />*/}
+                                        {/*    <div>*/}
+                                        {/*        {isIncognito && (*/}
+                                        {/*            <EyeIcon className="w-5 h-5 hover:text-red-600" onClick={async (e) => {*/}
+                                        {/*                e.preventDefault();*/}
+                                        {/*                await goIncognito();*/}
+                                        {/*            }} />*/}
+                                        {/*        )}*/}
+                                        {/*        {!isIncognito && (*/}
+                                        {/*            <EyeOff className="w-5 h-5 hover:text-red-600" onClick={async (e) => {*/}
+                                        {/*                e.preventDefault();*/}
+                                        {/*                await goIncognito();*/}
+                                        {/*            }} />*/}
+                                        {/*        )}*/}
+                                        {/*    </div>*/}
+                                        {/*</div>*/}
                                     </div>
                                     <span className='text-sm text-slate-500'>{userPosts?.length} posts</span>
                                 </div>

@@ -1,7 +1,7 @@
 import {useState} from "react";
 import { useAuthStore } from "../../../store/useAuthStore";
 import {MessageCircleIcon, LockIcon, MailIcon, UserIcon, LoaderIcon, Briefcase, User2Icon} from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 
 function SignUpPage() {
     const [formData, setFormData] = useState({ username: "", email: "", password: "", accountType: "", displayName: "" });

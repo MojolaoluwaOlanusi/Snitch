@@ -1,11 +1,11 @@
 import Sidebar  from "../../components/common/Sidebar";
-import {useUserStore} from "@/store/useUserStore";
+import {useUserStore} from "../../store/useUserStore";
 import {useCallback, useEffect, useState} from "react";
-import {useAuthStore} from "@/store/useAuthStore";
+import {useAuthStore} from "../../store/useAuthStore";
 import CreatePostRightPanel from "../../components/common/CreatePostRightPanel";
 import {LoaderIcon} from "lucide-react";
-import {useMediaStore} from "@/store/useMediaStore";
-import axiosInstance from "@/lib/axios";
+import {useMediaStore} from "../../store/useMediaStore";
+import axiosInstance from "../../lib/axios";
 
 function CreatePostPage () {
     const [formData, setFormData] = useState({ text: "", isWarp: false, url: "", mediaType: "", mentions: [], hashtags: []});

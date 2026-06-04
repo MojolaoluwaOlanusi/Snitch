@@ -1,6 +1,6 @@
-import {useChatStore} from "@/store/useChatStore";
+import {useChatStore} from "../../store/useChatStore";
 import Sidebar from "../../components/common/Sidebar";
-import {SnitchLogo} from "@/components/svgs/snitch";
+import {SnitchLogo} from "../../components/svgs/snitch";
 
 const NoConversationPlaceholder = () => (
     <div className="flex flex-col items-center justify-center h-full space-y-6">

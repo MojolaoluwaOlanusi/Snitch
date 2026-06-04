@@ -1,15 +1,13 @@
 import { Link } from "react-router-dom";
 import {useUserStore} from "../../store/useUserStore";
 import {useAuthStore} from "../../store/useAuthStore";
-import {useEffect, useState} from "react";
+import {useEffect} from "react";
 import RightPanelSkeleton from "../../components/skeletons/RightPanelSkeleton";
 import PageLoader from "../../components/common/PageLoader";
 
 
 const RightPanel = () => {
     const { suggestedUsers, getSuggestedUsers, isGettingSuggestedUsers,  followUser, isFollowingUser } = useUserStore();
-
-    const [formData, setFormData] = useState({id: ""});
 
     useEffect(() => {
         getSuggestedUsers();
@@ -19,7 +17,7 @@ const RightPanel = () => {
 
     return (
         <div className='hidden lg:block my-4 mx-2'>
-            <div className='bg-white p-4 rounded-md sticky top-2'>
+            <div className='bg-white p-4 rounded-md sticky top-2 '>
                 <p className='font-bold'>Who to follow</p>
                 <div className='flex flex-col gap-4'>
                     {/* item */}
@@ -56,8 +54,7 @@ const RightPanel = () => {
                                         className='btn bg-blue-300 text-black hover:bg-gray-200 hover:opacity-90 rounded-full btn-sm'
                                         onClick={(e) => {
                                             e.preventDefault();
-                                            setFormData({ ...formData, id: `${user?._id}` });
-                                            followUser(formData);
+                                            followUser({id: user?._id});
                                         }}
                                     >
                                         {isFollowingUser ? <PageLoader /> : "Follow"}

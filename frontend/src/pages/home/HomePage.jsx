@@ -1,9 +1,9 @@
 import Sidebar from "../../components/common/Sidebar.jsx";
 import RightPanel from "../../components/common/RightPanel";
-import {useUserStore} from "@/store/useUserStore";
+import {useUserStore} from "../../store/useUserStore";
 import Posts from "../../components/common/Posts";
-import {useChatStore} from "@/store/useChatStore";
-import {useAuthStore} from "@/store/useAuthStore";
+import {useChatStore} from "../../store/useChatStore";
+import {useAuthStore} from "../../store/useAuthStore";
 import {useState} from "react";
 import FollowingPosts from "../../components/common/FollowingPosts";
 

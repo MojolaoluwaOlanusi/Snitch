@@ -1,7 +1,7 @@
 import {useState} from "react";
 import {useAuthStore} from "../../../store/useAuthStore";
 import {LoaderIcon, MailIcon} from "lucide-react";
-import {Link} from "react-router";
+import {Link} from "react-router-dom";
 
 function ForgotPasswordPage() {
     const [formData, setFormData] = useState({ email: ""});
