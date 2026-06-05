@@ -1273,10 +1273,10 @@ export const useUserStore = create((set, get) => ({
                     set({
                         searchResults: {
                             ...current,
-                            hashtags:
+                            Hashtags:
                                 skip === 0
                                     ? res.data.Hashtags
-                                    : [...current.hashtags, ...res.data.Hashtags]
+                                    : [...(current.Hashtags || []), ...res.data.Hashtags]
                         },
                         searchHasMore: {
                             ...get().searchHasMore,
