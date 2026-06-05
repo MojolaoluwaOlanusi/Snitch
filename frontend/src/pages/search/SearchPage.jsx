@@ -572,27 +572,7 @@ const SearchPage = () => {
                                                     )}
                                                 </div>
                                             )}
-                                            {searchResults.mentions && searchResults.mentions.length > 0 && (
-                                                <div className="mb-6">
-                                                    <h3 className="text-lg font-semibold text-gray-800 mb-3">Mentions</h3>
-                                                    <div className="space-y-3">
-                                                        {searchResults.mentions.map((item, index) => renderSearchResult(item, index, 'mention'))}
-                                                    </div>
-                                                    {searchHasMore.mentions && (
-                                                        <button
-                                                            onClick={loadMoreMentions}
-                                                            disabled={isSearching}
-                                                            className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                                                isSearching
-                                                                    ? "bg-gray-200 cursor-not-allowed"
-                                                                    : "bg-blue-100 hover:bg-blue-200 text-blue-700"
-                                                            }`}
-                                                        >
-                                                            Load More
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            )}
+                                     </>
                                         </>
                                     ) : searchType === "hashtag" && typeof searchResults === 'object' && !Array.isArray(searchResults) ? (
                                         <>
