@@ -11,19 +11,23 @@ import {MdAddReaction, MdReportProblem} from "react-icons/md";
 import {IoClose} from "react-icons/io5";
 import {MoreHorizontal} from "lucide-react";
 import EditPostModal from "../../components/common/EditPostModal";
+import ReactionEmojiPicker from "./ReactionEmojiPicker";
+import ReactionsDisplay from "./ReactionsDisplay";
 
 const FollowingPosts = () => {
 
     const {isReacting, getPosts, isLiking,
-        isReposting, isCommenting,likePost, likedPost, deletePost, isEditing,
-        reactToPost, reactedToPost, getFollowingPosts, isGettingFollowingPosts, followingPosts,
-        commentPost,repost, reposted, reportPost,
+        isReposting, isCommenting,likePost, deletePost, isEditing,
+        reactToPost, getFollowingPosts, isGettingFollowingPosts, followingPosts,
+        commentPost,repost, reportPost,
         editingPostId, deletingPostId, reportingPostId
     } = useUserStore();
     const {authUserId} = useAuthStore();
 
     const [commentData, setCommentData] = useState({ text: "", postId: "" });
     const [reportSelectVisible, setReportSelectVisible] = useState(false);
+    const [actionPostId, setActionPostId] = useState(null);
+    const [emojiPickerOpen, setEmojiPickerOpen] = useState(null);
 
     const handlePostComment = (e) => {
         e.preventDefault();
@@ -57,7 +61,7 @@ const FollowingPosts = () => {
                 </div>
             )}
             {!isGettingFollowingPosts && followingPosts?.length === 0 && (
-                <p className='text-center my-4'>No posts in this tab. Switch 👻</p>
+                <p className='text-center my-4'>No posts to display. Check back later!</p>
             )}
             {!isGettingFollowingPosts && followingPosts && (
                 <div className="overflow-auto w-full h-[calc(100vh-50px)]">
@@ -175,7 +179,7 @@ const FollowingPosts = () => {
                                     className="w-full"
                                 >
                                     <div className='flex flex-col gap-3 overflow-hidden'>
-                                        <span className="w-[600px] truncate">{post?.text}</span>
+                                        <span className="w-full line-clamp-3 leading-relaxed">{post?.text}</span>
                                         <div
                                             className="w-full h-[400px] aspect-[4/5] sm:aspect-video rounded-2xl overflow-hidden items-center">
                                             {post?.mediaType === "Image" && (
@@ -221,10 +225,10 @@ const FollowingPosts = () => {
                                         </div>
                                         {/* We're using Modal Component from DaisyUI */}
                                         <dialog id={`comments_modal${post?._id}`} className='modal border-none outline-none'>
-                                            <div className='modal-box rounded border border-gray-600 space-y-2'>
+                                            <div className={`modal-box rounded border border-gray-600 space-y-2 ${post?.comments.length === 0 ? 'w-full max-w-2xl' : ''}`}>
 
                                                 <div className="flex mx-auto items-center justify-between">
-                                                    <h3 className='font-bold text-lg mb-4'>COMMENTS</h3>
+                                                    <h3 className='font-bold text-lg mb-4'>Comments</h3>
                                                     <div>
                                                         <form method='dialog' className='modal-backdrop'>
                                                             <button className='outline-none'><IoClose className="text-black"/></button>
@@ -238,7 +242,7 @@ const FollowingPosts = () => {
                                                 >
 										                    <textarea
                                                                 className='textarea w-full p-1 rounded text-md resize-none border focus:outline-none  border-gray-800'
-                                                                placeholder='Add a comment...'
+                                                                placeholder='Write a comment...'
                                                                 value={commentData.text}
                                                                 onKeyDown={(e) => e.key === "Enter" && handlePostComment(e)}
                                                                 onChange={(e) => setCommentData({ ...commentData, text: e.target.value, postId: post?._id})}
@@ -250,7 +254,7 @@ const FollowingPosts = () => {
                                                 <div className='flex flex-col gap-3 max-h-60 overflow-auto'>
                                                     {post?.comments.length === 0 && (
                                                         <p className='text-sm text-slate-500'>
-                                                            No comments yet 🤔 Be the first one 😉
+                                                            No comments yet. Be the first to share your thoughts!
                                                         </p>
                                                     )}
                                                     {post?.comments.map((comment) => (
@@ -279,78 +283,72 @@ const FollowingPosts = () => {
                                         </dialog>
                                         <div className='flex gap-1 items-center group cursor-pointer' onClick={(e) => {
                                             e.preventDefault();
+                                            setActionPostId(post._id);
                                             repost(post?._id);
                                         }}>
-                                            {isReposting && <LoadingSpinner size='sm' />}
-                                            {!reposted && !isReposting && (
-                                                <BiRepost className='w-6 h-6  text-slate-500 group-hover:text-green-500' />
-                                            )}
-                                            {reposted && !isReposting && (
-                                                <BiRepost className='w-6 h-6 cursor-pointer text-green-500 ' />
+                                            {isReposting && actionPostId === post._id && <LoadingSpinner size='sm' />}
+                                            {!isReposting && (
+                                                <BiRepost className='w-6 h-6 text-slate-500 group-hover:text-green-500' />
                                             )}
 
 
                                         </div>
                                         <div className='flex gap-1 items-center group cursor-pointer' onClick={(e) => {
                                             e.preventDefault();
+                                            setActionPostId(post._id);
                                             likePost(post?._id);
                                         }}>
-                                            {isLiking && <LoadingSpinner size='sm' />}
-                                            {!likedPost && !isLiking && (
-                                                <FaRegHeart className='w-4 h-4 cursor-pointer text-slate-500 group-hover:text-pink-500' />
-                                            )}
-                                            {likedPost && !isLiking && (
-                                                <FaRegHeart className='w-4 h-4 cursor-pointer text-pink-500 ' />
+                                            {isLiking && actionPostId === post._id && <LoadingSpinner size='sm' />}
+                                            {!isLiking && (
+                                                <FaRegHeart className={`w-4 h-4 cursor-pointer ${!!post?.likes?.some((id) => id === authUserId) ? 'text-pink-500' : 'text-slate-500'} group-hover:text-pink-500`} />
                                             )}
 
                                             <span
-                                                className={`text-sm  group-hover:text-pink-500 ${
-                                                    likedPost ? "text-pink-500" : "text-slate-500"
+                                                className={`text-sm group-hover:text-pink-500 ${
+                                                    !!post?.likes?.some((id) => id === authUserId) ? "text-pink-500" : "text-slate-500"
                                                 }`}
                                             >
 									                    {post?.likes?.length}
 								                    </span>
                                         </div>
                                     </div>
-                                    <div className="flex gap-0 items-center cursor-pointer">
-                                        <div className="flex gap-1 items-center group cursor-pointer" onClick={(e) => {
-                                            e.preventDefault();
-                                        }}>
-                                            {isReacting && <LoadingSpinner size='sm' />}
-                                            {!reactedToPost && !isReacting && (
-                                                <MdAddReaction className='w-6 h-6 cursor-pointer text-slate-500 group-hover:text-yellow-500' />
-                                            )}
-
-                                            {reactedToPost && !isReacting && (
-                                                <MdAddReaction className='w-6 h-6 cursor-pointer text-yellow-500 ' />
-                                            )}
-                                            <span
-                                                className={`text-sm  group-hover:text-yellow-500 ${
-                                                    reactedToPost ? "text-yellow-500" : "text-slate-500"
-                                                }`}
+                                    <div className="flex gap-0 items-center">
+                                        <ReactionsDisplay reactions={post?.reaction} />
+                                        <div className="flex gap-0 items-center cursor-pointer relative ml-2">
+                                            <div
+                                                className="flex gap-1 items-center group cursor-pointer"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    setEmojiPickerOpen(
+                                                        emojiPickerOpen === post._id ? null : post._id
+                                                    );
+                                                }}
                                             >
-									                    {post?.reaction?.length}
-								                    </span>
+                                                {isReacting && actionPostId === post._id && (
+                                                    <LoadingSpinner size="sm" />
+                                                )}
+
+                                                {!isReacting && (
+                                                    <MdAddReaction className="w-6 h-6 cursor-pointer text-slate-500 group-hover:text-yellow-500" />
+                                                )}
+
+                                                <span className="text-sm text-slate-500 group-hover:text-yellow-500">
+                                                    {post?.reaction?.length}
+                                                </span>
+                                            </div>
+                                            <ReactionEmojiPicker
+                                                postId={post._id}
+                                                isOpen={emojiPickerOpen === post._id}
+                                                onClose={() => setEmojiPickerOpen(null)}
+                                                onReact={(emoji) => {
+                                                    setActionPostId(post._id);
+                                                    reactToPost({
+                                                        id: post?._id,
+                                                        reaction: emoji,
+                                                    });
+                                                }}
+                                            />
                                         </div>
-                                        <select
-                                            onChange={(e) => {
-                                                reactToPost({id: post?._id , reaction: e.target.value});
-                                            }}>
-                                            <option></option>
-                                            <option>👍</option>
-                                            <option>💖</option>
-                                            <option>😢</option>
-                                            <option>😄</option>
-                                            <option>🐦</option>
-                                            <option>✅</option>
-                                            <option>🐍</option>
-                                            <option>😃</option>
-                                            <option>😆</option>
-                                            <option>😅</option>
-                                            <option>🤣</option>
-                                            <option>😜</option>
-                                            <option>😚</option>
-                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -359,6 +357,6 @@ const FollowingPosts = () => {
                 </div>
             )}
         </>
-    );
+    )
 };
 export default FollowingPosts;

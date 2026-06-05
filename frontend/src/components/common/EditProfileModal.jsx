@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {useAuthStore} from "../../store/useAuthStore";
 
 const EditProfileModal = ({ authUser }) => {
@@ -16,10 +16,24 @@ const EditProfileModal = ({ authUser }) => {
 	const { updateProfile, isUpdatingProfile, changePassword } = useAuthStore();
 
     const [changePasswordData, setChangePasswordData] = useState({ oldPassword: "", newPassword: "" });
+    const modalRef = useRef(null);
 
     const handleInputChange = (e) => {
 		setFormData({ ...formData, [e.target.name]: e.target.value });
 	};
+
+    const handleCloseModal = () => {
+        const modal = document.getElementById("edit_profile_modal");
+        if (modal) {
+            modal.close();
+        }
+    };
+
+    const handleBackdropClick = (e) => {
+        if (e.target === modalRef.current) {
+            handleCloseModal();
+        }
+    };
 
 	useEffect(() => {
 		if (authUser) {
@@ -44,9 +58,17 @@ const EditProfileModal = ({ authUser }) => {
 			>
 				Edit profile
 			</button>
-			<dialog id='edit_profile_modal' className='modal'>
-				<div className='modal-box border rounded-md border-gray-700 shadow-md'>
-					<h3 className='font-bold text-lg my-3'>Update Profile</h3>
+			<dialog id='edit_profile_modal' className='modal' ref={modalRef} onClick={handleBackdropClick}>
+				<div className='modal-box border rounded-md border-gray-700 shadow-md' onClick={(e) => e.stopPropagation()}>
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className='font-bold text-lg'>Update Profile</h3>
+                        <button
+                            onClick={handleCloseModal}
+                            className="btn btn-sm btn-circle btn-ghost"
+                        >
+                            ✕
+                        </button>
+                    </div>
 					<form
 						className='flex flex-col gap-4'
 						onSubmit={(e) => {
@@ -157,14 +179,11 @@ const EditProfileModal = ({ authUser }) => {
                             name='location'
                             onChange={handleInputChange}
                         />
-						<button className='btn btn-primary rounded-full btn-sm text-white'>
+						<button className='btn btn-primary rounded-full btn-sm text-white' onClick={handleCloseModal}>
 							{isUpdatingProfile ? "Updating..." : "Update"}
 						</button>
 					</form>
 				</div>
-				<form method='dialog' className='modal-backdrop'>
-					<button className='outline-none'>close</button>
-				</form>
 			</dialog>
 		</>
 	);

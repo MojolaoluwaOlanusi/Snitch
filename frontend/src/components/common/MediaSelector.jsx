@@ -32,7 +32,7 @@ const MediaSelector = ({
         <div className="flex items-center justify-center">
           <button
             type="button"
-            className="btn btn-outline"
+            className="btn btn-outline btn-primary"
             onClick={() => inputRef.current && inputRef.current.click()}
           >
             {buttonLabel}
@@ -47,14 +47,17 @@ const MediaSelector = ({
         </div>
       ) : (
         // fixed preview container so it doesn't stretch the layout
-        <div className="relative rounded h-72 w-full overflow-hidden">
+        <div className="relative rounded h-72 w-full overflow-hidden border border-gray-200 bg-gray-50">
           {/* preview */}
           {file?.type?.startsWith('image') || (!file && previewUrl?.match(/\.(jpeg|jpg|gif|png|webp)$/i)) ? (
-            <img src={previewUrl} alt="preview" className="h-full w-full object-contain" />
+            <img src={previewUrl} alt="preview" className="h-full w-full object-contain bg-white" />
           ) : (file?.type?.startsWith('video') || previewUrl?.match(/\.(mp4|webm|ogg)$/i)) ? (
-            <video src={previewUrl} controls className="h-full w-full object-contain" />
+            <video src={previewUrl} controls className="h-full w-full object-contain bg-black" />
           ) : (
-            <audio src={previewUrl} controls className="w-full" />
+            <div className="h-full w-full flex flex-col items-center justify-center p-4">
+              <img src="/Snitch_Audio_Waveform(1920 x 1080).png" alt="audio waveform" className="w-full h-40 object-contain" />
+              <audio src={previewUrl} controls className="w-full mt-2" />
+            </div>
           )}
 
           <button
