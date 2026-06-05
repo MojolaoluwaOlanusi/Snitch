@@ -5,8 +5,14 @@ import { buildRegex } from "./search.utils.ts";
 
 export class SearchService {
     static async search(x: { searchWord: any; searchType: any; limit: any; skip?: any; }) {
-        const limit = Number(x.limit) || 10;
-        const skip = Number(x.skip) || 0;
+        const parsedLimit = Number(x.limit);
+        const parsedSkip = Number(x.skip);
+        const limit = Number.isFinite(parsedLimit)
+            ? Math.min(Math.max(Math.trunc(parsedLimit), 1), 50)
+            : 10;
+        const skip = Number.isFinite(parsedSkip)
+            ? Math.max(Math.trunc(parsedSkip), 0)
+            : 0;
         const regex = buildRegex(x.searchWord);
 
         switch (x.searchType) {
