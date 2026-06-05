@@ -119,13 +119,10 @@ export class SearchService {
         limit: number,
         skip: number
     ) {
-        const [users, posts, chats, userTotal, postTotal, chatTotal] = await Promise.all([
+        const [users, posts, chats] = await Promise.all([
             this.searchUsers(regex, limit, skip),
             this.searchPosts(regex, limit, skip),
-            this.searchChats(regex, limit, skip),
-            User.countDocuments({ username: { $regex: regex } }),
-            Post.countDocuments({ text: regex }),
-            Message.countDocuments({ text: regex })
+            this.searchChats(regex, limit, skip)
         ]);
 
         return {
