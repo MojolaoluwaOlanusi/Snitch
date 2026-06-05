@@ -10,9 +10,7 @@ const MentionAutocomplete = ({ value, onChange, placeholder = "Mention someone..
     const containerRef = useRef(null);
 
     useEffect(() => {
-        if (value) {
-            setInputValue(value);
-        }
+        setInputValue(value ?? "");
     }, [value]);
 
     const fetchSuggestions = async (query) => {
