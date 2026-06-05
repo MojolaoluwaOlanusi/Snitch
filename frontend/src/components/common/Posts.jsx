@@ -11,19 +11,22 @@ import {MdAddReaction, MdReportProblem} from "react-icons/md";
 import {IoClose} from "react-icons/io5";
 import EditPostModal from "../../components/common/EditPostModal";
 import {MoreHorizontal} from "lucide-react";
-// import EmojiPicker from "./EmojiPicker";
+import ReactionEmojiPicker from "./ReactionEmojiPicker";
+import ReactionsDisplay from "./ReactionsDisplay";
 
 const Posts = () => {
 
-    const {isReacting, getPosts, isLiking, isReposting, isCommenting, isGettingPosts, Posts,likePost, likedPost, deletePost,
-        reactToPost, reactedToPost, isEditing,
-        commentPost,repost, getFollowingPosts, reposted, reportPost, isReporting,
+    const {isReacting, getPosts, isLiking, isReposting, isCommenting, isGettingPosts, Posts,likePost, deletePost,
+        reactToPost, isEditing,
+        commentPost,repost, getFollowingPosts, reportPost, isReporting,
         editingPostId, deletingPostId, reportingPostId
     } = useUserStore();
     const {authUserId} = useAuthStore();
 
     const [commentData, setCommentData] = useState({ text: "", postId: "" });
     const [reportSelectVisible, setReportSelectVisible] = useState(false);
+    const [actionPostId, setActionPostId] = useState(null);
+    const [emojiPickerOpen, setEmojiPickerOpen] = useState(null); // track which post triggered like/react/repost
 
     const handlePostComment = (e) => {
         e.preventDefault();
@@ -57,11 +60,15 @@ const Posts = () => {
 				</div>
 			)}
 			{!isGettingPosts && Posts?.length === 0 && (
-				<p className='text-center my-4'>No posts in this tab. Switch 👻</p>
+				<p className='text-center my-4'>No posts to display. Check back later!</p>
 			)}
 			{!isGettingPosts && Posts && (
 				<div className="overflow-auto w-full h-[calc(100vh-50px)]">
-					{Posts?.map((post) => (
+					{Posts?.map((post) => {
+                        const isLikedByMe = !!post?.likes?.some((id) => id === authUserId);
+                        // reactions: show count only
+                        // const reactionCount = post?.reaction?.length || 0;
+                        return (
                         <div className='flex gap-2 items-start p-4 border-b border-gray-700' key={post?._id}>
                             <div className='flex flex-col flex-1'>
                                 <div className='flex gap-2 items-center'>
@@ -74,10 +81,10 @@ const Posts = () => {
                                         {post?.author?.displayName}
                                     </Link>
                                     <span className='text-gray-700 flex gap-1 text-sm'>
-							            <Link to={`/profile/${post?.author?.username}`}>@{post?.author?.username}</Link>
-							            <span>·</span>
-							            <span>{formatPostDate(post?.createdAt)}</span>
-						            </span>
+						            <Link to={`/profile/${post?.author?.username}`}>@{post?.author?.username}</Link>
+						            <span>·</span>
+						            <span>{formatPostDate(post?.createdAt)}</span>
+						    </span>
                                     <span className='flex justify-end flex-1 space-x-2'>
                                             <div className="dropdown dropdown-end">
                                                 <button
@@ -85,7 +92,8 @@ const Posts = () => {
                                                     className="btn btn-ghost btn-sm"
                                                     aria-label="Post functions"
                                                 >
-                                                    {(editingPostId === post?._id) && <LoadingSpinner size='sm'/>}
+                                                    {(editingPostId === post?._id) && <LoadingSpinner size='sm'/>
+                                                    }
                                                     {(deletingPostId === post?._id) && <LoadingSpinner size='sm' />}
                                                     {(reportingPostId === post?._id) && <LoadingSpinner size='sm' />}
                                                     {!(editingPostId === post?._id) && !(deletingPostId === post?._id) && !(reportingPostId === post?._id) && <MoreHorizontal className="h-5 w-5" />}
@@ -175,7 +183,7 @@ const Posts = () => {
                                     className="w-full"
                                 >
                                     <div className='flex flex-col gap-3 overflow-hidden'>
-                                            <span className="w-[600px] truncate">{post?.text}</span>
+                                            <span className="w-full line-clamp-3 leading-relaxed">{post?.text}</span>
                                             <div
                                             className="w-full h-[400px] aspect-[4/5] sm:aspect-video rounded-2xl overflow-hidden items-center">
                                                 {post?.mediaType === "Image" && (
@@ -216,14 +224,14 @@ const Posts = () => {
                                         >
                                             <FaRegComment className='w-4 h-4  text-slate-500 group-hover:text-sky-400' />
                                             <span className='text-sm text-slate-500 group-hover:text-sky-400'>
-									            {post?.comments.length}
-								            </span>
+						            {post?.comments.length}
+						        </span>
                                         </div>
                                         <dialog id={`comments_modal${post?._id}`} className='modal border-none outline-none'>
-                                            <div className='modal-box rounded border border-gray-600 space-y-2'>
+                                            <div className={`modal-box rounded border border-gray-600 space-y-2 ${post?.comments.length === 0 ? 'w-full max-w-2xl' : ''}`}>
 
                                                 <div className="flex mx-auto items-center justify-between">
-                                                    <h3 className='font-bold text-lg mb-4'>COMMENTS</h3>
+                                                    <h3 className='font-bold text-lg mb-4'>Comments</h3>
                                                     <div>
                                                         <form method='dialog' className='modal-backdrop'>
                                                             <button className='outline-none'><IoClose className="text-black"/></button>
@@ -235,9 +243,9 @@ const Posts = () => {
                                                     className='flex gap-2 items-center mt-4 border-t border-gray-600 pt-2'
                                                     onSubmit={handlePostComment}
                                                 >
-										                    <textarea
+										<textarea
                                                                 className='textarea w-full p-1 rounded text-md resize-none border focus:outline-none  border-gray-800'
-                                                                placeholder='Add a comment...'
+                                                                placeholder='Write a comment...'
                                                                 value={commentData.text}
                                                                 onKeyDown={(e) => e.key === "Enter" && handlePostComment(e)}
                                                                 onChange={(e) => setCommentData({ ...commentData, text: e.target.value, postId: post?._id})}
@@ -249,7 +257,7 @@ const Posts = () => {
                                                 <div className='flex flex-col gap-3 max-h-60 overflow-auto'>
                                                     {post?.comments.length === 0 && (
                                                         <p className='text-sm text-slate-500'>
-                                                            No comments yet 🤔 Be the first one 😉
+                                                            No comments yet. Be the first to share your thoughts!
                                                         </p>
                                                     )}
                                                     {post?.comments.map((comment) => (
@@ -266,8 +274,8 @@ const Posts = () => {
                                                                 <div className='flex items-center gap-1'>
                                                                     <span className='font-bold'>{comment?.userDisplayName}</span>
                                                                     <span className='text-gray-700 text-sm'>
-															                    @{comment?.userUsername}
-														                    </span>
+															@{comment?.userUsername}
+														</span>
                                                                 </div>
                                                                 <div className='text-sm'>{comment?.text}</div>
                                                             </div>
@@ -278,19 +286,17 @@ const Posts = () => {
                                         </dialog>
                                         <div className='flex gap-1 items-center group cursor-pointer' onClick={(e) => {
                                             e.preventDefault();
+                                            setActionPostId(post._id);
                                             repost(post?._id);
                                         }}>
-                                            {isReposting && <LoadingSpinner size='sm' />}
-                                            {!reposted && !isReposting && (
+                                            {isReposting && actionPostId === post._id && <LoadingSpinner size='sm' />}
+                                            {!isReposting && (
                                                 <BiRepost className='w-6 h-6  text-slate-500 group-hover:text-green-500' />
-                                            )}
-                                            {reposted && !isReposting && (
-                                                <BiRepost className='w-6 h-6 cursor-pointer text-green-500 ' />
                                             )}
 
                                             <span
                                                 className={`text-sm  group-hover:text-green-500 ${
-                                                    reposted ? "text-green-500" : "text-slate-500"
+                                                    "text-slate-500"
                                                 }`}
                                             >
                                                 {post?.repostCount}
@@ -300,73 +306,69 @@ const Posts = () => {
                                         </div>
                                         <div className='flex gap-1 items-center group cursor-pointer' onClick={(e) => {
                                             e.preventDefault();
+                                            setActionPostId(post._id);
                                             likePost(post?._id);
                                         }}>
-                                            {isLiking && <LoadingSpinner size='sm' />}
-                                            {!likedPost && !isLiking && (
-                                                <FaRegHeart className='w-4 h-4 cursor-pointer text-slate-500 group-hover:text-pink-500' />
-                                            )}
-                                            {likedPost && !isLiking && (
-                                                <FaRegHeart className='w-4 h-4 cursor-pointer text-pink-500 ' />
+                                            {isLiking && actionPostId === post._id && <LoadingSpinner size='sm' />}
+                                            {!isLiking && (
+                                                <FaRegHeart className={`w-4 h-4 cursor-pointer ${isLikedByMe ? 'text-pink-500' : 'text-slate-500'} group-hover:text-pink-500`} />
                                             )}
 
                                             <span
                                                 className={`text-sm  group-hover:text-pink-500 ${
-                                                    likedPost ? "text-pink-500" : "text-slate-500"
+                                                    isLikedByMe ? "text-pink-500" : "text-slate-500"
                                                 }`}
                                             >
-									                    {post?.likes?.length}
-								                    </span>
+										{post?.likes?.length}
+									</span>
                                         </div>
                                     </div>
-                                    <div className="flex gap-0 items-center cursor-pointer">
-                                        <div className="flex gap-1 items-center group cursor-pointer" onClick={(e) => {
-                                            e.preventDefault();
-                                        }}>
-                                            {isReacting && <LoadingSpinner size='sm' />}
-                                            {!reactedToPost && !isReacting && (
-                                                <MdAddReaction className='w-6 h-6 cursor-pointer text-slate-500 group-hover:text-yellow-500' />
-                                            )}
-
-                                            {reactedToPost && !isReacting && (
-                                                <MdAddReaction className='w-6 h-6 cursor-pointer text-yellow-500 ' />
-                                            )}
-                                            <span
-                                                className={`text-sm  group-hover:text-yellow-500 ${
-                                                    reactedToPost ? "text-yellow-500" : "text-slate-500"
-                                                }`}
+                                    <div className="flex gap-0 items-center">
+                                        <ReactionsDisplay reactions={post?.reaction} />
+                                        <div className="flex gap-0 items-center cursor-pointer relative ml-2">
+                                            <div
+                                                className="flex gap-1 items-center group cursor-pointer"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    setEmojiPickerOpen(
+                                                        emojiPickerOpen === post._id ? null : post._id
+                                                    );
+                                                }}
                                             >
-									                    {post?.reaction?.length}
-								                    </span>
+                                                {isReacting && actionPostId === post._id && (
+                                                    <LoadingSpinner size="sm" />
+                                                )}
+
+                                                {!isReacting && (
+                                                    <MdAddReaction className="w-6 h-6 cursor-pointer text-slate-500 group-hover:text-yellow-500" />
+                                                )}
+
+                                                <span className="text-sm text-slate-500 group-hover:text-yellow-500">
+                                                    {post?.reaction?.length}
+                                                </span>
+                                            </div>
+                                            <ReactionEmojiPicker
+                                                postId={post._id}
+                                                isOpen={emojiPickerOpen === post._id}
+                                                onClose={() => setEmojiPickerOpen(null)}
+                                                onReact={(emoji) => {
+                                                    setActionPostId(post._id);
+                                                    reactToPost({
+                                                        id: post?._id,
+                                                        reaction: emoji,
+                                                    });
+                                                }}
+                                            />
                                         </div>
-                                        <select
-                                            onChange={(e) => {
-                                                reactToPost({id: post?._id , reaction: e.target.value})
-                                            }}>
-                                            <option></option>
-                                            <option>👍</option>
-                                            <option>💖</option>
-                                            <option>😢</option>
-                                            <option>😄</option>
-                                            <option>🐦</option>
-                                            <option>✅</option>
-                                            <option>🐍</option>
-                                            <option>😃</option>
-                                            <option>😆</option>
-                                            <option>😅</option>
-                                            <option>🤣</option>
-                                            <option>😜</option>
-                                            <option>😚</option>
-                                        </select>
-                                        {/*<EmojiPicker inputRef={inputRef} />*/}
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    ))}
+                    );
+                })}
 				</div>
 			)}
 		</>
-	);
+	)
 };
 export default Posts;

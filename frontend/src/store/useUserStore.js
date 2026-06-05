@@ -163,14 +163,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({isGettingPosts: true});
+                // update posts array without changing global loading flag
                 set({Posts: res.data});
             } catch (error) {
                 console.log("Error in Getting  Posts:", error);
                 toast.error("Failed to get  Posts");
-                set({isGettingPosts: false});
-            } finally {
-                set({isGettingPosts: false});
             }
         }
 
@@ -182,14 +179,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingFollowingPosts: true });
+                // update followingPosts without changing global loading flag
                 set({ followingPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Liked Posts:", error);
                 toast.error("Failed to get Liked Posts!");
-                set({ isGettingFollowingPosts: false });
-            } finally {
-                set({ isGettingFollowingPosts: false });
             }
         }
 
@@ -201,14 +195,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingUserPosts: true });
+                // update userPosts without changing global loading flag
                 set({ userPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting User Posts:", error);
                 toast.error("Failed to get User Posts!, Try refreshing the page.");
-                set({ isGettingUserPosts: false });
-            } finally {
-                set({ isGettingUserPosts: false });
             }
         }
 
@@ -220,14 +211,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingLikedPosts: true });
+                // update likedPosts without changing global loading flag
                 set({ likedPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Liked Posts:", error);
                 toast.error("Failed to get Liked Posts!");
-                set({ isGettingLikedPosts: false });
-            } finally {
-                set({ isGettingLikedPosts: false });
             }
         }
 
@@ -239,14 +227,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingUserPosts: true });
+                // update truncatedPosts without changing global loading flag
                 set({ truncatedPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Truncated Posts:", error);
                 toast.error("Failed to get User Posts!");
-                set({ isGettingUserPosts: false });
-            } finally {
-                set({ isGettingUserPosts: false });
             }
         }
 
@@ -384,14 +369,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({isGettingPosts: true});
+                // update posts array without changing global loading flag
                 set({Posts: res.data});
             } catch (error) {
                 console.log("Error in Getting  Posts:", error);
                 toast.error("Failed to get  Posts");
-                set({isGettingPosts: false});
-            } finally {
-                set({isGettingPosts: false});
             }
         }
 
@@ -403,14 +385,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingFollowingPosts: true });
+                // update followingPosts without changing global loading flag
                 set({ followingPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Liked Posts:", error);
                 toast.error("Failed to get Liked Posts!");
-                set({ isGettingFollowingPosts: false });
-            } finally {
-                set({ isGettingFollowingPosts: false });
             }
         }
 
@@ -422,14 +401,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingUserPosts: true });
+                // update userPosts without changing global loading flag
                 set({ userPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting User Posts:", error);
                 toast.error("Failed to get User Posts!, Try refreshing the page.");
-                set({ isGettingUserPosts: false });
-            } finally {
-                set({ isGettingUserPosts: false });
             }
         }
 
@@ -441,14 +417,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingLikedPosts: true });
+                // update likedPosts without changing global loading flag
                 set({ likedPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Liked Posts:", error);
                 toast.error("Failed to get Liked Posts!");
-                set({ isGettingLikedPosts: false });
-            } finally {
-                set({ isGettingLikedPosts: false });
             }
         }
 
@@ -493,7 +466,8 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ Posts: res.data });
+                // update posts array without changing global loading flag
+                set({Posts: res.data});
             } catch (error) {
                 console.log("Error in Getting  Posts:", error);
                 toast.error("Failed to get  Posts");
@@ -508,6 +482,7 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
+                // update followingPosts without changing global loading flag
                 set({ followingPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Following Posts:", error);
@@ -523,6 +498,7 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
+                // update userPosts without changing global loading flag
                 set({ userPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting User Posts:", error);
@@ -538,6 +514,7 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
+                // update likedPosts without changing global loading flag
                 set({ likedPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Liked Posts:", error);
@@ -581,14 +558,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({isGettingPosts: true});
+                // update posts array without changing global loading flag
                 set({Posts: res.data});
             } catch (error) {
                 console.log("Error in Getting  Posts:", error);
                 toast.error("Failed to get  Posts");
-                set({isGettingPosts: false});
-            } finally {
-                set({isGettingPosts: false});
             }
         }
 
@@ -600,14 +574,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingFollowingPosts: true });
+                // update followingPosts without changing global loading flag
                 set({ followingPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Liked Posts:", error);
                 toast.error("Failed to get Liked Posts!");
-                set({ isGettingFollowingPosts: false });
-            } finally {
-                set({ isGettingFollowingPosts: false });
             }
         }
 
@@ -619,14 +590,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingUserPosts: true });
+                // update userPosts without changing global loading flag
                 set({ userPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting User Posts:", error);
                 toast.error("Failed to get User Posts!, Try refreshing the page.");
-                set({ isGettingUserPosts: false });
-            } finally {
-                set({ isGettingUserPosts: false });
             }
         }
 
@@ -638,14 +606,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingLikedPosts: true });
+                // update likedPosts without changing global loading flag
                 set({ likedPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Liked Posts:", error);
                 toast.error("Failed to get Liked Posts!");
-                set({ isGettingLikedPosts: false });
-            } finally {
-                set({ isGettingLikedPosts: false });
             }
         }
 
@@ -826,14 +791,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({isGettingPosts: true});
+                // update posts array without changing global loading flag
                 set({Posts: res.data});
             } catch (error) {
                 console.log("Error in Getting  Posts:", error);
                 toast.error("Failed to get  Posts");
-                set({isGettingPosts: false});
-            } finally {
-                set({isGettingPosts: false});
             }
         }
 
@@ -845,14 +807,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingFollowingPosts: true });
+                // update followingPosts without changing global loading flag
                 set({ followingPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Liked Posts:", error);
                 toast.error("Failed to get Liked Posts!");
-                set({ isGettingFollowingPosts: false });
-            } finally {
-                set({ isGettingFollowingPosts: false });
             }
         }
 
@@ -864,14 +823,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingUserPosts: true });
+                // update userPosts without changing global loading flag
                 set({ userPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting User Posts:", error);
                 toast.error("Failed to get User Posts!, Try refreshing the page.");
-                set({ isGettingUserPosts: false });
-            } finally {
-                set({ isGettingUserPosts: false });
             }
         }
 
@@ -883,14 +839,27 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingLikedPosts: true });
+                // update likedPosts without changing global loading flag
                 set({ likedPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Liked Posts:", error);
                 toast.error("Failed to get Liked Posts!");
-                set({ isGettingLikedPosts: false });
-            } finally {
-                set({ isGettingLikedPosts: false });
+            }
+        }
+
+        async function refreshSinglePost(postId) {
+            try {
+                const token = localStorage.getItem('access-token');
+                const res = await axiosInstance.get(`/posts/${postId}`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+                console.log("Refreshed single post:", res.data);
+                // update singlePost without changing global loading flag
+                set({ singlePost: res.data });
+            } catch (error) {
+                console.log("Error in Getting Single Post:", error);
             }
         }
 
@@ -907,6 +876,10 @@ export const useUserStore = create((set) => ({
             set({ comment : res.data });
             await refreshPosts();
             await refreshFollowingPosts();
+            // Refresh single post if we have the postId
+            if (data.postId) {
+                await refreshSinglePost(data.postId);
+            }
             if (user) {
                 await refreshUserPosts(user);
                 await refreshLikedPosts(user);
@@ -931,14 +904,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({isGettingPosts: true});
+                // update posts array without changing global loading flag
                 set({Posts: res.data});
             } catch (error) {
                 console.log("Error in Getting  Posts:", error);
                 toast.error("Failed to get  Posts");
-                set({isGettingPosts: false});
-            } finally {
-                set({isGettingPosts: false});
             }
         }
 
@@ -950,14 +920,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingFollowingPosts: true });
+                // update followingPosts without changing global loading flag
                 set({ followingPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Liked Posts:", error);
                 toast.error("Failed to get Liked Posts!");
-                set({ isGettingFollowingPosts: false });
-            } finally {
-                set({ isGettingFollowingPosts: false });
             }
         }
 
@@ -969,14 +936,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingUserPosts: true });
+                // update userPosts without changing global loading flag
                 set({ userPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting User Posts:", error);
                 toast.error("Failed to get User Posts!, Try refreshing the page.");
-                set({ isGettingUserPosts: false });
-            } finally {
-                set({ isGettingUserPosts: false });
             }
         }
 
@@ -988,14 +952,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingLikedPosts: true });
+                // update likedPosts without changing global loading flag
                 set({ likedPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Liked Posts:", error);
                 toast.error("Failed to get Liked Posts!");
-                set({ isGettingLikedPosts: false });
-            } finally {
-                set({ isGettingLikedPosts: false });
             }
         }
 
@@ -1091,14 +1052,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({isGettingPosts: true});
+                // update posts array without changing global loading flag
                 set({Posts: res.data});
             } catch (error) {
                 console.log("Error in Getting  Posts:", error);
                 toast.error("Failed to get  Posts");
-                set({isGettingPosts: false});
-            } finally {
-                set({isGettingPosts: false});
             }
         }
 
@@ -1110,14 +1068,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingFollowingPosts: true });
+                // update followingPosts without changing global loading flag
                 set({ followingPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Liked Posts:", error);
                 toast.error("Failed to get Liked Posts!");
-                set({ isGettingFollowingPosts: false });
-            } finally {
-                set({ isGettingFollowingPosts: false });
             }
         }
 
@@ -1129,14 +1084,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingUserPosts: true });
+                // update userPosts without changing global loading flag
                 set({ userPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting User Posts:", error);
                 toast.error("Failed to get User Posts!, Try refreshing the page.");
-                set({ isGettingUserPosts: false });
-            } finally {
-                set({ isGettingUserPosts: false });
             }
         }
 
@@ -1148,14 +1100,11 @@ export const useUserStore = create((set) => ({
                         "Authorization": `Bearer ${token}`
                     }
                 });
-                set({ isGettingLikedPosts: true });
+                // update likedPosts without changing global loading flag
                 set({ likedPosts: res.data });
             } catch (error) {
                 console.log("Error in Getting Liked Posts:", error);
                 toast.error("Failed to get Liked Posts!");
-                set({ isGettingLikedPosts: false });
-            } finally {
-                set({ isGettingLikedPosts: false });
             }
         }
 

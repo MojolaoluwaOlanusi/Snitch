@@ -7,10 +7,12 @@ import {LoaderIcon} from "lucide-react";
 import {useMediaStore} from "../../store/useMediaStore";
 import axiosInstance from "../../lib/axios";
 import MediaSelector from '../../components/common/MediaSelector';
+import HashtagAutocomplete from '../../components/common/HashtagAutocomplete';
+import MentionAutocomplete from '../../components/common/MentionAutocomplete';
 
 function CreatePostPage () {
     const [formData, setFormData] = useState({ text: "", isWarp: false, url: "", mediaType: "", mentions: [], hashtags: []});
-    const { isCreatingPost, createPost, getAllUsers, users } = useUserStore();
+    const { isCreatingPost, createPost, getAllUsers } = useUserStore();
     const { authUserId } = useAuthStore();
 
     const [file, setFile] = useState(null);
@@ -45,10 +47,9 @@ function CreatePostPage () {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            // if there's a file, request upload url then put file
+            // perform upload only when creating (upload to presigned then call createPost)
             if (file) {
                 const contentType = file.type;
-                // choose folder based on mediaType (fallback to Images)
                 const folder = formData.mediaType === 'Audio' ? 'Audio' : formData.mediaType === 'Video' ? 'Videos' : 'Images';
                 const token = localStorage.getItem('access-token');
                 const res = await axiosInstance.post('/media/upload-url', { contentType, folder }, {
@@ -83,85 +84,75 @@ function CreatePostPage () {
     return (
         <div className="w-full flex flex-col md:flex-row h-screen">
             <Sidebar/>
-            <div className=" sticky flex-col items-center bg-base-100 rounded-lg w-full h-full p-4 overflow-auto">
-                <div className="space-y-5">
-                    <div>
+            <div className="flex-1 flex flex-col items-center bg-gradient-to-br from-blue-50 to-white rounded-lg w-full h-full p-6 overflow-auto">
+                <div className="w-full max-w-3xl space-y-6">
+                    <div className="items-center flex flex-col p-6 bg-white rounded-xl border-2 border-blue-200 shadow-md">
+                        <p className="text-2xl text-blue-600 font-semibold">Share your thoughts with the world ✨</p>
+                    </div>
 
-                        <div className="items-center flex flex-col p-2 space-x-8 bg-gray-100 rounded-lg">
-                            <p className="text-2xl text-crimson-400">Start your day with a new post 😊</p>
+                    <form className="flex flex-col gap-5 w-full" onSubmit={handleSubmit}>
+
+                        <div className="rounded-xl bg-white border-2 border-gray-300 p-5 shadow-sm">
+                            <p className="text-gray-700 font-semibold mb-3 text-lg">What's on your mind?</p>
+                            <textarea
+                                name={authUserId}
+                                className='textarea w-full h-44 text-lg resize-none border-2 border-gray-300 bg-white p-4 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-200 rounded-lg transition-all duration-200'
+                                placeholder='Share something amazing today...'
+                                value={formData.text}
+                                onChange={(e) => setFormData({ ...formData, text: e.target.value })}
+                            />
+                        </div>
+                        <div className="rounded-xl bg-white border-2 border-gray-300 p-5 shadow-sm">
+                            <p className="text-gray-700 font-semibold mb-3 text-lg">Add Media</p>
+                            <MediaSelector
+                                file={file}
+                                previewUrl={previewUrl}
+                                onSelect={handleFileSelect}
+                                onRemove={handleRemoveFile}
+                                buttonLabel={'Select Media'}
+                            />
                         </div>
 
-                        <form className="flex flex-col gap-2 w-full" onSubmit={handleSubmit}>
-
-                            <div className="rounded-lg ">
-                                <div className="rounded-lg ">
-                                    <p className="text-gray-700 text-bold text-1xl">Enter your post content</p>
-                                    <textarea
-                                        name={authUserId}
-                                        className='textarea w-full h-[270px] text-lg resize-none border-none bg-base-100 p-2 focus:outline-none  border-gray-800'
-                                        placeholder='What do you have to say today.'
-                                        value={formData.text}
-                                        onChange={(e) => setFormData({ ...formData, text: e.target.value })}
-                                    />
-                                </div>
+                        <div className="flex items-center justify-between gap-4 bg-white border-2 border-gray-300 rounded-xl p-5 shadow-sm">
+                            <div className="flex flex-col">
+                                <p className="text-gray-700 font-semibold mb-2">Warp</p>
+                                {formData.isWarp === true ? (
+                                    <div className="relative inline-block w-12 h-7 rounded-full p-1 cursor-pointer transition-colors duration-300 bg-green-500" onClick={isWarpFalse} >
+                                        <div className="absolute w-5 h-5 bg-white rounded-full transform transition-transform duration-300 translate-x-5 shadow-md"/>
+                                    </div>
+                                ) : (
+                                    <div className="relative inline-block w-12 h-7 rounded-full p-1 cursor-pointer transition-colors duration-300 bg-gray-300" onClick={isWarpTrue} >
+                                        <div className="absolute w-5 h-5 bg-white rounded-full transform transition-transform duration-300 translate-x-0 shadow-md"/>
+                                    </div>
+                                )}
                             </div>
-                            <div>
-                                <p className="text-gray-700 text-bold text-1xl">Select Media</p>
-                                <MediaSelector
-                                    file={file}
-                                    previewUrl={previewUrl}
-                                    onSelect={handleFileSelect}
-                                    onRemove={handleRemoveFile}
-                                    buttonLabel={'Select Media'}
+
+                            <div className="flex-1">
+                                <label className="text-gray-700 font-semibold mb-2 block">Hashtags</label>
+                                <HashtagAutocomplete
+                                    value={Array.isArray(formData.hashtags) ? formData.hashtags.join(' ') : formData.hashtags}
+                                    onChange={(value) => setFormData({ ...formData, hashtags: value.split(' ').filter(h => h.trim()) })}
+                                    placeholder="Add hashtags..."
                                 />
                             </div>
-                            <div className="items-center">
-                                <div className="flex flex-row justify-between">
-                                    <div className="flex flex-col">
-                                        <p className="text-gray-700 text-bold text-1xl">Is Warp</p>
-                                        {formData.isWarp === true ? (
-                                            <div className="relative inline-block w-10 h-6 rounded-full p-1 cursor-pointer transition-colors duration-300 bg-green-500" onClick={isWarpFalse} >
-                                                <div className="absolute w-4 h-4 bg-white rounded-full transform transition-transform duration-300 translate-x-4"/>
-                                            </div>
-                                        ) : (
-                                            <div className="relative inline-block w-10 h-6 rounded-full p-1 cursor-pointer transition-colors duration-300 bg-gray-300" onClick={isWarpTrue} >
-                                                <div className="absolute w-4 h-4 bg-white rounded-full transform transition-transform duration-300 translate-x-0"/>
-                                            </div>
-                                        )}
-                                    </div>
 
-                                    <div className="">
-                                        <textarea
-                                            name={authUserId}
-                                            className="h-full"
-                                            placeholder='Do you have any Hashtags'
-                                            value={formData.hashtags}
-                                            onChange={(e) => setFormData({ ...formData, hashtags: [e.target.value] })}
-                                        />
-                                    </div>
-
-                                    <div className="">
-                                        <select className="select"
-                                                value={formData.mentions}
-                                                onChange={(e) => setFormData({ ...formData, mentions: [e.target.value] })}
-                                        >
-                                            <option disabled={true}>Mention someone</option>
-                                            {users?.map((user) => (
-                                                <option key={user?._id}>{user?.username}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
+                            <div className="w-56">
+                                <label className="text-gray-700 font-semibold mb-2 block">Mention Someone</label>
+                                <MentionAutocomplete
+                                    value={Array.isArray(formData.mentions) ? formData.mentions.join(' ') : ''}
+                                    onChange={(value) => setFormData({ ...formData, mentions: value.split(' ').filter(m => m.trim()) })}
+                                    placeholder="Mention someone..."
+                                />
                             </div>
-                            <button className=" btn btn-primary w-full" type="submit" disabled={isCreatingPost}>
-                                {isCreatingPost ? (
-                                    <LoaderIcon className="w-full h-5 animate-spin text-center" />
-                                ) : (
-                                    "Create Post"
-                                )}
-                            </button>
-                        </form>
-                    </div>
+                        </div>
+                        <button className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-xl py-4 text-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg border-2 border-blue-600" type="submit" disabled={isCreatingPost}>
+                            {isCreatingPost ? (
+                                <LoaderIcon className="w-6 h-6 animate-spin mx-auto" />
+                            ) : (
+                                "Create Post"
+                            )}
+                        </button>
+                    </form>
                 </div>
             </div>
             <CreatePostRightPanel />
