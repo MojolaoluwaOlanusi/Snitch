@@ -269,7 +269,8 @@ const SearchPage = () => {
         // All search
         if (
             searchType === "all" &&
-            typeof searchResults === "object"
+            typeof searchResults === "object" &&
+            searchResults.all
         ) {
             return (
                 (!searchResults.all.users ||
