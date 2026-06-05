@@ -139,7 +139,7 @@ function CreatePostPage () {
                             <div className="w-56">
                                 <label className="text-gray-700 font-semibold mb-2 block">Mention Someone</label>
                                 <MentionAutocomplete
-                                    value={formData.mentions[0] || ''}
+                                    value={Array.isArray(formData.mentions) ? formData.mentions.join(' ') : ''}
                                     onChange={(value) => setFormData({ ...formData, mentions: value.split(' ').filter(m => m.trim()) })}
                                     placeholder="Mention someone..."
                                 />
