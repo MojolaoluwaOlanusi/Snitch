@@ -10,9 +10,7 @@ const HashtagAutocomplete = ({ value, onChange, placeholder = "Add hashtags..." 
     const containerRef = useRef(null);
 
     useEffect(() => {
-        if (value) {
-            setInputValue(value);
-        }
+        setInputValue(value ?? "");
     }, [value]);
 
     const fetchSuggestions = async (query) => {
