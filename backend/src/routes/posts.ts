@@ -46,22 +46,26 @@ router.get('/trending/hashtags', async (req,res)=>{
     const limit = parseInt(req.query.limit as string) || 20;
     const skip = parseInt(req.query.skip as string) || 0;
     
-    const posts = await Post.find({ hashtags: { $exists: true, $ne: [] } });
-    const hashtagCounts: Record<string, number> = {};
-    posts.forEach(post => {
-        if(post.hashtags) {
-            post.hashtags.forEach(tag => {
-                hashtagCounts[tag] = (hashtagCounts[tag] || 0) + 1;
-            });
+    const [agg] = await Post.aggregate([
+        { $match: { hashtags: { $exists: true, $ne: [] } } },
+        { $unwind: "$hashtags" },
+        { $group: { _id: "$hashtags", count: { $sum: 1 } } },
+        { $sort: { count: -1, _id: 1 } },
+        {
+            $facet: {
+                data: [
+                    { $skip: skip },
+                    { $limit: limit },
+                    { $project: { _id: 0, tag: "$_id", count: 1 } }
+                ],
+                total: [{ $count: "count" }]
+            }
         }
-    });
-    const allTrendingHashtags = Object.entries(hashtagCounts)
-        .sort((a, b) => b[1] - a[1])
-        .map(([tag, count]) => ({ tag, count }));
-    
-    const trendingHashtags = allTrendingHashtags.slice(skip, skip + limit);
-    
-    res.json({ hashtags: trendingHashtags, hasMore: skip + limit < allTrendingHashtags.length });
+    ]);
+
+    const hashtags = agg?.data ?? [];
+    const total = agg?.total?.[0]?.count ?? 0;
+    res.json({ hashtags, hasMore: skip + limit < total });
 });
 
 router.delete('/delete/:id', async (req: any, res: any) => {
