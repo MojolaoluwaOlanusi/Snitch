@@ -27,6 +27,47 @@ router.post('/', async (req,res)=>{
 
 router.get('/', async (_req,res)=>{ const posts = await Post.find().sort({ createdAt:-1 }).limit(50).populate('author','username displayName avatarUrl'); res.json(posts); });
 
+router.get('/trending', async (req,res)=>{
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = parseInt(req.query.skip as string) || 0;
+    
+    const trendingPosts = await Post.find()
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('author','username displayName avatarUrl');
+
+    const total = await Post.countDocuments();
+
+    res.json({ posts: trendingPosts, hasMore: skip + limit < total });
+});
+
+router.get('/trending/hashtags', async (req,res)=>{
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = parseInt(req.query.skip as string) || 0;
+    
+    const [agg] = await Post.aggregate([
+        { $match: { hashtags: { $exists: true, $ne: [] } } },
+        { $unwind: "$hashtags" },
+        { $group: { _id: "$hashtags", count: { $sum: 1 } } },
+        { $sort: { count: -1, _id: 1 } },
+        {
+            $facet: {
+                data: [
+                    { $skip: skip },
+                    { $limit: limit },
+                    { $project: { _id: 0, tag: "$_id", count: 1 } }
+                ],
+                total: [{ $count: "count" }]
+            }
+        }
+    ]);
+
+    const hashtags = agg?.data ?? [];
+    const total = agg?.total?.[0]?.count ?? 0;
+    res.json({ hashtags, hasMore: skip + limit < total });
+});
+
 router.delete('/delete/:id', async (req: any, res: any) => {
     const { id } = req.params;
 

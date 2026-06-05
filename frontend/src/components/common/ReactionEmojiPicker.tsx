@@ -43,16 +43,16 @@ const ReactionEmojiPicker: React.FC<Props> = ({ postId, onReact, onClose, isOpen
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -20, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 bottom-full mb-2 z-50 bg-white p-2 rounded-xl shadow-2xl border-2 border-blue-200 w-80 max-h-64 overflow-auto"
+                    className="absolute right-0 bottom-full mb-2 z-50 bg-white p-2 rounded-xl shadow-2xl border-2 border-blue-200 w-90 max-h-64 overflow-auto"
                 >
                     {/* Search */}
-                    <input
-                        type="text"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search emoji..."
-                        className="w-full mb-2 p-2 rounded-lg border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-200 text-sm"
-                    />
+                    {/*<input*/}
+                    {/*    type="text"*/}
+                    {/*    value={search}*/}
+                    {/*    onChange={(e) => setSearch(e.target.value)}*/}
+                    {/*    placeholder="Search emoji..."*/}
+                    {/*    className="w-full mb-2 p-2 rounded-lg border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-200 text-sm"*/}
+                    {/*/>*/}
 
                     {/* Lazy-loaded emojis */}
                     <Suspense fallback={<div className="text-center p-4 text-gray-500">Loading emojis...</div>}>

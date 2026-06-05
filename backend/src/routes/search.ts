@@ -17,9 +17,15 @@ router.get("/:searchType/:searchWord/:limit", async (req, res) => {
 
     const { searchType } = req.params;
     const { searchWord } = req.params;
-    const { limit } = req.params;
+    const limitNum = Number(req.params.limit);
+    const skipNum = Number(req.query.skip || 0);
 
-    const response = await SearchService.search({searchWord, searchType, limit});
+    const response = await SearchService.search({
+        searchWord,
+        searchType,
+        limit: limitNum,
+        skip: skipNum
+    });
 
     res.json(response);
 });

@@ -3,8 +3,29 @@ import axiosInstance  from "../lib/axios";
 import toast from "react-hot-toast";
 import {useAuthStore} from "./useAuthStore";
 
-export const useUserStore = create((set) => ({
-    searchResult: [],
+export const useUserStore = create((set, get) => ({
+    searchResults: {
+        users: [],
+        posts: [],
+        chats: [],
+        mentions: [],
+        hashtags: [],
+        all: {
+            users: [],
+            posts: [],
+            chats: []
+        }
+    },
+    searchHasMore: {
+        users: false,
+        posts: false,
+        chats: false,
+        mentions: false,
+        hashtags: false,
+        allUsers: false,
+        allPosts: false,
+        allChats: false
+    },
     suggestedUsers: [],
     users: [],
     userPosts: [],
@@ -46,6 +67,13 @@ export const useUserStore = create((set) => ({
     isGettingPosts: false,
     followingPosts: [],
     reportingPostId: null,
+    trendingPosts: [],
+    trendingHashtags: [],
+    isGettingTrending: false,
+    trendingHasMore: {
+        posts: false,
+        hashtags: false
+    },
 
     getSuggestedUsers: async () => {
         set({ isGettingSuggestedUsers: true });
@@ -1158,23 +1186,181 @@ export const useUserStore = create((set) => ({
     },
 
     searchItem: async (data) => {
-        try{
-            const token = localStorage.getItem('access-token');
-            const res = await axiosInstance.get(`/search/${data.searchType}/${data.searchWord}/${data.limit}`,  {
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
-            });
-
+        try {
             set({ isSearching: true });
-            set({ searchResult: res.data });
 
+            const token = localStorage.getItem("access-token");
+
+            const skip = data.skip || 0;
+
+            const res = await axiosInstance.get(
+                `/search/${data.searchType}/${data.searchWord}/${data.limit}?skip=${skip}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            const current = get().searchResults;
+
+            switch (data.searchType) {
+                case "user":
+                    set({
+                        searchResults: {
+                            ...current,
+                            users:
+                                skip === 0
+                                    ? res.data.users
+                                    : [...current.all?.users, ...res.data.users]
+                        },
+                        searchHasMore: {
+                            ...get().searchHasMore,
+                            users: res.data.hasMore
+                        }
+                    });
+                    break;
+
+                case "post":
+                    set({
+                        searchResults: {
+                            ...current,
+                            posts:
+                                skip === 0
+                                    ? res.data.posts
+                                    : [...current.all?.posts, ...res.data.posts]
+                        },
+                        searchHasMore: {
+                            ...get().searchHasMore,
+                            posts: res.data.hasMore
+                        }
+                    });
+                    break;
+
+                case "chat":
+                    set({
+                        searchResults: {
+                            ...current,
+                            chats:
+                                skip === 0
+                                    ? res.data.chats
+                                    : [...current.all?.chats, ...res.data.chats]
+                        },
+                        searchHasMore: {
+                            ...get().searchHasMore,
+                            chats: res.data.hasMore
+                        }
+                    });
+                    break;
+
+                case "mention":
+                    set({
+                        searchResults: {
+                            ...current,
+                            mentions:
+                                skip === 0
+                                    ? res.data.posts
+                                    : [...current.mentions, ...res.data.posts]
+                        },
+                        searchHasMore: {
+                            ...get().searchHasMore,
+                            mentions: res.data.hasMore
+                        }
+                    });
+                    break;
+
+                case "hashtag":
+                    set({
+                        searchResults: {
+                            ...current,
+                            Hashtags:
+                                skip === 0
+                                    ? res.data.Hashtags
+                                    : [...(current.Hashtags || []), ...res.data.Hashtags]
+                        },
+                        searchHasMore: {
+                            ...get().searchHasMore,
+                            hashtags: res.data.hasMore
+                        }
+                    });
+                    break;
+
+                case "all":
+                    set({
+                        searchResults: {
+                            ...current,
+                            all: {
+                                users:
+                                    skip === 0
+                                        ? res.data.users
+                                        : [...current.all.users, ...res.data.users],
+
+                                posts:
+                                    skip === 0
+                                        ? res.data.posts
+                                        : [...current.all.posts, ...res.data.posts],
+
+                                chats:
+                                    skip === 0
+                                        ? res.data.chats
+                                        : [...current.all.chats, ...res.data.chats]
+                            }
+                        },
+
+                        searchHasMore: {
+                            ...get().searchHasMore,
+                            allUsers: res.data.hasMore.users,
+                            allPosts: res.data.hasMore.posts,
+                            allChats: res.data.hasMore.chats
+                        }
+                    });
+                    break;
+            }
         } catch (e) {
-            console.log(`Failed to search ${data.searchType}: ${e}`);
-            toast.error(`Failed to search ${data.searchType}`);
-            set({ isSearching: false });
+            console.log(e);
         } finally {
             set({ isSearching: false });
+        }
+    },
+
+    getTrending: async (skip = 0) => {
+        set({ isGettingTrending: true });
+        try {
+            const token = localStorage.getItem('access-token');
+            const [postsRes, hashtagsRes] = await Promise.all([
+                axiosInstance.get(`/posts/trending?limit=20&skip=${skip}`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                }),
+                axiosInstance.get(`/posts/trending/hashtags?limit=20&skip=${skip}`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                })
+            ]);
+
+            if (skip === 0) {
+                set({ 
+                    trendingPosts: postsRes.data.posts, 
+                    trendingHashtags: hashtagsRes.data.hashtags,
+                    trendingHasMore: {
+                        posts: postsRes.data.hasMore,
+                        hashtags: hashtagsRes.data.hasMore
+                    }
+                });
+            } else {
+                const current = get();
+                set({ 
+                    trendingPosts: [...current.trendingPosts, ...postsRes.data.posts],
+                    trendingHashtags: [...current.trendingHashtags, ...hashtagsRes.data.hashtags],
+                    trendingHasMore: {
+                        posts: postsRes.data.hasMore,
+                        hashtags: hashtagsRes.data.hasMore
+                    }
+                });
+            }
+        } catch (error) {
+            console.log("Error in getting trending:", error);
+            toast.error("Failed to get trending content");
+        } finally {
+            set({ isGettingTrending: false });
         }
     }
 }));
