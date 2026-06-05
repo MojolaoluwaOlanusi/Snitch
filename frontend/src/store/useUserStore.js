@@ -10,6 +10,7 @@ export const useUserStore = create((set, get) => ({
         chats: [],
         mentions: [],
         hashtags: [],
+        suggestedHashtags: [],
         all: {
             users: [],
             posts: [],
@@ -1212,7 +1213,7 @@ export const useUserStore = create((set, get) => ({
                             users:
                                 skip === 0
                                     ? res.data.users
-                                    : [...current.all?.users, ...res.data.users]
+                                    : [...current.users, ...res.data.users]
                         },
                         searchHasMore: {
                             ...get().searchHasMore,
@@ -1228,7 +1229,7 @@ export const useUserStore = create((set, get) => ({
                             posts:
                                 skip === 0
                                     ? res.data.posts
-                                    : [...current.all?.posts, ...res.data.posts]
+                                    : [...current.posts, ...res.data.posts]
                         },
                         searchHasMore: {
                             ...get().searchHasMore,
@@ -1244,7 +1245,7 @@ export const useUserStore = create((set, get) => ({
                             chats:
                                 skip === 0
                                     ? res.data.chats
-                                    : [...current.all?.chats, ...res.data.chats]
+                                    : [...current.chats, ...res.data.chats]
                         },
                         searchHasMore: {
                             ...get().searchHasMore,
@@ -1273,10 +1274,14 @@ export const useUserStore = create((set, get) => ({
                     set({
                         searchResults: {
                             ...current,
-                            Hashtags:
+                            hashtags:
                                 skip === 0
-                                    ? res.data.Hashtags
-                                    : [...(current.Hashtags || []), ...res.data.Hashtags]
+                                    ? res.data.hashtags
+                                    : [...(current.hashtags || []), ...res.data.hashtags],
+                            suggestedHashtags:
+                                skip === 0
+                                    ? res.data.suggestedHashtags
+                                    : [...(current.suggestedHashtags || []), ...res.data.suggestedHashtags]
                         },
                         searchHasMore: {
                             ...get().searchHasMore,
@@ -1309,9 +1314,9 @@ export const useUserStore = create((set, get) => ({
 
                         searchHasMore: {
                             ...get().searchHasMore,
-                            allUsers: res.data.hasMore.users,
-                            allPosts: res.data.hasMore.posts,
-                            allChats: res.data.hasMore.chats
+                            users: res.data.hasMore.users,
+                            posts: res.data.hasMore.posts,
+                            chats: res.data.hasMore.chats
                         }
                     });
                     break;

@@ -28,9 +28,16 @@ router.post('/', async (req,res)=>{
 router.get('/', async (_req,res)=>{ const posts = await Post.find().sort({ createdAt:-1 }).limit(50).populate('author','username displayName avatarUrl'); res.json(posts); });
 
 router.get('/trending', async (req,res)=>{
-    const limit = parseInt(req.query.limit as string) || 20;
-    const skip = parseInt(req.query.skip as string) || 0;
-    
+    const parsedLimit = Number(req.query.limit);
+    const parsedSkip = Number(req.query.skip);
+    const limit = Number.isFinite(parsedLimit)
+        ? Math.min(Math.max(Math.trunc(parsedLimit), 1), 50)
+            : 20;
+    const skip = Number.isFinite(parsedSkip)
+        ? Math.max(Math.trunc(parsedSkip), 0)
+            : 0;
+
+
     const trendingPosts = await Post.find()
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -43,8 +50,14 @@ router.get('/trending', async (req,res)=>{
 });
 
 router.get('/trending/hashtags', async (req,res)=>{
-    const limit = parseInt(req.query.limit as string) || 20;
-    const skip = parseInt(req.query.skip as string) || 0;
+    const parsedLimit = Number(req.query.limit);
+    const parsedSkip = Number(req.query.skip);
+    const limit = Number.isFinite(parsedLimit)
+        ? Math.min(Math.max(Math.trunc(parsedLimit), 1), 50)
+        : 20;
+    const skip = Number.isFinite(parsedSkip)
+        ? Math.max(Math.trunc(parsedSkip), 0)
+        : 0;
     
     const [agg] = await Post.aggregate([
         { $match: { hashtags: { $exists: true, $ne: [] } } },

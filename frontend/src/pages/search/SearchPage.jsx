@@ -28,7 +28,7 @@ const SearchPage = () => {
         trendingPosts,
         trendingHashtags,
         isGettingTrending,
-        trendingHasMore
+        trendingHasMore,
     } = useUserStore();
 
     useEffect(() => {
@@ -288,8 +288,8 @@ const SearchPage = () => {
             typeof searchResults === "object"
         ) {
             return (
-                (!searchResults.Hashtags ||
-                    searchResults.Hashtags.length === 0) &&
+                (!searchResults.hashtags ||
+                    searchResults.hashtags.length === 0) &&
                 (!searchResults.suggestedHashtags ||
                     searchResults.suggestedHashtags.length === 0)
             );
@@ -331,6 +331,7 @@ const SearchPage = () => {
                                                     chats: [],
                                                     mentions: [],
                                                     hashtags: [],
+                                                    suggestedHashtags: [],
                                                     all: {
                                                         users: [],
                                                         posts: [],
@@ -572,15 +573,14 @@ const SearchPage = () => {
                                                     )}
                                                 </div>
                                             )}
-                                     </>
                                         </>
                                     ) : searchType === "hashtag" && typeof searchResults === 'object' && !Array.isArray(searchResults) ? (
                                         <>
-                                            {searchResults.Hashtags && searchResults.Hashtags.length > 0 && (
+                                            {searchResults.hashtags && searchResults.hashtags.length > 0 && (
                                                 <div className="mb-6">
                                                     <h3 className="text-lg font-semibold text-gray-800 mb-3">Posts with #{currentSearchWord || 'hashtag'}</h3>
                                                     <div className="space-y-3">
-                                                        {searchResults.Hashtags.map((item, index) => renderSearchResult(item, index, 'post'))}
+                                                        {searchResults.hashtags.map((item, index) => renderSearchResult(item, index, 'post'))}
                                                     </div>
                                                     {searchHasMore.hashtags && (
                                                         <button
@@ -618,7 +618,65 @@ const SearchPage = () => {
                                         <>
                                             {searchResults.map((item, index) => renderSearchResult(item, index, searchType))}
                                         </>
-                                    ) : null}
+                                    ) : searchType === "user" &&
+                                        searchResults.users &&
+                                        searchResults.users.length > 0 ? (
+                                        <>
+                                            {searchResults.users.map((item, index) =>
+                                                renderSearchResult(item, index, "user")
+                                            )}
+
+                                            {searchHasMore.users && (
+                                                <button
+                                                    onClick={loadMoreUsers}
+                                                    disabled={isSearching}
+                                                    className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                        isSearching
+                                                            ? "bg-gray-200 cursor-not-allowed"
+                                                            : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                    }`}
+                                                >
+                                                    Load More
+                                                </button>
+                                            )}
+                                        </>
+                                    ) : searchType === "post" && searchResults.posts && searchResults.posts.length > 0 ? (
+                                                <>
+                                                    {searchResults.posts.map((item, index) => renderSearchResult(item, index, 'post'))}
+                                                    {searchHasMore.posts && (
+                                                        <button onClick={loadMorePosts} disabled={isSearching}
+                                                            className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                                isSearching ? "bg-gray-200 cursor-not-allowed" : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                            }`}>
+                                                            Load More
+                                                        </button>
+                                                    )}
+                                                </>
+                                            ) : searchType === "chat" && searchResults.chats && searchResults.chats.length > 0 ? (
+                                                <>
+                                                    {searchResults.chats.map((item, index) => renderSearchResult(item, index, 'chat'))}
+                                                    {searchHasMore.chats && (
+                                                        <button onClick={loadMoreChats} disabled={isSearching}
+                                                            className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                                isSearching ? "bg-gray-200 cursor-not-allowed" : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                            }`}>
+                                                            Load More
+                                                        </button>
+                                                    )}
+                                                </>
+                                            ) : searchType === "mention" && searchResults.mentions && searchResults.mentions.length > 0 ? (
+                                                <>
+                                                    {searchResults.mentions.map((item, index) => renderSearchResult(item, index, 'mention'))}
+                                                    {searchHasMore.mentions && (
+                                                        <button onClick={loadMoreMentions} disabled={isSearching}
+                                                            className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                                isSearching ? "bg-gray-200 cursor-not-allowed" : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                            }`}>
+                                                            Load More
+                                                        </button>
+                                                    )}
+                                                </>
+                                            ) : null}
                                 </div>
                             )}
                         </div>
