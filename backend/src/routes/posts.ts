@@ -27,6 +27,43 @@ router.post('/', async (req,res)=>{
 
 router.get('/', async (_req,res)=>{ const posts = await Post.find().sort({ createdAt:-1 }).limit(50).populate('author','username displayName avatarUrl'); res.json(posts); });
 
+router.get('/trending', async (req,res)=>{
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = parseInt(req.query.skip as string) || 0;
+    
+    const trendingPosts = await Post.find()
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('author','username displayName avatarUrl');
+
+    const total = await Post.countDocuments();
+
+    res.json({ posts: trendingPosts, hasMore: skip + limit < total });
+});
+
+router.get('/trending/hashtags', async (req,res)=>{
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = parseInt(req.query.skip as string) || 0;
+    
+    const posts = await Post.find({ hashtags: { $exists: true, $ne: [] } });
+    const hashtagCounts: Record<string, number> = {};
+    posts.forEach(post => {
+        if(post.hashtags) {
+            post.hashtags.forEach(tag => {
+                hashtagCounts[tag] = (hashtagCounts[tag] || 0) + 1;
+            });
+        }
+    });
+    const allTrendingHashtags = Object.entries(hashtagCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([tag, count]) => ({ tag, count }));
+    
+    const trendingHashtags = allTrendingHashtags.slice(skip, skip + limit);
+    
+    res.json({ hashtags: trendingHashtags, hasMore: skip + limit < allTrendingHashtags.length });
+});
+
 router.delete('/delete/:id', async (req: any, res: any) => {
     const { id } = req.params;
 

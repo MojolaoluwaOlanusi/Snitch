@@ -1,7 +1,7 @@
 import {useUserStore} from "../../store/useUserStore";
 import {useEffect, useState} from "react";
 import PostSkeleton from "../../components/skeletons/PostSkeleton";
-import {Link} from "react-router-dom";
+import {Link, useNavigate} from "react-router-dom";
 import { FaRegComment, FaRegHeart, FaTrash} from "react-icons/fa";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import {BiRepost} from "react-icons/bi";
@@ -10,18 +10,19 @@ import {useAuthStore} from "../../store/useAuthStore";
 import {MdAddReaction, MdReportProblem} from "react-icons/md";
 import {IoClose} from "react-icons/io5";
 import EditPostModal from "../../components/common/EditPostModal";
-import {MoreHorizontal} from "lucide-react";
+import {MoreHorizontal, Hash} from "lucide-react";
 import ReactionEmojiPicker from "./ReactionEmojiPicker";
 import ReactionsDisplay from "./ReactionsDisplay";
 
 const Posts = () => {
 
     const {isReacting, getPosts, isLiking, isReposting, isCommenting, isGettingPosts, Posts,likePost, deletePost,
-        reactToPost, isEditing,
+        reactToPost, isEditing, searchItem,
         commentPost,repost, getFollowingPosts, reportPost, isReporting,
         editingPostId, deletingPostId, reportingPostId
     } = useUserStore();
     const {authUserId} = useAuthStore();
+    const navigate = useNavigate();
 
     const [commentData, setCommentData] = useState({ text: "", postId: "" });
     const [reportSelectVisible, setReportSelectVisible] = useState(false);
@@ -31,6 +32,13 @@ const Posts = () => {
     const handlePostComment = (e) => {
         e.preventDefault();
         commentPost(commentData);
+    };
+
+    const handleHashtagClick = (hashtag) => {
+        navigate('/search');
+        setTimeout(() => {
+            searchItem({searchWord: hashtag, searchType: 'hashtag', limit: 10});
+        }, 100);
     };
 
     const reportFunction = (e, post) => {
@@ -184,6 +192,23 @@ const Posts = () => {
                                 >
                                     <div className='flex flex-col gap-3 overflow-hidden'>
                                             <span className="w-full line-clamp-3 leading-relaxed">{post?.text}</span>
+                                            {post?.hashtags && post.hashtags.length > 0 && (
+                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                    {post.hashtags.map((hashtag, index) => (
+                                                        <button
+                                                            key={index}
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                handleHashtagClick(hashtag);
+                                                            }}
+                                                            className="flex items-center gap-1 px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded-full text-sm text-blue-700 hover:text-blue-800 transition-all duration-200"
+                                                        >
+                                                            <Hash className="w-3 h-3" />
+                                                            <span>{hashtag}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
                                             <div
                                             className="w-full h-[400px] aspect-[4/5] sm:aspect-video rounded-2xl overflow-hidden items-center">
                                                 {post?.mediaType === "Image" && (

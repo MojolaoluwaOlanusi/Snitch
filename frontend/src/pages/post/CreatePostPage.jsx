@@ -17,6 +17,7 @@ function CreatePostPage () {
 
     const [file, setFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState("");
+    const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
     const handleFileSelect = (f) => {
         setFile(f);
@@ -49,6 +50,7 @@ function CreatePostPage () {
         try {
             // perform upload only when creating (upload to presigned then call createPost)
             if (file) {
+                setIsUploadingMedia(true);
                 const contentType = file.type;
                 const folder = formData.mediaType === 'Audio' ? 'Audio' : formData.mediaType === 'Video' ? 'Videos' : 'Images';
                 const token = localStorage.getItem('access-token');
@@ -59,6 +61,7 @@ function CreatePostPage () {
                 const uploadUrl = res.data.uploadUrl;
                 // upload file to presigned url
                 await axiosInstance.put(uploadUrl, file, { headers: { 'Content-Type': contentType } });
+                setIsUploadingMedia(false);
                 // set the url in payload
                 const payload = { ...formData, url: publicUrl };
                 await createPost(payload);
@@ -74,6 +77,7 @@ function CreatePostPage () {
             setFormData({ text: "", mediaType: "", isWarp: false, url: "", mentions: [], hashtags: [] });
         } catch (err) {
             console.error('Create post failed', err);
+            setIsUploadingMedia(false);
         }
     };
 
@@ -130,8 +134,8 @@ function CreatePostPage () {
                             <div className="flex-1">
                                 <label className="text-gray-700 font-semibold mb-2 block">Hashtags</label>
                                 <HashtagAutocomplete
-                                    value={Array.isArray(formData.hashtags) ? formData.hashtags.join(' ') : formData.hashtags}
-                                    onChange={(value) => setFormData({ ...formData, hashtags: value.split(' ').filter(h => h.trim()) })}
+                                    value={formData.hashtags}
+                                    onChange={(value) => setFormData({ ...formData, hashtags: value })}
                                     placeholder="Add hashtags..."
                                 />
                             </div>
@@ -139,14 +143,14 @@ function CreatePostPage () {
                             <div className="w-56">
                                 <label className="text-gray-700 font-semibold mb-2 block">Mention Someone</label>
                                 <MentionAutocomplete
-                                    value={Array.isArray(formData.mentions) ? formData.mentions.join(' ') : ''}
-                                    onChange={(value) => setFormData({ ...formData, mentions: value.split(' ').filter(m => m.trim()) })}
+                                    value={formData.mentions}
+                                    onChange={(value) => setFormData({ ...formData, mentions: value })}
                                     placeholder="Mention someone..."
                                 />
                             </div>
                         </div>
-                        <button className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-xl py-4 text-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg border-2 border-blue-600" type="submit" disabled={isCreatingPost}>
-                            {isCreatingPost ? (
+                        <button className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-xl py-4 text-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg border-2 border-blue-600" type="submit" disabled={isCreatingPost || isUploadingMedia}>
+                            {isCreatingPost || isUploadingMedia ? (
                                 <LoaderIcon className="w-6 h-6 animate-spin mx-auto" />
                             ) : (
                                 "Create Post"
