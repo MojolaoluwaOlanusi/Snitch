@@ -144,13 +144,13 @@ router.delete('/delete/:id', async (req: any, res: any) => {
 router.put('/edit-post/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { text, mediaType , url } = req.body;
+        const { text, mediaType , url, hashtags, mentions } = req.body;
         if (!text && !mediaType && !url) return res.status(400).json({ message: "You must update at least a field!" });
         const post = await Post.findById(id);
         const updatedPost = await Post.findByIdAndUpdate(
             // @ts-ignore
             post._id,
-            { text, mediaType , url },
+            { text, mediaType , url, hashtags, mentions },
             { new: true }
         );
         res.status(200).json(updatedPost);

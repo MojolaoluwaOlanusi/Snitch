@@ -92,7 +92,7 @@ const Posts = () => {
 						            <Link to={`/profile/${post?.author?.username}`}>@{post?.author?.username}</Link>
 						            <span>·</span>
 						            <span>{formatPostDate(post?.createdAt)}</span>
-						    </span>
+						            </span>
                                     <span className='flex justify-end flex-1 space-x-2'>
                                             <div className="dropdown dropdown-end">
                                                 <button
@@ -389,7 +389,7 @@ const Posts = () => {
                                 </div>
                             </div>
                         </div>
-                    );
+                        );
                 })}
 				</div>
 			)}

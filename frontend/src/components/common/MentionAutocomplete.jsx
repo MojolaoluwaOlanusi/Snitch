@@ -32,9 +32,9 @@ const MentionAutocomplete = ({ value, onChange, placeholder = "Mention someone..
             const response = await axiosInstance.get(`/search/user/${query}/10`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            
-            if (response.data) {
-                setSuggestions(response.data);
+
+            if (response.data && response.data.users) {
+                setSuggestions(response.data.users);
             } else {
                 setSuggestions([]);
             }
@@ -47,7 +47,7 @@ const MentionAutocomplete = ({ value, onChange, placeholder = "Mention someone..
     const handleInputChange = (e) => {
         const newValue = e.target.value;
         setCurrentInput(newValue);
-        
+
         // Fetch suggestions for any input
         if (newValue.trim()) {
             fetchSuggestions(newValue.trim());
@@ -155,23 +155,23 @@ const MentionAutocomplete = ({ value, onChange, placeholder = "Mention someone..
                     />
                 </div>
             </div>
-            
+
             {showSuggestions && suggestions.length > 0 && (
                 <div className="absolute z-50 w-full mb-1 bg-white border-2 border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto bottom-full">
                     {suggestions.map((user, index) => (
                         <div
                             key={user._id || index}
                             className={`p-3 cursor-pointer transition-colors duration-150 flex items-center gap-3 ${
-                                index === selectedIndex 
-                                    ? 'bg-blue-100 text-blue-700' 
+                                index === selectedIndex
+                                    ? 'bg-blue-100 text-blue-700'
                                     : 'hover:bg-gray-100 text-gray-700'
                             }`}
                             onClick={() => selectSuggestion(user)}
                         >
                             <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200">
                                 {user.avatarUrl && (
-                                    <img 
-                                        src={user.avatarUrl} 
+                                    <img
+                                        src={user.avatarUrl}
                                         alt={user.displayName || user.username}
                                         className="w-full h-full object-cover"
                                     />

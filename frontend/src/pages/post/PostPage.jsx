@@ -3,7 +3,7 @@ import {useUserStore} from "../../store/useUserStore";
 import {FaArrowLeft, FaRegComment, FaRegHeart, FaTrash} from "react-icons/fa";
 import {BiRepost} from "react-icons/bi";
 import {MdAddReaction, MdReportProblem} from "react-icons/md";
-import {MoreHorizontal} from "lucide-react";
+import {EditIcon, MoreHorizontal} from "lucide-react";
 import {useEffect, useState} from "react";
 import PostPageSkeleton from "../../components/skeletons/PostPageSkeleton";
 import Sidebar from "../../components/common/Sidebar";
@@ -222,8 +222,10 @@ const PostPage = () => {
                                                 }}
                                                 className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-100 rounded-lg transition-colors text-red-500"
                                             >
-                                                <FaTrash className="w-4 h-4" />
-                                                <span>Delete post</span>
+                                                <div className="flex flex-row group w-40 justify-between items-center">
+                                                    <p className="group-hover:text-blue-500 font-medium">Delete post</p>
+                                                    <FaTrash className="h-4 w-4 group-hover:text-red-500" />
+                                                </div>
                                             </button>
                                         )}
                                         {isPostOwner && !isDeleting && (
