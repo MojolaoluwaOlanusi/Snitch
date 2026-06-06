@@ -62,22 +62,33 @@ const HashtagAutocomplete = ({ value, onChange, placeholder = "Add hashtags..." 
         if (showSuggestions && suggestions.length > 0) {
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
+                e.stopPropagation();
                 setSelectedIndex(prev => (prev < suggestions.length - 1 ? prev + 1 : prev));
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
+                e.stopPropagation();
                 setSelectedIndex(prev => (prev > 0 ? prev - 1 : -1));
             } else if (e.key === 'Enter' && selectedIndex >= 0) {
                 e.preventDefault();
+                e.stopPropagation();
                 addHashtag(suggestions[selectedIndex]);
+            } else if (e.key === 'Enter' && selectedIndex < 0 && currentInput.trim()) {
+                e.preventDefault();
+                e.stopPropagation();
+                addHashtag(currentInput.trim());
             } else if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
                 setShowSuggestions(false);
                 setSelectedIndex(-1);
             }
         } else if (e.key === 'Enter' && currentInput.trim()) {
             e.preventDefault();
+            e.stopPropagation();
             addHashtag(currentInput.trim());
         } else if (e.key === ' ' && currentInput.trim()) {
             e.preventDefault();
+            e.stopPropagation();
             addHashtag(currentInput.trim());
         } else if (e.key === 'Backspace' && !currentInput && hashtags.length > 0) {
             removeHashtag(hashtags.length - 1);
@@ -104,6 +115,12 @@ const HashtagAutocomplete = ({ value, onChange, placeholder = "Add hashtags..." 
 
     const selectSuggestion = (hashtag) => {
         addHashtag(hashtag);
+    };
+
+    const handleSuggestionClick = (e, hashtag) => {
+        e.preventDefault();
+        e.stopPropagation();
+        selectSuggestion(hashtag);
     };
 
     const handleClickOutside = (e) => {
@@ -167,7 +184,7 @@ const HashtagAutocomplete = ({ value, onChange, placeholder = "Add hashtags..." 
                                     ? 'bg-blue-100 text-blue-700' 
                                     : 'hover:bg-gray-100 text-gray-700'
                             }`}
-                            onClick={() => selectSuggestion(hashtag)}
+                            onClick={(e) => handleSuggestionClick(e, hashtag)}
                         >
                             #{hashtag}
                         </div>

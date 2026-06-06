@@ -19,7 +19,7 @@ const UserPosts = () => {
     const {isReacting, isLiking, isReposting, isGettingUserPosts, userPosts, isCommenting,getUserPosts,
         likePost, deletePost, isEditing,
         reactToPost, reportPost, isReporting,
-        commentPost,repost, getLikedPosts, searchItem,
+        commentPost,repost, getLikedPosts,
         editingPostId, deletingPostId, reportingPostId
     } = useUserStore();
     const {authUserId, user, authUser} = useAuthStore();
@@ -33,10 +33,7 @@ const UserPosts = () => {
     const isMyProfile = authUser?._id === user?._id;
 
     const handleHashtagClick = (hashtag) => {
-        navigate('/search');
-        setTimeout(() => {
-            searchItem({searchWord: hashtag, searchType: 'hashtag', limit: 10});
-        }, 100);
+        navigate('/search', { state: { searchWord: hashtag, searchType: 'hashtag' } });
     };
 
     const handlePostComment = (e) => {

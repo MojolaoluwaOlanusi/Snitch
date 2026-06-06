@@ -61,22 +61,33 @@ const MentionAutocomplete = ({ value, onChange, placeholder = "Mention someone..
         if (showSuggestions && suggestions.length > 0) {
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
+                e.stopPropagation();
                 setSelectedIndex(prev => (prev < suggestions.length - 1 ? prev + 1 : prev));
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
+                e.stopPropagation();
                 setSelectedIndex(prev => (prev > 0 ? prev - 1 : -1));
             } else if (e.key === 'Enter' && selectedIndex >= 0) {
                 e.preventDefault();
+                e.stopPropagation();
                 addMention(suggestions[selectedIndex]);
+            } else if (e.key === 'Enter' && selectedIndex < 0 && currentInput.trim()) {
+                e.preventDefault();
+                e.stopPropagation();
+                addMention(currentInput.trim());
             } else if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
                 setShowSuggestions(false);
                 setSelectedIndex(-1);
             }
         } else if (e.key === 'Enter' && currentInput.trim()) {
             e.preventDefault();
+            e.stopPropagation();
             addMention(currentInput.trim());
         } else if (e.key === ' ' && currentInput.trim()) {
             e.preventDefault();
+            e.stopPropagation();
             addMention(currentInput.trim());
         } else if (e.key === 'Backspace' && !currentInput && mentions.length > 0) {
             removeMention(mentions.length - 1);
@@ -103,6 +114,12 @@ const MentionAutocomplete = ({ value, onChange, placeholder = "Mention someone..
 
     const selectSuggestion = (user) => {
         addMention(user);
+    };
+
+    const handleSuggestionClick = (e, user) => {
+        e.preventDefault();
+        e.stopPropagation();
+        selectSuggestion(user);
     };
 
     const handleClickOutside = (e) => {
@@ -166,7 +183,7 @@ const MentionAutocomplete = ({ value, onChange, placeholder = "Mention someone..
                                     ? 'bg-blue-100 text-blue-700'
                                     : 'hover:bg-gray-100 text-gray-700'
                             }`}
-                            onClick={() => selectSuggestion(user)}
+                            onClick={(e) => handleSuggestionClick(e, user)}
                         >
                             <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200">
                                 {user.avatarUrl && (

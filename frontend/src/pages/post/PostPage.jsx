@@ -3,7 +3,7 @@ import {useUserStore} from "../../store/useUserStore";
 import {FaArrowLeft, FaRegComment, FaRegHeart, FaTrash} from "react-icons/fa";
 import {BiRepost} from "react-icons/bi";
 import {MdAddReaction, MdReportProblem} from "react-icons/md";
-import {EditIcon, MoreHorizontal} from "lucide-react";
+import {MoreHorizontal, Hash} from "lucide-react";
 import {useEffect, useState} from "react";
 import PostPageSkeleton from "../../components/skeletons/PostPageSkeleton";
 import Sidebar from "../../components/common/Sidebar";
@@ -39,7 +39,7 @@ const PostPage = () => {
         deletingPostId,
         reportingPostId,
         getAllUsers,
-        users
+        users,
     } = useUserStore();
 
     const [commentData, setCommentData] = useState({ text: "", postId: "" });
@@ -135,6 +135,14 @@ const PostPage = () => {
 
     const setReportSelectFalse = () => {
         setReportSelectVisible(false);
+    };
+
+    const handleHashtagClick = (hashtag) => {
+        navigate('/search', { state: { searchWord: hashtag, searchType: 'hashtag' } });
+    };
+
+    const handleMentionClick = (username) => {
+        navigate(`/profile/${username}`);
     };
 
     const isLikedByMe = !!singlePost?.likes?.some((id) => id === authUserId);
@@ -278,9 +286,14 @@ const PostPage = () => {
                         {singlePost?.hashtags && singlePost.hashtags.length > 0 && (
                             <div className="flex flex-wrap gap-2 mt-3">
                                 {singlePost.hashtags.map((hashtag, index) => (
-                                    <span key={index} className="text-blue-500 hover:underline cursor-pointer">
-                                        #{hashtag}
-                                    </span>
+                                    <button
+                                        key={index}
+                                        onClick={() => handleHashtagClick(hashtag)}
+                                        className="flex items-center gap-1 px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded-full text-sm text-blue-700 hover:text-blue-800 transition-all duration-200"
+                                    >
+                                        <Hash className="w-3 h-3" />
+                                        <span>{hashtag}</span>
+                                    </button>
                                 ))}
                             </div>
                         )}
@@ -289,9 +302,13 @@ const PostPage = () => {
                         {singlePost?.mentions && singlePost.mentions.length > 0 && (
                             <div className="flex flex-wrap gap-2 mt-2">
                                 {singlePost.mentions.map((mention, index) => (
-                                    <span key={index} className="text-blue-500 hover:underline cursor-pointer">
+                                    <button
+                                        key={index}
+                                        onClick={() => handleMentionClick(mention)}
+                                        className="text-blue-500 hover:underline cursor-pointer"
+                                    >
                                         @{mention}
-                                    </span>
+                                    </button>
                                 ))}
                             </div>
                         )}

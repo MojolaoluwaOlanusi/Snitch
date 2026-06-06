@@ -132,11 +132,9 @@ const EditPostModal = ({ post }) => {
                         <div>
                             <label className="text-gray-700 font-semibold mb-2 block">Hashtags</label>
                             <HashtagAutocomplete
-                                value={Array.isArray(post?.hashtags) ? post?.hashtags.join(' ') : ''}
+                                value={formData.hashtags || []}
                                 onChange={(value) => {
-                                    // Store hashtags in a separate field or append to text
-                                    const hashtags = value.split(' ').filter(h => h.trim());
-                                    setFormData({ ...formData, hashtags });
+                                    setFormData({ ...formData, hashtags: value });
                                 }}
                                 placeholder="Add hashtags..."
                             />
@@ -144,11 +142,9 @@ const EditPostModal = ({ post }) => {
                         <div>
                             <label className="text-gray-700 font-semibold mb-2 block">Mentions</label>
                             <MentionAutocomplete
-                                value={Array.isArray(post?.mentions) ? post?.mentions.join(' ') : ''}
+                                value={formData.mentions || []}
                                 onChange={(value) => {
-                                    // Store mentions in a separate field or append to text
-                                    const mentions = value.split(' ').filter(m => m.trim());
-                                    setFormData({ ...formData, mentions });
+                                    setFormData({ ...formData, mentions: value });
                                 }}
                                 placeholder="Mention someone..."
                             />

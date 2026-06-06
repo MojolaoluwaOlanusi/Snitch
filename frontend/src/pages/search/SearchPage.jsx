@@ -4,11 +4,12 @@ import {Input} from "../../components/common/input"
 import {useUserStore} from "../../store/useUserStore";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import {useState, useEffect} from "react";
-import {Link} from "react-router-dom";
+import {Link, useLocation} from "react-router-dom";
 import {formatPostDate} from "../../utils/date";
 import axiosInstance from "../../lib/axios";
 
 const SearchPage = () => {
+    const location = useLocation();
 
     const [searchType, setSearchType] = useState("all");
     const [showSearchType, setShowSearchType] = useState(false);
@@ -39,6 +40,21 @@ const SearchPage = () => {
         getTrending();
     }, [getTrending]);
 
+    // Handle navigation state from hashtag clicks
+    useEffect(() => {
+        if (location.state?.searchWord) {
+            setCurrentSearchWord(location.state.searchWord);
+            setSearchType(location.state.searchType || 'hashtag');
+            setShowSearchType(true);
+            searchItem({
+                searchWord: location.state.searchWord,
+                searchType: location.state.searchType || 'hashtag',
+                limit: 10,
+                skip: 0
+            });
+        }
+    }, [location.state]);
+
     useEffect(() => {
         setUserSkip(0);
         setPostSkip(0);
@@ -66,6 +82,11 @@ const SearchPage = () => {
     ];
 
     const handleHashtagClick = async (tag) => {
+        setCurrentSearchWord(tag);
+        setSearchType('hashtag');
+        setShowSearchType(true);
+        searchItem({searchWord: tag, searchType: 'hashtag', limit: 10, skip: 0});
+
         try {
             setSelectedHashtag(tag);
             setLoadingHashtagPosts(true);
@@ -73,7 +94,6 @@ const SearchPage = () => {
             const res = await axiosInstance.get(
                 `/search/hashtags/${tag}/posts`
             );
-            console.log(res.data);
             setHashtagPosts(res.data.posts);
         } catch (error) {
             console.error(error);

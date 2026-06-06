@@ -16,7 +16,7 @@ import ReactionsDisplay from "./ReactionsDisplay";
 
 const FollowingPosts = () => {
 
-    const {isReacting, getPosts, isLiking,searchItem,
+    const {isReacting, getPosts, isLiking,
         isReposting, isCommenting,likePost, deletePost, isEditing,
         reactToPost, getFollowingPosts, isGettingFollowingPosts, followingPosts,
         commentPost,repost, reportPost,editingPostId, deletingPostId, reportingPostId
@@ -35,10 +35,7 @@ const FollowingPosts = () => {
     };
 
     const handleHashtagClick = (hashtag) => {
-        navigate('/search');
-        setTimeout(() => {
-            searchItem({searchWord: hashtag, searchType: 'hashtag', limit: 10});
-        }, 100);
+        navigate('/search', { state: { searchWord: hashtag, searchType: 'hashtag' } });
     };
 
     const reportFunction = (e, post) => {

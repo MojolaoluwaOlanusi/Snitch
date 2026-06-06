@@ -17,7 +17,7 @@ import ReactionsDisplay from "./ReactionsDisplay";
 const Posts = () => {
 
     const {isReacting, getPosts, isLiking, isReposting, isCommenting, isGettingPosts, Posts,likePost, deletePost,
-        reactToPost, isEditing, searchItem,
+        reactToPost, isEditing,
         commentPost,repost, getFollowingPosts, reportPost, isReporting,
         editingPostId, deletingPostId, reportingPostId
     } = useUserStore();
@@ -35,10 +35,7 @@ const Posts = () => {
     };
 
     const handleHashtagClick = (hashtag) => {
-        navigate('/search');
-        setTimeout(() => {
-            searchItem({searchWord: hashtag, searchType: 'hashtag', limit: 10});
-        }, 100);
+        navigate('/search', { state: { searchWord: hashtag, searchType: 'hashtag' } });
     };
 
     const reportFunction = (e, post) => {
