@@ -6,22 +6,54 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 import {useState, useEffect} from "react";
 import {Link} from "react-router-dom";
 import {formatPostDate} from "../../utils/date";
+import axiosInstance from "../../lib/axios";
 
 const SearchPage = () => {
 
     const [searchType, setSearchType] = useState("all");
     const [showSearchType, setShowSearchType] = useState(false);
-    const [searchSkip, setSearchSkip] = useState(0);
-    const [trendingSkip, setTrendingSkip] = useState(0);
+    const [userSkip, setUserSkip] = useState(0);
+    const [postSkip, setPostSkip] = useState(0);
+    const [chatSkip, setChatSkip] = useState(0);
+    const [mentionSkip, setMentionSkip] = useState(0);
+    const [hashtagSkip, setHashtagSkip] = useState(0);
+    const [trendingPostsSkip, setTrendingPostsSkip] = useState(0);
+    const [trendingHashtagsSkip, setTrendingHashtagsSkip] = useState(0);
     const [currentSearchWord, setCurrentSearchWord] = useState("");
-    const { searchItem, searchResult, isSearching, searchHasMore, getTrending, trendingPosts, trendingHashtags, isGettingTrending, trendingHasMore } = useUserStore();
+    const [selectedHashtag, setSelectedHashtag] = useState(null);
+    const [hashtagPosts, setHashtagPosts] = useState([]);
+    const [loadingHashtagPosts, setLoadingHashtagPosts] = useState(false);
+    const {
+        searchItem,
+        searchResults,
+        isSearching,
+        searchHasMore,
+        getTrending,
+        trendingPosts,
+        trendingHashtags,
+        isGettingTrending,
+        trendingHasMore,
+    } = useUserStore();
 
     useEffect(() => {
         getTrending();
     }, [getTrending]);
 
     useEffect(() => {
-        setSearchSkip(0);
+        setUserSkip(0);
+        setPostSkip(0);
+        setChatSkip(0);
+        setMentionSkip(0);
+        setHashtagSkip(0);
+
+        if (currentSearchWord) {
+            searchItem({
+                searchWord: currentSearchWord,
+                searchType,
+                limit: 10,
+                skip: 0,
+            });
+        }
     }, [searchType]);
 
     const searchTabs = [
@@ -33,31 +65,98 @@ const SearchPage = () => {
         { id: "hashtag", label: "Hashtags", icon: Hash },
     ];
 
-    const handleHashtagClick = (tag) => {
-        setSearchSkip(0);
-        searchItem({searchWord: tag, searchType: 'hashtag', limit: 10, skip: 0});
-        setShowSearchType(true);
-        setSearchType('hashtag');
-    };
+    const handleHashtagClick = async (tag) => {
+        try {
+            setSelectedHashtag(tag);
+            setLoadingHashtagPosts(true);
 
-    const handleLoadMoreSearch = () => {
-        const newSkip = searchSkip + 10;
-        setSearchSkip(newSkip);
-        if (currentSearchWord) {
-            searchItem({searchWord: currentSearchWord, searchType: searchType, limit: 10, skip: newSkip});
+            const res = await axiosInstance.get(
+                `/search/hashtags/${tag}/posts`
+            );
+            console.log(res.data);
+            setHashtagPosts(res.data.posts);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoadingHashtagPosts(false);
         }
     };
 
     const handleLoadMoreTrendingPosts = () => {
-        const newSkip = trendingSkip + 20;
-        setTrendingSkip(newSkip);
-        getTrending(newSkip);
+        const next = trendingPostsSkip + 20;
+        setTrendingPostsSkip(next);
+        getTrending(next);
     };
 
     const handleLoadMoreTrendingHashtags = () => {
-        const newSkip = trendingSkip + 20;
-        setTrendingSkip(newSkip);
-        getTrending(newSkip);
+        const next = trendingHashtagsSkip + 20;
+        setTrendingHashtagsSkip(next);
+        getTrending(next);
+    };
+
+    const loadMoreUsers = () => {
+        const next = userSkip + 10;
+
+        setUserSkip(next);
+
+        searchItem({
+            searchWord: currentSearchWord,
+            searchType: "user",
+            limit: 10,
+            skip: next
+        });
+    };
+
+    const loadMorePosts = () => {
+        const next = postSkip + 10;
+
+        setPostSkip(next);
+
+        searchItem({
+            searchWord: currentSearchWord,
+            searchType: "post",
+            limit: 10,
+            skip: next
+        });
+    };
+
+    const loadMoreChats = () => {
+        const next = chatSkip + 10;
+
+        setChatSkip(next);
+
+        searchItem({
+            searchWord: currentSearchWord,
+            searchType: "chat",
+            limit: 10,
+            skip: next
+        });
+    };
+
+    const loadMoreMentions = () => {
+        const next = mentionSkip + 10;
+
+        setMentionSkip(next);
+
+        searchItem({
+            searchWord: currentSearchWord,
+            searchType: "mention",
+            limit: 10,
+            skip: next
+        });
+    };
+
+    const loadMoreHashtags = () => {
+        const next = hashtagSkip + 10;
+
+        setHashtagSkip(next);
+
+        searchItem({
+            searchWord: currentSearchWord,
+            searchType: "hashtag",
+            limit: 10,
+            skip: next
+        });
     };
 
     const handleChatClick = (chatId) => {
@@ -85,7 +184,7 @@ const SearchPage = () => {
                 </Link>
             );
         }
-        
+
         if (type === "post") {
             return (
                 <Link to={`/post/${item._id}`} key={index} className="block">
@@ -102,11 +201,11 @@ const SearchPage = () => {
                             </div>
                         </div>
                         <p className="text-gray-700 line-clamp-2">{item.text}</p>
-                        {item.mediaType === "Image" && item.url && (
-                            <div className="mt-3 rounded-lg overflow-hidden">
-                                <img src={item.url} alt="" className="w-full h-48 object-cover" />
-                            </div>
-                        )}
+                        {/*{item.mediaType === "Image" && item.url && (*/}
+                        {/*    <div className="mt-3 rounded-lg overflow-hidden">*/}
+                        {/*        <img src={item.url} alt="" className="w-full h-48 object-cover" />*/}
+                        {/*    </div>*/}
+                        {/*)}*/}
                     </div>
                 </Link>
             );
@@ -169,6 +268,46 @@ const SearchPage = () => {
         return null;
     };
 
+    const hasNoResults = () => {
+        if (!searchResults) return true;
+
+        // Array searches
+        if (Array.isArray(searchResults)) {
+            return searchResults.length === 0;
+        }
+
+        // All search
+        if (
+            searchType === "all" &&
+            typeof searchResults === "object" &&
+            searchResults.all
+        ) {
+            return (
+                (!searchResults.all.users ||
+                    searchResults.all.users.length === 0) &&
+                (!searchResults.all.posts ||
+                    searchResults.all.posts.length === 0) &&
+                (!searchResults.all.chats ||
+                    searchResults.all.chats.length === 0)
+            );
+        }
+
+        // Hashtag search
+        if (
+            searchType === "hashtag" &&
+            typeof searchResults === "object"
+        ) {
+            return (
+                (!searchResults.hashtags ||
+                    searchResults.hashtags.length === 0) &&
+                (!searchResults.suggestedHashtags ||
+                    searchResults.suggestedHashtags.length === 0)
+            );
+        }
+
+        return false;
+    };
+
     return (
         <div className="w-full flex flex-col md:flex-row h-screen bg-gray-100">
             <Sidebar/>
@@ -188,11 +327,38 @@ const SearchPage = () => {
 
                                         if (!cleaned) {
                                             setShowSearchType(false);
+                                            setCurrentSearchWord("");
+                                            setUserSkip(0);
+                                            setPostSkip(0);
+                                            setChatSkip(0);
+                                            setMentionSkip(0);
+                                            setHashtagSkip(0);
+
+                                            useUserStore.setState({
+                                                searchResults: {
+                                                    users: [],
+                                                    posts: [],
+                                                    chats: [],
+                                                    mentions: [],
+                                                    hashtags: [],
+                                                    suggestedHashtags: [],
+                                                    all: {
+                                                        users: [],
+                                                        posts: [],
+                                                        chats: []
+                                                    }
+                                                }
+                                            });
+
                                             return;
                                         }
 
                                         setShowSearchType(true);
-                                        setSearchSkip(0);
+                                        setUserSkip(0);
+                                        setPostSkip(0);
+                                        setChatSkip(0);
+                                        setMentionSkip(0);
+                                        setHashtagSkip(0);
                                         setCurrentSearchWord(cleaned);
 
                                         searchItem({
@@ -206,7 +372,7 @@ const SearchPage = () => {
                                     className="pl-12 h-12 bg-gray-50 border-gray-300 focus:border-blue-200 focus:ring-2 focus:ring-blue-200/20 rounded-xl text-gray-800 placeholder-gray-400"
                                 />
                             </div>
-                            
+
                             {showSearchType && (
                                 <div className="flex flex-wrap gap-2">
                                     {searchTabs.map((tab) => {
@@ -289,8 +455,13 @@ const SearchPage = () => {
                                                     </div>
                                                     {trendingHasMore.posts && (
                                                         <button
+                                                            disabled={isSearching}
                                                             onClick={handleLoadMoreTrendingPosts}
-                                                            className="w-full mt-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-all duration-200 font-medium"
+                                                            className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                                isSearching
+                                                                    ? "bg-gray-200 cursor-not-allowed"
+                                                                    : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                            }`}
                                                         >
                                                             Load More
                                                         </button>
@@ -318,7 +489,12 @@ const SearchPage = () => {
                                                     {trendingHasMore.hashtags && (
                                                         <button
                                                             onClick={handleLoadMoreTrendingHashtags}
-                                                            className="w-full mt-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-all duration-200 font-medium"
+                                                            disabled={isSearching}
+                                                            className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                                isSearching
+                                                                    ? "bg-gray-200 cursor-not-allowed"
+                                                                    : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                            }`}
                                                         >
                                                             Load More
                                                         </button>
@@ -330,7 +506,9 @@ const SearchPage = () => {
                                 </div>
                             )}
 
-                            {!isSearching && showSearchType && searchResult?.length === 0 && (
+                            {!isSearching &&
+                                showSearchType &&
+                                hasNoResults() && (
                                 <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
                                     <Search className="w-16 h-16 mx-auto text-gray-300 mb-4" />
                                     <h2 className="text-xl font-semibold text-gray-800 mb-2">No results found</h2>
@@ -338,52 +516,67 @@ const SearchPage = () => {
                                 </div>
                             )}
 
-                            {!isSearching && searchResult && (
+                            {!isSearching && searchResults && (
                                 <div className="space-y-3">
-                                    {searchType === "all" && typeof searchResult === 'object' && !Array.isArray(searchResult) ? (
+                                    {searchType === "all" && typeof searchResults === 'object' && !Array.isArray(searchResults) ? (
                                         <>
-                                            {searchResult.users && searchResult.users.length > 0 && (
+                                            {searchResults.all.users && searchResults.all.users.length > 0 && (
                                                 <div className="mb-6">
                                                     <h3 className="text-lg font-semibold text-gray-800 mb-3">Users</h3>
                                                     <div className="space-y-3">
-                                                        {searchResult.users.map((item, index) => renderSearchResult(item, index, 'user'))}
+                                                        {searchResults.all.users.map((item, index) => renderSearchResult(item, index, 'user'))}
                                                     </div>
-                                                    {searchResult.hasMore?.users && (
+                                                    {searchHasMore.users && (
                                                         <button
-                                                            onClick={handleLoadMoreSearch}
-                                                            className="w-full mt-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-all duration-200 font-medium"
+                                                            onClick={loadMoreUsers}
+                                                            disabled={isSearching}
+                                                            className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                                isSearching
+                                                                    ? "bg-gray-200 cursor-not-allowed"
+                                                                    : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                            }`}
                                                         >
                                                             Load More
                                                         </button>
                                                     )}
                                                 </div>
                                             )}
-                                            {searchResult.posts && searchResult.posts.length > 0 && (
+                                            {searchResults.all.posts && searchResults.all.posts.length > 0 && (
                                                 <div className="mb-6">
                                                     <h3 className="text-lg font-semibold text-gray-800 mb-3">Posts</h3>
                                                     <div className="space-y-3">
-                                                        {searchResult.posts.map((item, index) => renderSearchResult(item, index, 'post'))}
+                                                        {searchResults.all.posts.map((item, index) => renderSearchResult(item, index, 'post'))}
                                                     </div>
-                                                    {searchResult.hasMore?.posts && (
+                                                    {searchHasMore.posts && (
                                                         <button
-                                                            onClick={handleLoadMoreSearch}
-                                                            className="w-full mt-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-all duration-200 font-medium"
+                                                            onClick={loadMorePosts}
+                                                            disabled={isSearching}
+                                                            className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                                isSearching
+                                                                    ? "bg-gray-200 cursor-not-allowed"
+                                                                    : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                            }`}
                                                         >
                                                             Load More
                                                         </button>
                                                     )}
                                                 </div>
                                             )}
-                                            {searchResult.chats && searchResult.chats.length > 0 && (
+                                            {searchResults.all.chats && searchResults.all.chats.length > 0 && (
                                                 <div className="mb-6">
                                                     <h3 className="text-lg font-semibold text-gray-800 mb-3">Messages</h3>
                                                     <div className="space-y-3">
-                                                        {searchResult.chats.map((item, index) => renderSearchResult(item, index, 'chat'))}
+                                                        {searchResults.all.chats.map((item, index) => renderSearchResult(item, index, 'chat'))}
                                                     </div>
-                                                    {searchResult.hasMore?.chats && (
+                                                    {searchHasMore.chats && (
                                                         <button
-                                                            onClick={handleLoadMoreSearch}
-                                                            className="w-full mt-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-all duration-200 font-medium"
+                                                            onClick={loadMoreChats}
+                                                            disabled={isSearching}
+                                                            className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                                isSearching
+                                                                    ? "bg-gray-200 cursor-not-allowed"
+                                                                    : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                            }`}
                                                         >
                                                             Load More
                                                         </button>
@@ -391,29 +584,34 @@ const SearchPage = () => {
                                                 </div>
                                             )}
                                         </>
-                                    ) : searchType === "hashtag" && typeof searchResult === 'object' && !Array.isArray(searchResult) ? (
+                                    ) : searchType === "hashtag" && typeof searchResults === 'object' && !Array.isArray(searchResults) ? (
                                         <>
-                                            {searchResult.Hashtags && searchResult.Hashtags.length > 0 && (
+                                            {searchResults.hashtags && searchResults.hashtags.length > 0 && (
                                                 <div className="mb-6">
                                                     <h3 className="text-lg font-semibold text-gray-800 mb-3">Posts with #{currentSearchWord || 'hashtag'}</h3>
                                                     <div className="space-y-3">
-                                                        {searchResult.Hashtags.map((item, index) => renderSearchResult(item, index, 'post'))}
+                                                        {searchResults.hashtags.map((item, index) => renderSearchResult(item, index, 'post'))}
                                                     </div>
-                                                    {searchResult.hasMore && (
+                                                    {searchHasMore.hashtags && (
                                                         <button
-                                                            onClick={handleLoadMoreSearch}
-                                                            className="w-full mt-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-all duration-200 font-medium"
+                                                            onClick={loadMoreHashtags}
+                                                            disabled={isSearching}
+                                                            className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                                isSearching
+                                                                    ? "bg-gray-200 cursor-not-allowed"
+                                                                    : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                            }`}
                                                         >
                                                             Load More
                                                         </button>
                                                     )}
                                                 </div>
                                             )}
-                                            {searchResult.suggestedHashtags && searchResult.suggestedHashtags.length > 0 && (
+                                            {searchResults.suggestedHashtags && searchResults.suggestedHashtags.length > 0 && (
                                                 <div className="mb-6">
                                                     <h3 className="text-lg font-semibold text-gray-800 mb-3">Suggested Hashtags</h3>
                                                     <div className="flex flex-wrap gap-2">
-                                                        {searchResult.suggestedHashtags.map((item, index) => (
+                                                        {searchResults.suggestedHashtags.map((item, index) => (
                                                             <button
                                                                 key={index}
                                                                 onClick={() => handleHashtagClick(item._id)}
@@ -425,20 +623,83 @@ const SearchPage = () => {
                                                     </div>
                                                 </div>
                                             )}
+                                            {selectedHashtag && (
+                                                <div className="mt-6">
+                                                    <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                                                        Posts with #{selectedHashtag}
+                                                    </h3>
+
+                                                    <div className="space-y-3">
+                                                        {hashtagPosts?.map((post) =>
+                                                            renderSearchResult(post, post._id, "post")
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </>
-                                    ) : Array.isArray(searchResult) && searchResult.length > 0 ? (
+                                    ) : Array.isArray(searchResults) && searchResults.length > 0 ? (
                                         <>
-                                            {searchResult.map((item, index) => renderSearchResult(item, index, searchType))}
-                                            {searchHasMore && (
+                                            {searchResults.map((item, index) => renderSearchResult(item, index, searchType))}
+                                        </>
+                                    ) : searchType === "user" &&
+                                        searchResults.users &&
+                                        searchResults.users.length > 0 ? (
+                                        <>
+                                            {searchResults.users.map((item, index) =>
+                                                renderSearchResult(item, index, "user")
+                                            )}
+
+                                            {searchHasMore.users && (
                                                 <button
-                                                    onClick={handleLoadMoreSearch}
-                                                    className="w-full mt-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-all duration-200 font-medium"
+                                                    onClick={loadMoreUsers}
+                                                    disabled={isSearching}
+                                                    className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                        isSearching
+                                                            ? "bg-gray-200 cursor-not-allowed"
+                                                            : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                    }`}
                                                 >
                                                     Load More
                                                 </button>
                                             )}
                                         </>
-                                    ) : null}
+                                    ) : searchType === "post" && searchResults.posts && searchResults.posts.length > 0 ? (
+                                                <>
+                                                    {searchResults.posts.map((item, index) => renderSearchResult(item, index, 'post'))}
+                                                    {searchHasMore.posts && (
+                                                        <button onClick={loadMorePosts} disabled={isSearching}
+                                                            className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                                isSearching ? "bg-gray-200 cursor-not-allowed" : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                            }`}>
+                                                            Load More
+                                                        </button>
+                                                    )}
+                                                </>
+                                            ) : searchType === "chat" && searchResults.chats && searchResults.chats.length > 0 ? (
+                                                <>
+                                                    {searchResults.chats.map((item, index) => renderSearchResult(item, index, 'chat'))}
+                                                    {searchHasMore.chats && (
+                                                        <button onClick={loadMoreChats} disabled={isSearching}
+                                                            className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                                isSearching ? "bg-gray-200 cursor-not-allowed" : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                            }`}>
+                                                            Load More
+                                                        </button>
+                                                    )}
+                                                </>
+                                            ) : searchType === "mention" && searchResults.mentions && searchResults.mentions.length > 0 ? (
+                                                <>
+                                                    {searchResults.mentions.map((item, index) => renderSearchResult(item, index, 'mention'))}
+                                                    {searchHasMore.mentions && (
+                                                        <button onClick={loadMoreMentions} disabled={isSearching}
+                                                            className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                                isSearching ? "bg-gray-200 cursor-not-allowed" : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                            }`}>
+                                                            Load More
+                                                        </button>
+                                                    )}
+                                                </>
+                                            ) : null}
                                 </div>
                             )}
                         </div>
