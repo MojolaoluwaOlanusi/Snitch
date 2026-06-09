@@ -1,8 +1,17 @@
 import { create } from "zustand";
 import { useAuthStore } from "./useAuthStore";
 import toast from "react-hot-toast";
+import axiosInstance from "../lib/axios";
 
-export const useChatStore = create(() => ({
+export const useChatStore = create((set, get) => ({
+    conversations: [],
+    currentConversation: null,
+    messages: [],
+    selectedConversation: null,
+    isMessagesLoading: false,
+    isConversationsLoading: false,
+    onlineUsers: [],
+    typingUsers: [],
 
     sendMessage: async (data) => {
         const socket = useAuthStore.getState().socket;
@@ -151,11 +160,18 @@ export const useChatStore = create(() => ({
     },
 
     createGroup: async (data) => {
-        const socket = useAuthStore.getState().socket;
-        socket.emit('webrtc:group:create', { metadata: { topic: data.topic } }, (ack) => {
-            console.log(ack);
-            toast.success("Successfully created group");
-        });
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.post('/chat/group', data, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            await get().getConversations();
+            toast.success('Group created successfully');
+            return res.data;
+        } catch (error) {
+            console.error('Error creating group:', error);
+            toast.error('Failed to create group');
+        }
     },
 
     joinGroup: async (data) => {
@@ -185,6 +201,295 @@ export const useChatStore = create(() => ({
         socket.emit('webrtc:room:participants', { roomId: data.roomId }, (ack) => {
             if (ack.ok) console.log('participants', ack.participants);
         });
+    },
+
+    // Conversation management
+    getConversations: async () => {
+        set({ isConversationsLoading: true });
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.get('/chat/conversations', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            set({ conversations: res.data, isConversationsLoading: false });
+        } catch (error) {
+            console.error('Error fetching conversations:', error);
+            set({ isConversationsLoading: false });
+        }
+    },
+
+    getConversation: async (userId) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.post(`/chat/conversation/${userId}`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            set({ currentConversation: res.data });
+            return res.data;
+        } catch (error) {
+            console.error('Error getting conversation:', error);
+            toast.error('Failed to get conversation');
+        }
+    },
+
+    selectConversation: (conversation) => {
+        set({ selectedConversation: conversation, currentConversation: conversation });
+    },
+
+    getMessages: async (conversationId, before = null) => {
+        set({ isMessagesLoading: true });
+        try {
+            const token = localStorage.getItem('access-token');
+            const params = before ? { before } : {};
+            const res = await axiosInstance.get(`/chat/messages/${conversationId}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                params
+            });
+            set({ messages: res.data, isMessagesLoading: false });
+            return res.data;
+        } catch (error) {
+            console.error('Error fetching messages:', error);
+            set({ isMessagesLoading: false });
+        }
+    },
+
+    searchMessages: async (conversationId, query) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.get(`/chat/search/${conversationId}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                params: { q: query }
+            });
+            return res.data;
+        } catch (error) {
+            console.error('Error searching messages:', error);
+            toast.error('Failed to search messages');
+        }
+    },
+
+    starMessage: async (messageId) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.put(`/chat/message/${messageId}/star`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            return res.data;
+        } catch (error) {
+            console.error('Error starring message:', error);
+            toast.error('Failed to star message');
+        }
+    },
+
+    getStarredMessages: async (conversationId) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.get(`/chat/starred/${conversationId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            return res.data;
+        } catch (error) {
+            console.error('Error fetching starred messages:', error);
+        }
+    },
+
+    pinConversation: async (conversationId) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.put(`/chat/conversation/${conversationId}/pin`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            await get().getConversations();
+            return res.data;
+        } catch (error) {
+            console.error('Error pinning conversation:', error);
+            toast.error('Failed to pin conversation');
+        }
+    },
+
+    archiveConversation: async (conversationId) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.put(`/chat/conversation/${conversationId}/archive`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            await get().getConversations();
+            return res.data;
+        } catch (error) {
+            console.error('Error archiving conversation:', error);
+            toast.error('Failed to archive conversation');
+        }
+    },
+
+    muteConversation: async (conversationId, duration = null) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.put(`/chat/conversation/${conversationId}/mute`, { duration }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            await get().getConversations();
+            return res.data;
+        } catch (error) {
+            console.error('Error muting conversation:', error);
+            toast.error('Failed to mute conversation');
+        }
+    },
+
+    markConversationAsRead: async (conversationId) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            await axiosInstance.put(`/chat/conversation/${conversationId}/read`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            await get().getConversations();
+        } catch (error) {
+            console.error('Error marking conversation as read:', error);
+        }
+    },
+
+    clearChat: async (conversationId) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            await axiosInstance.delete(`/chat/conversation/${conversationId}/clear`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            set({ messages: [] });
+            toast.success('Chat cleared');
+        } catch (error) {
+            console.error('Error clearing chat:', error);
+            toast.error('Failed to clear chat');
+        }
+    },
+
+    addGroupParticipant: async (conversationId, participantIds) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.put(`/chat/group/${conversationId}/add`, { participantIds }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            await get().getConversations();
+            return res.data;
+        } catch (error) {
+            console.error('Error adding participant:', error);
+            toast.error('Failed to add participant');
+        }
+    },
+
+    removeGroupParticipant: async (conversationId, participantId) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.put(`/chat/group/${conversationId}/remove`, { participantId }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            await get().getConversations();
+            return res.data;
+        } catch (error) {
+            console.error('Error removing participant:', error);
+            toast.error('Failed to remove participant');
+        }
+    },
+
+    updateGroupInfo: async (conversationId, data) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.put(`/chat/group/${conversationId}`, data, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            await get().getConversations();
+            return res.data;
+        } catch (error) {
+            console.error('Error updating group info:', error);
+            toast.error('Failed to update group info');
+        }
+    },
+
+    // Contacts
+    getContacts: async () => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.get('/chat/contacts', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            return res.data;
+        } catch (error) {
+            console.error('Error fetching contacts:', error);
+        }
+    },
+
+    addContact: async (contactId, nickname = null) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.post(`/chat/contact/${contactId}`, { nickname }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success('Contact added');
+            return res.data;
+        } catch (error) {
+            console.error('Error adding contact:', error);
+            toast.error('Failed to add contact');
+        }
+    },
+
+    updateContact: async (contactId, data) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.put(`/chat/contact/${contactId}`, data, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            return res.data;
+        } catch (error) {
+            console.error('Error updating contact:', error);
+            toast.error('Failed to update contact');
+        }
+    },
+
+    deleteContact: async (contactId) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            await axiosInstance.delete(`/chat/contact/${contactId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success('Contact deleted');
+        } catch (error) {
+            console.error('Error deleting contact:', error);
+            toast.error('Failed to delete contact');
+        }
+    },
+
+    // Socket event handlers
+    addMessage: (message) => {
+        set((state) => ({
+            messages: [...state.messages, message]
+        }));
+    },
+
+    updateMessage: (messageId, updates) => {
+        set((state) => ({
+            messages: state.messages.map((msg) =>
+                msg._id === messageId ? { ...msg, ...updates } : msg
+            )
+        }));
+    },
+
+    removeMessage: (messageId) => {
+        set((state) => ({
+            messages: state.messages.filter((msg) => msg._id !== messageId)
+        }));
+    },
+
+    setOnlineUsers: (users) => {
+        set({ onlineUsers: users });
+    },
+
+    addTypingUser: (userId) => {
+        set((state) => ({
+            typingUsers: [...state.typingUsers, userId]
+        }));
+    },
+
+    removeTypingUser: (userId) => {
+        set((state) => ({
+            typingUsers: state.typingUsers.filter((id) => id !== userId)
+        }));
     },
 
 }));
