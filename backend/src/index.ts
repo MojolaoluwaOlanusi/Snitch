@@ -11,6 +11,7 @@ import incognitoRoutes from './routes/incognito.ts';
 import adminRoutes from './routes/admin.ts';
 import searchRoutes from './routes/search.ts';
 import repostsRoutes from './routes/reposts.ts';
+import chatRoutes from './routes/chat.ts';
 import './config/env.ts';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,6 +40,7 @@ app.use('/api/reposts', repostsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/incognito', incognitoRoutes);
+app.use('/api/chat', chatRoutes);
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 app.get('/api/config', (_req, res) => {
