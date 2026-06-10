@@ -1,45 +1,40 @@
 import React, { useState, useRef, useEffect, Suspense, lazy } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Lazy load emoji picker
 const LazyPicker = lazy(async () => {
     const mod = await import("@emoji-mart/react");
     return { default: mod.default };
 });
 import data from "@emoji-mart/data";
 
-// Quick reaction emojis
+interface Props {
+    postId: string;
+    onReact: (emoji: string) => void;
+    onClose: () => void;
+    isOpen: boolean;
+}
+
+// Quick reaction emojis for fast access
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"];
 
-// Simple SVG smile icon
-const SmileIcon = () => (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
-         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-        <line x1="9" y1="9" x2="9.01" y2="9" />
-        <line x1="15" y1="9" x2="15.01" y2="9" />
-    </svg>
-);
-
-const ReactionEmojiPicker = ({ postId, onReact, onClose, isOpen }) => {
-    const pickerRef = useRef(null);
+const ReactionEmojiPicker: React.FC<Props> = ({ postId, onReact, onClose, isOpen }) => {
+    const pickerRef = useRef<HTMLDivElement>(null);
     const [showFullPicker, setShowFullPicker] = useState(false);
 
-    const handleSelect = (emoji) => {
+    const handleSelect = (emoji: any) => {
         onReact(emoji.native);
         onClose();
     };
 
-    const handleQuickReact = (emoji) => {
+    const handleQuickReact = (emoji: string) => {
         onReact(emoji);
         onClose();
     };
 
     // Close on outside click
     useEffect(() => {
-        const handleClickOutside = (e) => {
-            if (pickerRef.current && !pickerRef.current.contains(e.target)) {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
                 onClose();
             }
         };
@@ -48,9 +43,6 @@ const ReactionEmojiPicker = ({ postId, onReact, onClose, isOpen }) => {
             return () => document.removeEventListener("mousedown", handleClickOutside);
         }
     }, [isOpen, onClose]);
-
-    // Don't render if not open
-    if (!isOpen) return null;
 
     return (
         <AnimatePresence>
@@ -90,15 +82,13 @@ const ReactionEmojiPicker = ({ postId, onReact, onClose, isOpen }) => {
                             <div className="flex items-center justify-between mb-2 px-2">
                                 <button
                                     onClick={() => setShowFullPicker(false)}
-                                    className="text-xs text-blue-400 hover:text-blue-500 font-medium"
+                                    className="text-xs text-blue-400 hover:text-blue-500"
                                 >
                                     ← Quick
                                 </button>
-                                <span className="text-xs text-gray-400">Choose a reaction</span>
+                                <span className="text-xs text-gray-400">Choose reaction</span>
                             </div>
-                            <Suspense fallback={
-                                <div className="text-center p-4 text-gray-400 text-sm">Loading...</div>
-                            }>
+                            <Suspense fallback={<div className="text-center p-4 text-gray-400 text-sm">Loading...</div>}>
                                 <LazyPicker
                                     data={data}
                                     onEmojiSelect={handleSelect}
@@ -116,5 +106,15 @@ const ReactionEmojiPicker = ({ postId, onReact, onClose, isOpen }) => {
         </AnimatePresence>
     );
 };
+
+// Simple smile icon for the "more" button
+const SmileIcon = () => (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+        <line x1="9" y1="9" x2="9.01" y2="9" />
+        <line x1="15" y1="9" x2="15.01" y2="9" />
+    </svg>
+);
 
 export default ReactionEmojiPicker;

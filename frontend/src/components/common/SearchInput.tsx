@@ -1,4 +1,4 @@
-import EmojiPicker from "./EmojiPicker";
+import EmojiPicker from "./EmojiPicker.jsx";
 import React, { useState, useRef } from "react";
 
 const SearchInput: React.FC = () => {

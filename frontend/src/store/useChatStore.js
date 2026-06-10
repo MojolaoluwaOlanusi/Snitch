@@ -13,151 +13,271 @@ export const useChatStore = create((set, get) => ({
     onlineUsers: [],
     typingUsers: [],
 
+    // ==================== Real-time Messaging ====================
+
     sendMessage: async (data) => {
         const socket = useAuthStore.getState().socket;
-        socket.emit('send_message', { receiverId: data.receiverId, text: data.text, media: data.media }, (ack) => {
-            if (!ack || !ack.ok) return (
-                toast.error("Failed to send message!")
-            )
-            if (!ack || !ack.ok) {
-                console.error("Failed to send message");
-            }
-            console.log('message sent', ack.message);
-            toast.success("Sent message");
+        if (!socket?.connected) {
+            toast.error("Not connected to chat server");
+            throw new Error("Socket not connected");
+        }
+
+        return new Promise((resolve, reject) => {
+            socket.emit('send_message', {
+                receiverId: data.receiverId,
+                text: data.text,
+                media: data.media || [],
+                conversationId: data.conversationId,
+                replyTo: data.replyTo,
+                mentions: data.mentions || [],
+                location: data.location,
+                contact: data.contact,
+                isVoiceMessage: data.isVoiceMessage,
+                voiceDuration: data.voiceDuration,
+            }, (ack) => {
+                if (!ack?.ok) {
+                    toast.error(ack?.error || "Failed to send message");
+                    reject(new Error(ack?.error || "Failed to send"));
+                    return;
+                }
+                // Update conversations list to reflect last message
+                get().getConversations();
+                resolve(ack.message);
+            });
         });
     },
 
     reactToMessage: async (data) => {
         const socket = useAuthStore.getState().socket;
-        socket.emit('reaction:add', { messageId: data.messageId, reaction: data.reaction }, (ack) => {
-            if (!ack.ok) console.error('reaction failed', ack.error);
-            if (!ack.ok) return (
-                toast.error("Failed to react to message!")
-            );
-            console.log('reacted to message');
-            toast.success("Reacted to message");
+        if (!socket?.connected) {
+            toast.error("Not connected");
+            return;
+        }
+
+        return new Promise((resolve, reject) => {
+            socket.emit('reaction:add', {
+                messageId: data.messageId,
+                reaction: data.reaction
+            }, (ack) => {
+                if (!ack?.ok) {
+                    toast.error("Failed to react");
+                    reject(new Error(ack?.error));
+                    return;
+                }
+                resolve(ack);
+            });
         });
     },
 
-    editMessage: async (data) =>  {
+    editMessage: async (data) => {
         const socket = useAuthStore.getState().socket;
-        socket.emit('message:edit', { messageId: data.messageId, newText: data.newText }, (ack) => {
-            if (!ack.ok) return console.error('Failed to edit message', ack.error);
-            if (!ack.ok) return (
-                toast.error("Failed to edit message!")
-            );
-            console.log('Edited', ack.message);
-            toast.success("Edited message");
+        if (!socket?.connected) {
+            toast.error("Not connected");
+            return;
+        }
+
+        return new Promise((resolve, reject) => {
+            socket.emit('message:edit', {
+                messageId: data.messageId,
+                newText: data.newText
+            }, (ack) => {
+                if (!ack?.ok) {
+                    toast.error("Failed to edit message");
+                    reject(new Error(ack?.error));
+                    return;
+                }
+                toast.success("Message edited");
+                resolve(ack.message);
+            });
         });
     },
 
     deleteMessage: async (data) => {
         const socket = useAuthStore.getState().socket;
-        socket.emit('message:delete', { messageId: data.messageId }, (ack) => {
-            if (!ack.ok) return console.error('Failed to delete message', ack.error);
-            if (!ack.ok) return (
-                toast.error("Failed to delete message")
-            );
-            console.log('message deleted');
-            toast.success("Successfully deleted message");
+        if (!socket?.connected) {
+            toast.error("Not connected");
+            return;
+        }
+
+        return new Promise((resolve, reject) => {
+            socket.emit('message:delete', {
+                messageId: data.messageId
+            }, (ack) => {
+                if (!ack?.ok) {
+                    toast.error("Failed to delete message");
+                    reject(new Error(ack?.error));
+                    return;
+                }
+                // Also try to delete for everyone
+                socket.emit('message:delete:everyone', {
+                    messageId: data.messageId
+                }, (ack2) => {
+                    if (ack2?.ok) {
+                        toast.success("Message deleted for everyone");
+                    } else {
+                        toast.success("Message deleted");
+                    }
+                });
+                resolve(ack);
+            });
         });
     },
 
     forwardMessage: async (data) => {
         const socket = useAuthStore.getState().socket;
-        socket.emit('message:forward', { messageId: data.messageId, targets: data.targets }, (ack) => {
-            if (!ack.ok) console.error('Failed to forward message', ack.error);
-            else console.log('Forwarded message');
-            if (!ack.ok) return (
-                toast.error("Failed to forward message")
-            );
-            toast.success("Forwarded message");
+        if (!socket?.connected) {
+            toast.error("Not connected");
+            return;
+        }
+
+        return new Promise((resolve, reject) => {
+            socket.emit('message:forward', {
+                messageId: data.messageId,
+                targets: data.targets
+            }, (ack) => {
+                if (!ack?.ok) {
+                    toast.error("Failed to forward message");
+                    reject(new Error(ack?.error));
+                    return;
+                }
+                toast.success("Message forwarded");
+                resolve(ack);
+            });
         });
     },
 
     readMessage: async (data) => {
         const socket = useAuthStore.getState().socket;
-        socket.emit('message:read', { messageId: data.messageId }, (ack) => {
-            if (!ack.ok) console.error('Failed to read message');
-            if (!ack.ok) return (
-                toast.error("Failed to read message")
-            );
-            console.log("Successfully read message");
-            toast.success("Read message");
+        if (!socket?.connected) return;
+
+        socket.emit('message:read', {
+            messageId: data.messageId
+        }, (ack) => {
+            if (!ack?.ok) console.error('Failed to mark as read');
         });
     },
 
     startTyping: async (data) => {
         const socket = useAuthStore.getState().socket;
+        if (!socket?.connected) return;
         socket.emit('typing:start', { toUserId: data.toUserId });
     },
 
     stopTyping: async (data) => {
         const socket = useAuthStore.getState().socket;
+        if (!socket?.connected) return;
         socket.emit('typing:stop', { toUserId: data.toUserId });
     },
 
+    // ==================== Media Upload ====================
+
     mediaUpload: async (data) => {
         const socket = useAuthStore.getState().socket;
-        socket.emit('upload:presign', { key: data.key, contentType: data.contentType }, (ack) => {
-            if (!ack.ok) return console.error('presign failed', ack.error);
-            toast.success(ack.publicUrl);
-            fetch(ack.url, { method: 'PUT', headers: { 'Content-Type': data.contentType }, body: data.file })
-                .then((r) => { if (!r.ok) throw new Error('upload failed'); console.log('Successfully uploaded'); })
-                .catch(console.error);
+        if (!socket?.connected) {
+            toast.error("Not connected");
+            return;
+        }
+
+        return new Promise((resolve, reject) => {
+            socket.emit('upload:presign', {
+                key: data.key,
+                contentType: data.contentType
+            }, async (ack) => {
+                if (!ack?.ok) {
+                    toast.error("Upload failed");
+                    reject(new Error(ack?.error));
+                    return;
+                }
+
+                try {
+                    const response = await fetch(ack.url, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': data.contentType },
+                        body: data.file
+                    });
+
+                    if (!response.ok) throw new Error('Upload failed');
+                    resolve({ publicUrl: ack.publicUrl, key: ack.key });
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    reject(error);
+                }
+            });
         });
     },
 
+    // ==================== Call Management ====================
+
     initiateCall: async (data) => {
         const socket = useAuthStore.getState().socket;
-        socket.emit('webrtc:call:initiate', { targets: data.targets, isVideo: data.isVideo }, (ack) => {
-            if (!ack.ok) return console.error('Call initialization failed', ack.error);
-            const { callId, roomId } = ack;
-            console.log('Call created', callId, roomId);
-            toast.success("Call created");
-            // continue to create local RTCPeerConnection and gather ICE, then send offer via webrtc:signal
+        if (!socket?.connected) {
+            toast.error("Not connected");
+            return;
+        }
+
+        return new Promise((resolve, reject) => {
+            socket.emit('webrtc:call:initiate', {
+                targets: data.targets,
+                isVideo: data.isVideo,
+                metadata: data.metadata
+            }, (ack) => {
+                if (!ack?.ok) {
+                    toast.error("Call initiation failed");
+                    reject(new Error(ack?.error));
+                    return;
+                }
+                resolve(ack);
+            });
         });
     },
 
     signal: async (data) => {
         const socket = useAuthStore.getState().socket;
-        socket.emit('webrtc:signal', { toSocketId: data.toSocketId, type: data.type, data: { sdp: data.sdp.sdp } });
+        if (!socket?.connected) return;
+        socket.emit('webrtc:signal', {
+            toUserId: data.toUserId,
+            type: data.type,
+            data: data.data
+        });
     },
 
     muteCall: async (data) => {
         const socket = useAuthStore.getState().socket;
-        socket.emit('webrtc:call:control', { data, action: 'mute' });
+        if (!socket?.connected) return;
+        socket.emit('webrtc:call:control', {
+            callId: data.callId,
+            action: data.muted ? 'mute' : 'unmute',
+            data: { toUserId: data.toUserId }
+        });
     },
 
     toggleVideo: async (data) => {
         const socket = useAuthStore.getState().socket;
-        socket.emit('webrtc:call:control', { data, action: 'toggle_video' });
+        if (!socket?.connected) return;
+        socket.emit('webrtc:call:control', {
+            callId: data.callId,
+            action: data.videoOff ? 'video_off' : 'video_on',
+            data: { toUserId: data.toUserId }
+        });
     },
 
     leaveCall: async (data) => {
         const socket = useAuthStore.getState().socket;
-        socket.emit('webrtc:call:leave', { data }, (ack) => {
-            if (ack.ok) return (
-                toast.success("Successfully left call")
-            );
-            if (!ack.ok) return (
-                toast.error("Failed to leave call")
-            );
+        if (!socket?.connected) return;
+        socket.emit('webrtc:call:leave', { callId: data.callId }, (ack) => {
+            if (ack?.ok) console.log('Left call');
         });
     },
 
     endCall: async (data) => {
         const socket = useAuthStore.getState().socket;
-        socket.emit('webrtc:call:end', { data }, (ack) => {
-            if (ack.ok) return (
-                toast.success("Successfully ended call")
-            );
-            if (!ack.ok) return (
-                toast.error("Failed to end call")
-            );
-            if (!ack.ok) console.error(ack.error);
+        if (!socket?.connected) return;
+        socket.emit('webrtc:call:end', { callId: data.callId }, (ack) => {
+            if (!ack?.ok) console.error('Failed to end call');
         });
     },
+
+    // ==================== Group Management ====================
 
     createGroup: async (data) => {
         try {
@@ -171,39 +291,58 @@ export const useChatStore = create((set, get) => ({
         } catch (error) {
             console.error('Error creating group:', error);
             toast.error('Failed to create group');
+            throw error;
         }
     },
 
     joinGroup: async (data) => {
         const socket = useAuthStore.getState().socket;
+        if (!socket?.connected) {
+            toast.error("Not connected");
+            return;
+        }
         socket.emit('webrtc:group:join', { groupId: data.groupId }, (ack) => {
-            console.log(ack.participants);
-            toast.success("Successfully joined group");
+            if (ack?.ok) {
+                toast.success("Joined group");
+                console.log('Participants:', ack.participants);
+            }
         });
     },
 
     sendGroupMessage: async (data) => {
         const socket = useAuthStore.getState().socket;
-        socket.emit('webrtc:group:message', { groupId: data.groupId, text: data.text, media: data.media, metadata: data.metadata }, (ack) => {
-            if (!ack || !ack.ok) return (
-                toast.error("Failed to send group message!")
-            )
-            if (!ack || !ack.ok) {
-                console.error("Failed to send message");
-            }
-            console.log('group message sent', ack.message);
-            toast.success("Sent group message");
+        if (!socket?.connected) {
+            toast.error("Not connected");
+            return;
+        }
+
+        return new Promise((resolve, reject) => {
+            socket.emit('webrtc:group:message', {
+                groupId: data.groupId,
+                text: data.text,
+                media: data.media || [],
+                metadata: data.metadata
+            }, (ack) => {
+                if (!ack?.ok) {
+                    toast.error("Failed to send group message");
+                    reject(new Error(ack?.error));
+                    return;
+                }
+                resolve(ack);
+            });
         });
     },
 
     getRoomParticipants: async (data) => {
         const socket = useAuthStore.getState().socket;
+        if (!socket?.connected) return;
         socket.emit('webrtc:room:participants', { roomId: data.roomId }, (ack) => {
-            if (ack.ok) console.log('participants', ack.participants);
+            if (ack?.ok) console.log('Participants:', ack.participants);
         });
     },
 
-    // Conversation management
+    // ==================== Conversation Management (REST API) ====================
+
     getConversations: async () => {
         set({ isConversationsLoading: true });
         try {
@@ -212,9 +351,11 @@ export const useChatStore = create((set, get) => ({
                 headers: { Authorization: `Bearer ${token}` }
             });
             set({ conversations: res.data, isConversationsLoading: false });
+            return res.data;
         } catch (error) {
             console.error('Error fetching conversations:', error);
             set({ isConversationsLoading: false });
+            return [];
         }
     },
 
@@ -229,18 +370,27 @@ export const useChatStore = create((set, get) => ({
         } catch (error) {
             console.error('Error getting conversation:', error);
             toast.error('Failed to get conversation');
+            return null;
         }
     },
 
     selectConversation: (conversation) => {
-        set({ selectedConversation: conversation, currentConversation: conversation });
+        set({
+            selectedConversation: conversation,
+            currentConversation: conversation,
+            messages: [] // Clear messages when switching
+        });
+        // Mark as read immediately
+        if (conversation?._id) {
+            get().markConversationAsRead(conversation._id);
+        }
     },
 
     getMessages: async (conversationId, before = null) => {
         set({ isMessagesLoading: true });
         try {
             const token = localStorage.getItem('access-token');
-            const params = before ? { before } : {};
+            const params = before ? { before, limit: 50 } : { limit: 50 };
             const res = await axiosInstance.get(`/chat/messages/${conversationId}`, {
                 headers: { Authorization: `Bearer ${token}` },
                 params
@@ -250,6 +400,7 @@ export const useChatStore = create((set, get) => ({
         } catch (error) {
             console.error('Error fetching messages:', error);
             set({ isMessagesLoading: false });
+            return [];
         }
     },
 
@@ -264,6 +415,7 @@ export const useChatStore = create((set, get) => ({
         } catch (error) {
             console.error('Error searching messages:', error);
             toast.error('Failed to search messages');
+            return [];
         }
     },
 
@@ -272,6 +424,10 @@ export const useChatStore = create((set, get) => ({
             const token = localStorage.getItem('access-token');
             const res = await axiosInstance.put(`/chat/message/${messageId}/star`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
+            });
+            // Update local message
+            get().updateMessage(messageId, {
+                starredBy: res.data.starred ? [useAuthStore.getState().authUser?._id] : []
             });
             return res.data;
         } catch (error) {
@@ -289,6 +445,7 @@ export const useChatStore = create((set, get) => ({
             return res.data;
         } catch (error) {
             console.error('Error fetching starred messages:', error);
+            return [];
         }
     },
 
@@ -323,9 +480,10 @@ export const useChatStore = create((set, get) => ({
     muteConversation: async (conversationId, duration = null) => {
         try {
             const token = localStorage.getItem('access-token');
-            const res = await axiosInstance.put(`/chat/conversation/${conversationId}/mute`, { duration }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await axiosInstance.put(`/chat/conversation/${conversationId}/mute`,
+                { duration },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
             await get().getConversations();
             return res.data;
         } catch (error) {
@@ -340,6 +498,11 @@ export const useChatStore = create((set, get) => ({
             await axiosInstance.put(`/chat/conversation/${conversationId}/read`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            // Also notify via socket
+            const socket = useAuthStore.getState().socket;
+            if (socket?.connected) {
+                socket.emit('conversation:read', { conversationId });
+            }
             await get().getConversations();
         } catch (error) {
             console.error('Error marking conversation as read:', error);
@@ -363,9 +526,10 @@ export const useChatStore = create((set, get) => ({
     addGroupParticipant: async (conversationId, participantIds) => {
         try {
             const token = localStorage.getItem('access-token');
-            const res = await axiosInstance.put(`/chat/group/${conversationId}/add`, { participantIds }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await axiosInstance.put(`/chat/group/${conversationId}/add`,
+                { participantIds },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
             await get().getConversations();
             return res.data;
         } catch (error) {
@@ -377,9 +541,10 @@ export const useChatStore = create((set, get) => ({
     removeGroupParticipant: async (conversationId, participantId) => {
         try {
             const token = localStorage.getItem('access-token');
-            const res = await axiosInstance.put(`/chat/group/${conversationId}/remove`, { participantId }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await axiosInstance.put(`/chat/group/${conversationId}/remove`,
+                { participantId },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
             await get().getConversations();
             return res.data;
         } catch (error) {
@@ -402,7 +567,8 @@ export const useChatStore = create((set, get) => ({
         }
     },
 
-    // Contacts
+    // ==================== Contacts ====================
+
     getContacts: async () => {
         try {
             const token = localStorage.getItem('access-token');
@@ -412,15 +578,17 @@ export const useChatStore = create((set, get) => ({
             return res.data;
         } catch (error) {
             console.error('Error fetching contacts:', error);
+            return [];
         }
     },
 
     addContact: async (contactId, nickname = null) => {
         try {
             const token = localStorage.getItem('access-token');
-            const res = await axiosInstance.post(`/chat/contact/${contactId}`, { nickname }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await axiosInstance.post(`/chat/contact/${contactId}`,
+                { nickname },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
             toast.success('Contact added');
             return res.data;
         } catch (error) {
@@ -455,11 +623,14 @@ export const useChatStore = create((set, get) => ({
         }
     },
 
-    // Socket event handlers
+    // ==================== Socket Event State Updaters ====================
+
     addMessage: (message) => {
-        set((state) => ({
-            messages: [...state.messages, message]
-        }));
+        set((state) => {
+            // Prevent duplicates
+            if (state.messages.find(m => m._id === message._id)) return state;
+            return { messages: [...state.messages, message] };
+        });
     },
 
     updateMessage: (messageId, updates) => {
@@ -477,12 +648,14 @@ export const useChatStore = create((set, get) => ({
     },
 
     setOnlineUsers: (users) => {
-        set({ onlineUsers: users });
+        set({ onlineUsers: Array.isArray(users) ? users : [] });
     },
 
     addTypingUser: (userId) => {
         set((state) => ({
-            typingUsers: [...state.typingUsers, userId]
+            typingUsers: state.typingUsers.includes(userId)
+                ? state.typingUsers
+                : [...state.typingUsers, userId]
         }));
     },
 
@@ -491,5 +664,4 @@ export const useChatStore = create((set, get) => ({
             typingUsers: state.typingUsers.filter((id) => id !== userId)
         }));
     },
-
 }));

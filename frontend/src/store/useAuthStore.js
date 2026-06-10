@@ -1,12 +1,11 @@
 import { create } from "zustand";
-import axiosInstance  from "../lib/axios";
+import axiosInstance from "../lib/axios";
 import toast from "react-hot-toast";
 import { io } from 'socket.io-client';
 
 export const useAuthStore = create((set, get) => ({
     authUserId: null,
     authUser: null,
-    User: null,
     user: null,
     verifiedUser: false,
     recoveredPassword: false,
@@ -23,24 +22,29 @@ export const useAuthStore = create((set, get) => ({
     isUsersLoading: false,
     hasBlockedUser: false,
     socket: null,
+    isSocketConnected: false,
 
     checkAuthentication: async () => {
         try {
             const token = localStorage.getItem('access-token');
-            const res = await axiosInstance.get("/auth/check",{
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
+            if (!token) {
+                set({ authUserId: null, isCheckingAuth: false });
+                return;
+            }
+            const res = await axiosInstance.get("/auth/check", {
+                headers: { "Authorization": `Bearer ${token}` }
             });
             set({ authUserId: res.data.id });
-            const socket = get().socket
-            if (!socket) {
+            // Connect socket after auth check
+            const { socket } = get();
+            if (!socket?.connected) {
                 await get().connectSocket();
             }
         } catch (error) {
-            console.log("Error in authCheck:", error);
+            console.log("Auth check error:", error);
             set({ authUserId: null });
             localStorage.removeItem('access-token');
+            get().disconnectSocket();
         } finally {
             set({ isCheckingAuth: false });
         }
@@ -48,35 +52,16 @@ export const useAuthStore = create((set, get) => ({
 
     signup: async (data) => {
         set({ isSigningUp: true });
-
-        async function checkAuth() {
-            try {
-                const token = localStorage.getItem('access-token');
-                const res = await axiosInstance.get("/auth/check", {
-                    headers: {
-                        "Authorization": `Bearer ${token}`
-                    }
-                });
-                set({authUserId: res.data.id});
-            } catch (error) {
-                console.log("Error in authCheck:", error);
-                set({authUserId: null});
-                localStorage.removeItem('access-token');
-            } finally {
-                set({isCheckingAuth: false});
-            }
-        }
-
         try {
             const res = await axiosInstance.post("/auth/signup", data);
             set({ authUserId: res.data.id });
             localStorage.setItem('user', `${res.data.id}`);
-            localStorage.setItem('access-token',`${res.data.access}`)
-            await checkAuth();
+            localStorage.setItem('access-token', `${res.data.access}`);
+            await get().checkAuthentication();
             await get().connectSocket();
             toast.success("Account created successfully!");
         } catch (error) {
-            toast.error(error.response.data.message);
+            toast.error(error.response?.data?.message || "Signup failed");
         } finally {
             set({ isSigningUp: false });
         }
@@ -84,235 +69,162 @@ export const useAuthStore = create((set, get) => ({
 
     login: async (data) => {
         set({ isLoggingIn: true });
-
-        async function checkAuth() {
-            try {
-                const token = localStorage.getItem('access-token');
-                const res = await axiosInstance.get("/auth/check", {
-                    headers: {
-                        "Authorization": `Bearer ${token}`
-                    }
-                });
-                set({authUserId: res.data.id});
-            } catch (error) {
-                console.log("Error in authCheck:", error);
-                set({authUserId: null});
-                localStorage.removeItem('access-token');
-            } finally {
-                set({isCheckingAuth: false});
-            }
-        }
-
         try {
             const res = await axiosInstance.post("/auth/login", data);
             set({ authUserId: res.data.user.id });
             localStorage.setItem('user', `${res.data.user.id}`);
-            localStorage.setItem('access-token',`${res.data.access}`);
-            await checkAuth();
+            localStorage.setItem('access-token', `${res.data.access}`);
+            await get().checkAuthentication();
             await get().connectSocket();
             toast.success("Logged in successfully");
         } catch (error) {
-            toast.error(error);
+            toast.error(error.response?.data?.message || "Login failed");
         } finally {
             set({ isLoggingIn: false });
         }
     },
 
     logout: async () => {
-
         try {
             await axiosInstance.post("/auth/signout");
-            set({ authUserId: null });
+            set({ authUserId: null, authUser: null, user: null });
             localStorage.removeItem('access-token');
+            localStorage.removeItem('user');
             await get().disconnectSocket();
             toast.success("Logged out successfully");
         } catch (error) {
-            toast.error("Error logging out");
             console.log("Logout error:", error);
+            // Force logout even if API fails
+            set({ authUserId: null, authUser: null, user: null });
+            localStorage.removeItem('access-token');
+            localStorage.removeItem('user');
+            await get().disconnectSocket();
         }
     },
 
-    getProfile: async  () => {
+    getProfile: async () => {
+        set({ isGettingProfile: true });
         try {
             const token = localStorage.getItem('access-token');
-            const res = await axiosInstance.get("/auth/get-profile",{
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
+            const res = await axiosInstance.get("/auth/get-profile", {
+                headers: { "Authorization": `Bearer ${token}` }
             });
-            set({ isGettingProfile: true });
             set({ authUser: res.data });
         } catch (error) {
-            console.log("Error in getting Profile:", error);
-            set({ isGettingProfile: false });
-            toast.error(error.response.data.message);
+            console.log("Error getting profile:", error);
+            toast.error(error.response?.data?.message || "Failed to load profile");
         } finally {
             set({ isGettingProfile: false });
         }
     },
 
-    getUserProfile: async  (username) => {
+    getUserProfile: async (username) => {
+        set({ isGettingUserProfile: true });
         try {
             const token = localStorage.getItem('access-token');
-            const res = await axiosInstance.get(`/auth/get-user-profile/${username}`,{
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
+            const res = await axiosInstance.get(`/auth/get-user-profile/${username}`, {
+                headers: { "Authorization": `Bearer ${token}` }
             });
-            set({ isGettingUserProfile: true });
             set({ user: res.data });
             localStorage.setItem('user', `${res.data._id}`);
         } catch (error) {
-            console.log("Error in getting Profile:", error);
-            set({ isGettingUserProfile: false });
-            toast.error(error.response.data.message);
+            console.log("Error getting user profile:", error);
+            toast.error(error.response?.data?.message || "Failed to load user profile");
         } finally {
             set({ isGettingUserProfile: false });
         }
     },
 
     updateProfile: async (data) => {
-
-        async function refreshProfile(username) {
-            try {
-                const token = localStorage.getItem('access-token');
-                const res = await axiosInstance.get(`/auth/get-user-profile/${username}`, {
-                    headers: {
-                        "Authorization": `Bearer ${token}`
-                    }
-                });
-                set({isGettingUserProfile: true});
-                set({user: res.data});
-                localStorage.setItem('user', `${res.data._id}`);
-            } catch (error) {
-                console.log("Error in getting Profile:", error);
-                set({isGettingUserProfile: false});
-                toast.error(error.response.data.message);
-            } finally {
-                set({isGettingUserProfile: false});
-            }
-        }
-
+        set({ isUpdatingProfile: true });
         try {
-            const username = localStorage.getItem('username');
             const token = localStorage.getItem('access-token');
-            const res = await axiosInstance.put("/auth/update-profile", data,{
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
+            const res = await axiosInstance.put("/auth/update-profile", data, {
+                headers: { "Authorization": `Bearer ${token}` }
             });
-            set({ isUpdatingProfile: true });
-            set({ authUserId: res.data._id });
             set({ authUser: res.data });
-            await refreshProfile(username);
             toast.success("Profile updated successfully");
+            return res.data;
         } catch (error) {
-            console.log("Error in update profile:", error);
-            set({ isUpdatingProfile: false });
-            toast.error(error.response.data.message);
+            console.log("Error updating profile:", error);
+            toast.error(error.response?.data?.message || "Failed to update profile");
         } finally {
             set({ isUpdatingProfile: false });
         }
     },
 
-    sendVerificationCode: async (data) =>  {
+    sendVerificationCode: async (data) => {
         try {
             await axiosInstance.post("/auth/send-verification-code", data);
-            set({ sentVerificationCode: true});
+            set({ sentVerificationCode: true });
             toast.success("Verification code sent!");
         } catch (error) {
-            console.log("Error in sending verification code:", error);
-            if (error.response.data.message === "getaddrinfo ENOTFOUND smtp.gmail.com") {
-                toast.error("No Internet Connection!");
-            } else {
-                toast.error(error.response.data.message);
-            }
-            set({ sentVerificationCode: false});
-        } finally {
+            console.log("Error sending verification code:", error);
+            toast.error(error.response?.data?.message || "Failed to send code");
             set({ sentVerificationCode: false });
         }
     },
 
-    sendForgotPasswordCode: async (data) =>  {
+    sendForgotPasswordCode: async (data) => {
         try {
             await axiosInstance.post("/auth/send-forgot-password-code", data);
-            set({ sentForgotPasswordCode: true});
-            toast.success("Forgot Password Code Sent!")
+            set({ sentForgotPasswordCode: true });
+            toast.success("Reset code sent!");
         } catch (error) {
-            console.log("Error in sending forgot password code:", error);
-            if (error.response.data.message === "getaddrinfo ENOTFOUND smtp.gmail.com") {
-                toast.error("No Internet Connection!");
-            } else {
-                toast.error(error.response.data.message);
-            }
-            set({ sentForgotPasswordCode: false});
-        } finally {
+            console.log("Error sending forgot password code:", error);
+            toast.error(error.response?.data?.message || "Failed to send code");
             set({ sentForgotPasswordCode: false });
         }
     },
 
-    verifyVerificationCode: async  (data) => {
+    verifyVerificationCode: async (data) => {
         try {
             await axiosInstance.post("/auth/verify-verification-code", data);
-            set({ verifiedUser: true});
-            toast.success("Successfully Verified your account");
+            set({ verifiedUser: true });
+            toast.success("Account verified!");
         } catch (error) {
-            console.log("Failed to verify the verification code", error);
-            toast.error("Failed to verify account");
-            set({verifiedUser: false});
+            console.log("Failed to verify:", error);
+            toast.error(error.response?.data?.message || "Verification failed");
+            set({ verifiedUser: false });
         }
     },
 
-    verifyForgotPasswordCode: async  (data) => {
+    verifyForgotPasswordCode: async (data) => {
         try {
             await axiosInstance.post("/auth/verify-forgot-password-code", data);
-            toast.success("Successfully recovered password!");
-            set({recoveredPassword: true});
+            toast.success("Password reset successfully!");
+            set({ recoveredPassword: true });
         } catch (error) {
-            console.log("Failed to recover password", error);
-            toast.error("Failed to recover password!");
+            console.log("Failed to recover password:", error);
+            toast.error(error.response?.data?.message || "Recovery failed");
         }
     },
 
     changePassword: async (data) => {
-      try {
-          const token = localStorage.getItem('access-token');
-          await axiosInstance.patch("/auth/change-password", data, {
-              headers: {
-                  "Authorization": `Bearer ${token}`
-              }
-          });
-          toast.success("Successfully Updated Password");
-      }  catch (error) {
-          console.log("Failed to change Password", error);
-          toast.error("Failed to change password!");
-      }
+        try {
+            const token = localStorage.getItem('access-token');
+            await axiosInstance.patch("/auth/change-password", data, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            toast.success("Password updated");
+        } catch (error) {
+            console.log("Failed to change password:", error);
+            toast.error(error.response?.data?.message || "Failed to change password");
+        }
     },
 
     blockUser: async (data) => {
+        set({ isBlockingUser: true });
         try {
             const token = localStorage.getItem('access-token');
-            const res = await axiosInstance.post(`/auth/block/${data}`, data,{
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
+            await axiosInstance.post(`/auth/block/${data}`, {}, {
+                headers: { "Authorization": `Bearer ${token}` }
             });
-            set({ isBlockingUser: true });
             set({ hasBlockedUser: true });
-            if (res.data.message === "You have successfully blocked the User"){
-                toast.success("Successfully blocked User");
-            } else {
-                toast.error("Something went wrong, Please try again!")
-            }
-
+            toast.success("User blocked");
         } catch (error) {
-            console.log("Error in following user:", error);
-            if (error.response.data.message === "No User to block Found!") {
-                toast.error("The User you want to block was not Found!");
-            } else {
-                toast.error("Something went wrong,Please try again.");
-            }
-            set({ isBlockingUser: false });
+            console.log("Error blocking user:", error);
+            toast.error(error.response?.data?.message || "Failed to block user");
             set({ hasBlockedUser: false });
         } finally {
             set({ isBlockingUser: false });
@@ -320,129 +232,99 @@ export const useAuthStore = create((set, get) => ({
     },
 
     unblockUser: async (data) => {
+        set({ isBlockingUser: true });
         try {
             const token = localStorage.getItem('access-token');
-            const res = await axiosInstance.post(`/auth/unblock/${data}`, data,{
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
+            await axiosInstance.post(`/auth/unblock/${data}`, {}, {
+                headers: { "Authorization": `Bearer ${token}` }
             });
-            set({ isBlockingUser: true });
             set({ hasBlockedUser: false });
-            if (res.data.message === "You have successfully unblocked the User"){
-                toast.success("Successfully unblocked User");
-            } else {
-                toast.error("Something went wrong, Please try again!")
-            }
+            toast.success("User unblocked");
         } catch (error) {
-            console.log("Error in following user:", error);
-            if (error.response.data.message === "No User to block Found!") {
-                toast.error("The User you want to block was not Found!");
-            } else {
-                toast.error("Something went wrong,Please try again.");
-            }
+            console.log("Error unblocking user:", error);
+            toast.error(error.response?.data?.message || "Failed to unblock user");
             set({ hasBlockedUser: true });
-            set({ isBlockingUser: false });
         } finally {
             set({ isBlockingUser: false });
         }
     },
 
+    // ==================== Socket Connection ====================
+
     connectSocket: async () => {
+        const { socket, authUserId } = get();
+
+        // Don't connect if already connected or no user
+        if (socket?.connected) return;
+        if (!authUserId && !localStorage.getItem('access-token')) return;
+
         const token = localStorage.getItem("access-token");
-        const socket = io(import.meta.env.CLIENT_SOCKET_URL || 'http://localhost:4500', {
-            auth: { token }, // handshake auth
-            transports: ['websocket'],
+        if (!token) return;
+
+        // Disconnect existing socket if any
+        if (socket) {
+            socket.disconnect();
+        }
+
+        const newSocket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:4500', {
+            auth: { token },
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 10000,
+            timeout: 20000,
         });
 
-        set({ socket: socket });
+        set({ socket: newSocket });
 
-        socket.on('connect', () => {
-            console.log('connected', socket.id);
+        newSocket.on('connect', () => {
+            console.log('🔌 Socket connected:', newSocket.id);
+            set({ isSocketConnected: true });
+            // Request online users
+            newSocket.emit('get_online_users');
         });
 
-        socket.on('connect_error', (err) => {
-            console.error('connect_error', err.message);
+        newSocket.on('disconnect', (reason) => {
+            console.log('🔌 Socket disconnected:', reason);
+            set({ isSocketConnected: false });
         });
 
-        socket.on('users_online', (users) => console.log('online users', users));
-        socket.on('user_online', (id) => console.log('user online', id));
-        socket.on('user_offline', (id) => console.log('user offline', id));
-
-        socket.on('receive_message', (message) => {
-            console.log('incoming', message);
+        newSocket.on('connect_error', (err) => {
+            console.error('🔌 Socket connection error:', err.message);
+            set({ isSocketConnected: false });
         });
 
-        socket.on('message_sent', (message) => {
-            console.log('message saved for sender', message);
+        newSocket.on('reconnect', (attemptNumber) => {
+            console.log('🔌 Socket reconnected after', attemptNumber, 'attempts');
+            set({ isSocketConnected: true });
+            newSocket.emit('get_online_users');
         });
 
-        socket.on('reaction:update', ({ messageId, reactions }) => {
-            console.log('reaction update', messageId, reactions);
+        newSocket.on('reconnect_error', (err) => {
+            console.error('🔌 Socket reconnect error:', err.message);
         });
 
-        socket.on('message:read', ({ messageId, userId }) => {
-            console.log(`${userId} read ${messageId}`);
+        // Presence events
+        newSocket.on('users_online', (users) => {
+            console.log('Online users:', users?.length || 0);
         });
 
-        socket.on('typing:start', ({ from }) => console.log(from, 'is typing'));
-        socket.on('typing:stop', ({ from }) => console.log(from, 'stopped typing'));
-
-        socket.on('webrtc:call:incoming', async ({ callId, from, roomId, isVideo }) => {
-            console.log('incoming call from', from, callId);
-            toast.success("Incoming call");
-            // show incoming UI to user; if accepted:
-            socket.emit('webrtc:call:join', { callId: callId, role: 'member' }, (ack) => {
-                if (!ack.ok) return console.error('join failed');
-                toast.success("Joined call");
-                const participants = ack.participants; // list of participants with socketIds
-                console.log('participants:',participants);
-                // create RTCPeerConnection(s) and exchange SDP via webrtc:signal
-            });
+        newSocket.on('user_online', (id) => {
+            console.log('User online:', id);
         });
 
-        socket.on('webrtc:signal', ({ from, type, data }) => {
-            if (type === 'offer') {
-                // set remote description and create answer
-                toast.success("Received offer");
-            } else if (type === 'answer') {
-                // set remote description
-                toast.success("Received answer");
-            } else if (type === 'ice') {
-                // add ICE candidate
-                toast.success("Received ice");
-            }
+        newSocket.on('user_offline', (id) => {
+            console.log('User offline:', id);
         });
-
-        socket.on('webrtc:call:participants', (participants) => {
-            console.log('participants changed', participants);
-        });
-
-        socket.on('webrtc:group:message', (message) => {
-            console.log('group message', message);
-        });
-
-        socket.on('webrtc:group:participant_joined', ({ userId }) => {
-            console.log('user joined group', userId);
-        });
-
-        socket.on('webrtc:call:ended', ({ callId }) => {
-            console.log('call ended:', callId);
-            toast.success("Leaving...");
-        });
-
-        socket.on('webrtc:call:participant_left', ({ userId }) => {
-            console.log('user left call:', userId);
-        });
-
-        socket.on('webrtc:call:controller', (msg) => {
-            console.log(`user ${msg.from} did ${msg.action}, data: ${msg.data}`,);
-        });
-
     },
 
     disconnectSocket: async () => {
-        if (get().socket?.connected) get().socket.disconnect();
+        const { socket } = get();
+        if (socket) {
+            socket.disconnect();
+            set({ socket: null, isSocketConnected: false });
+            console.log('Socket disconnected manually');
+        }
     },
-
 }));
