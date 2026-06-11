@@ -664,4 +664,38 @@ export const useChatStore = create((set, get) => ({
             typingUsers: state.typingUsers.filter((id) => id !== userId)
         }));
     },
+
+    pinMessage: async ({ messageId, duration }) => {
+        const socket = useAuthStore.getState().socket;
+        if (!socket?.connected) { toast.error("Not connected"); return; }
+        return new Promise((resolve, reject) => {
+            socket.emit('message:pin', { messageId, duration }, (ack) => {
+                if (!ack?.ok) { toast.error("Failed to pin message"); reject(new Error(ack?.error)); return; }
+                toast.success("Message pinned"); resolve(ack);
+            });
+        });
+    },
+
+    unpinMessage: async (messageId) => {
+        const socket = useAuthStore.getState().socket;
+        if (!socket?.connected) { toast.error("Not connected"); return; }
+        return new Promise((resolve, reject) => {
+            socket.emit('message:unpin', { messageId }, (ack) => {
+                if (!ack?.ok) { toast.error("Failed to unpin message"); reject(new Error(ack?.error)); return; }
+                toast.success("Message unpinned"); resolve(ack);
+            });
+        });
+    },
+
+// Add to favorites
+    addToFavorites: async (conversationId) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.put(`/chat/conversation/${conversationId}/favorite`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            await get().getConversations();
+            return res.data;
+        } catch (error) { toast.error('Failed'); }
+    },
 }));

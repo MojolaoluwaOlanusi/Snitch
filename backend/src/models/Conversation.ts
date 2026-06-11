@@ -58,6 +58,8 @@ const conversationSchema = new mongoose.Schema(
             of: Number,
             default: {},
         },
+        lockedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+        favoritedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     },
     { timestamps: true }
 );

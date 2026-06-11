@@ -465,6 +465,19 @@ router.put("/contact/:contactId", protectRoute, async (req, res) => {
     }
 });
 
+router.put("/conversation/:conversationId/favorite", protectRoute, async (req, res) => {
+    try {
+        const { conversationId } = req.params; const userId = req.user._id;
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) return res.status(404).json({ error: "Conversation not found" });
+        const isFav = conversation.favoritedBy?.includes(userId);
+        if (isFav) conversation.favoritedBy = conversation.favoritedBy.filter((id) => id.toString() !== userId.toString());
+        else conversation.favoritedBy.push(userId);
+        await conversation.save();
+        res.json({ favorited: !isFav });
+    } catch (error: any) { res.status(500).json({ error: error?.message || "Server error" }); }
+});
+
 // Delete contact
 router.delete("/contact/:contactId", protectRoute, async (req, res) => {
     try {
@@ -476,6 +489,28 @@ router.delete("/contact/:contactId", protectRoute, async (req, res) => {
         res.json({ success: true });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
+    }
+});
+
+// Report a message
+router.post("/message/:messageId/report", protectRoute, async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const { reason } = req.body;
+        const userId = req.user._id;
+
+        const message = await Message.findById(messageId);
+        if (!message) {
+            return res.status(404).json({ error: "Message not found" });
+        }
+
+        // Log the report (you can create a MessageReport model later)
+        console.log(`User ${userId} reported message ${messageId} for: ${reason}`);
+
+        res.status(200).json({ success: true, message: "Message reported" });
+    } catch (error: any) {
+        console.error("Error reporting message:", error);
+        res.status(500).json({ error: error.message || "Server error" });
     }
 });
 

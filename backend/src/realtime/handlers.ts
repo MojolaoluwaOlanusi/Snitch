@@ -400,6 +400,59 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
         }
     });
 
+    // Pin message
+    socket.on('message:pin', async (payload: { messageId: string; duration: number }, ack?: Function) => {
+        try {
+            const msg = await Message.findById(payload.messageId);
+            if (!msg) return ack?.({ ok: false, error: 'Message not found' });
+
+            msg.pinned = true;
+            msg.pinnedAt = new Date();
+            // Use undefined instead of null
+            msg.pinnedUntil = payload.duration ? new Date(Date.now() + payload.duration * 3600000) : undefined;
+
+            await msg.save();
+
+            const populated = await Message.findById(msg._id)
+                .populate('senderId', 'username displayName avatarUrl');
+
+            const targets = [msg.senderId.toString(), msg.receiverId?.toString()].filter(Boolean);
+            const receivers = Array.from(io.sockets.sockets.values())
+                .filter((s) => targets.includes(s.data?.userId));
+            receivers.forEach((r) => r.emit('message:pinned', { message: populated }));
+
+            ack?.({ ok: true, message: populated });
+        } catch (err: any) {
+            console.error('message:pin error:', err);
+            ack?.({ ok: false, error: err.message });
+        }
+    });
+
+// Unpin message
+    socket.on('message:unpin', async (payload: { messageId: string }, ack?: Function) => {
+        try {
+            const msg = await Message.findById(payload.messageId);
+            if (!msg) return ack?.({ ok: false, error: 'Message not found' });
+
+            msg.pinned = false;
+            // Use undefined instead of null
+            msg.pinnedAt = undefined;
+            msg.pinnedUntil = undefined;
+
+            await msg.save();
+
+            const targets = [msg.senderId.toString(), msg.receiverId?.toString()].filter(Boolean);
+            const receivers = Array.from(io.sockets.sockets.values())
+                .filter((s) => targets.includes(s.data?.userId));
+            receivers.forEach((r) => r.emit('message:unpinned', { messageId: msg._id }));
+
+            ack?.({ ok: true });
+        } catch (err: any) {
+            console.error('message:unpin error:', err);
+            ack?.({ ok: false, error: err.message });
+        }
+    });
+
     // ==================== Register Signaling ====================
 
     registerSignaling(io, socket, roomStore);

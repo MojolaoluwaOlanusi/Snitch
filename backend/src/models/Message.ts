@@ -125,6 +125,20 @@ const messageSchema = new mongoose.Schema(
                 ref: "User",
             },
         ],
+        pinned: {
+            type: Boolean,
+            default: false,
+        },
+        pinnedAt: {
+            type: Date,
+            default: undefined,
+        },
+        pinnedUntil: {
+            type: Date,
+            default: undefined,
+        },
+        poll: { question: String, options: [String], votes: { type: Map, of: Number, default: {} } },
+        event: { name: String, date: String, time: String, location: String },
     },
     { timestamps: true }
 );

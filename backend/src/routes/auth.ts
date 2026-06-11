@@ -536,36 +536,42 @@ router.get('/get-following', authMiddleware, async (req, res) => {
 });
 
 router.post('/report/:id', authMiddleware, async (req, res) => {
-    const { id } = req.params;
-    // @ts-ignore
-    const { reason } = req.body;
-
-    const w = await Report.create({
-        postId: id,
-        reportedBy: req.userId,
-        reason,
-        createdAt: new Date()
-    });
-
-    const u = await Post.findByIdAndUpdate(
-        id,
-        { $inc: { reportCount: 1 } },
-        { new: true }
-    );
-
-    // @ts-ignore
-    if (u.reportCount >= 10) {
-        await Post.findByIdAndDelete(id);
-    }
-
     try {
-        const io = (globalThis as any).io;
-        if (io) io.emit('post:reported', { id, reports: u ? u.reportCount : 0 });
-    } catch (e) {
-        console.log(e)
-    }
+        const { id } = req.params;
+        const { reason } = req.body;
 
-    res.json({ ok: true, warning: w });
+        const report = await Report.create({
+            postId: id,
+            reportedBy: req.userId,
+            reason,
+            createdAt: new Date()
+        });
+
+        const post = await Post.findById(id);
+        if (post) {
+            const updatedPost = await Post.findByIdAndUpdate(
+                id,
+                { $inc: { reportCount: 1 } },
+                { new: true }
+            );
+
+            if (updatedPost && updatedPost.reportCount >= 10) {
+                await Post.findByIdAndDelete(id);
+            }
+
+            try {
+                const io = (globalThis as any).io;
+                if (io) io.emit('post:reported', { id, reports: updatedPost?.reportCount || 0 });
+            } catch (e) {
+                console.log(e);
+            }
+        }
+
+        res.json({ ok: true, report });
+    } catch (err: any) {
+        console.error("Error in report route:", err.message);
+        res.status(500).json({ error: err.message || "Server error" });
+    }
 });
 
 router.get('/reports', authMiddleware, async (_req, res) => {
@@ -628,6 +634,33 @@ router.get('/get-user-by-id/:id', authMiddleware, async (req, res) => {
 router.get('/get-users', authMiddleware, async (_req, res) => {
     const users = await User.find({}, 'username');
     res.json(users);
+});
+
+// Report a USER (not a post)
+router.post('/report-user/:id', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body;
+        const userId = req.userId;
+
+        // You can create a UserReport model or just log it
+        // For now, we'll just send a success response
+        console.log(`User ${userId} reported user ${id} for: ${reason}`);
+
+        // Optionally create a report in your Report model
+        // const report = await Report.create({
+        //     reportedUserId: id,
+        //     reportedBy: userId,
+        //     reason,
+        //     type: 'user',
+        //     createdAt: new Date()
+        // });
+
+        res.status(200).json({ success: true, message: "User reported successfully" });
+    } catch (error: any) {
+        console.error("Error reporting user:", error);
+        res.status(500).json({ error: error.message || "Server error" });
+    }
 });
 
 async function authMiddleware(req: any, res: any, next: any) {
