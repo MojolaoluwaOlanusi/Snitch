@@ -11,7 +11,7 @@ import {MdAddReaction, MdReportProblem} from "react-icons/md";
 import {IoClose} from "react-icons/io5";
 import {Hash, MoreHorizontal} from "lucide-react";
 import EditPostModal from "../../components/common/EditPostModal";
-import ReactionEmojiPicker from "./ReactionEmojiPicker";
+import ReactionEmojiPicker from "./ReactionEmojiPicker.tsx";
 import ReactionsDisplay from "./ReactionsDisplay";
 
 const FollowingPosts = () => {

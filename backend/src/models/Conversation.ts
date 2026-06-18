@@ -60,6 +60,11 @@ const conversationSchema = new mongoose.Schema(
         },
         lockedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
         favoritedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+        adminOnlyMessages: { type: Boolean, default: false },
+        groupRules: { type: String },
+        reportCount: { type: Number, default: 0 },
+        reportedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+        lockPassword: String,
     },
     { timestamps: true }
 );

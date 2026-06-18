@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 
 import UserPosts from "../../components/common/UserPosts";
 import LikedPosts from "../../components/common/LikedPosts";
@@ -9,7 +9,7 @@ import { Badge } from "../../components/common/badge";
 import Sidebar from "../../components/common/Sidebar";
 import { VerifiedSvg } from "../../components/svgs/verified";
 
-import {AlertTriangle, Briefcase, Building, CheckCircle2, User, Shield, MapPin, EyeOff, EyeIcon} from "lucide-react";
+import {AlertTriangle, Briefcase, Building, CheckCircle2, User, Shield, MapPin, EyeOff, EyeIcon, MessageCircle} from "lucide-react";
 
 import { FaArrowLeft } from "react-icons/fa6";
 import { IoCalendarOutline } from "react-icons/io5";
@@ -21,8 +21,10 @@ import { formatMemberSinceDate } from "../../utils/date";
 import {useAuthStore} from "../../store/useAuthStore";
 import {useUserStore} from "../../store/useUserStore";
 import {useMediaStore} from "../../store/useMediaStore";
+import {useChatStore} from "../../store/useChatStore";   // <-- new
 import ThemeSelector from "../../components/common/ThemeSelector";
 import axiosInstance from "../../lib/axios";
+import toast from "react-hot-toast";                        // <-- new (for error feedback)
 
 
 const ProfilePage = () => {
@@ -31,6 +33,8 @@ const ProfilePage = () => {
     const { userPosts, followUser, isFollowingUser, goIncognito, isIncognito } = useUserStore();
     const { uploadMedia } = useMediaStore();
     const { username } = useParams();
+    const navigate = useNavigate();                                    // <-- new
+    const { getConversation, selectConversation } = useChatStore();    // <-- new
 
     localStorage.setItem('username', username);
 
@@ -45,6 +49,21 @@ const ProfilePage = () => {
     useEffect( () => {
         getUserProfile(username);
     }, [getUserProfile]);
+
+    // ---------- Chat with this user ----------
+    const handleChatWithUser = async () => {
+        if (!user?._id) return;
+        try {
+            const conversation = await getConversation(user._id);
+            if (conversation) {
+                selectConversation(conversation);
+                navigate('/chat');
+            }
+        } catch (error) {
+            toast.error('Could not open conversation');
+        }
+    };
+    // ---------------------------------------
 
     async function uploadCoverImg(data) {
         const token = localStorage.getItem('access-token');
@@ -125,23 +144,6 @@ const ProfilePage = () => {
                                                 </Badge>
                                             )}
                                         </div>
-                                        {/*<div className="space-x-2 flex flex-row">*/}
-                                        {/*    <ThemeSelector />*/}
-                                        {/*    <div>*/}
-                                        {/*        {isIncognito && (*/}
-                                        {/*            <EyeIcon className="w-5 h-5 hover:text-red-600" onClick={async (e) => {*/}
-                                        {/*                e.preventDefault();*/}
-                                        {/*                await goIncognito();*/}
-                                        {/*            }} />*/}
-                                        {/*        )}*/}
-                                        {/*        {!isIncognito && (*/}
-                                        {/*            <EyeOff className="w-5 h-5 hover:text-red-600" onClick={async (e) => {*/}
-                                        {/*                e.preventDefault();*/}
-                                        {/*                await goIncognito();*/}
-                                        {/*            }} />*/}
-                                        {/*        )}*/}
-                                        {/*    </div>*/}
-                                        {/*</div>*/}
                                     </div>
                                     <span className='text-sm text-slate-500'>{userPosts?.length} posts</span>
                                 </div>
@@ -156,39 +158,9 @@ const ProfilePage = () => {
                                 {isMyProfile && (
                                     <div
                                         className='absolute top-2 right-2 rounded-full p-2 bg-gray-800 bg-opacity-75 cursor-pointer opacity-0 group-hover/cover:opacity-100 transition duration-200'
-                                        // onClick={() => document.getElementById("edit_coverImg_modal").showModal()}
                                         onClick={() => coverImgRef.current.click()}
                                     >
                                         <MdEdit className='w-5 h-5 text-white' />
-                                        {/*<dialog id='edit_coverImg_modal' className='modal'>*/}
-                                        {/*    <div className='modal-box border rounded-md border-gray-700 shadow-md'>*/}
-                                        {/*        <h3 className='font-bold text-lg my-3'>Update CoverImg</h3>*/}
-                                        {/*        <form*/}
-                                        {/*            className='flex flex-col gap-4'*/}
-                                        {/*            onSubmit={async (e) => {*/}
-                                        {/*                e.preventDefault();*/}
-                                        {/*                await updateProfile(updateCoverImgData);*/}
-                                        {/*            }}*/}
-                                        {/*        >*/}
-                                        {/*            <div className='flex flex-wrap gap-2'>*/}
-                                        {/*                <input*/}
-                                        {/*                    type='text'*/}
-                                        {/*                    placeholder='CoverImg Url'*/}
-                                        {/*                    className='flex-1 input border border-gray-700 rounded p-2 input-md'*/}
-                                        {/*                    value={updateCoverImgData.coverImg}*/}
-                                        {/*                    name='CoverImg Url'*/}
-                                        {/*                    onChange={handleInputChange}*/}
-                                        {/*                />*/}
-                                        {/*            </div>*/}
-                                        {/*            <button className='btn btn-primary rounded-full btn-sm text-white'>*/}
-                                        {/*                {isUpdatingProfile ? "Updating..." : "Update"}*/}
-                                        {/*            </button>*/}
-                                        {/*        </form>*/}
-                                        {/*    </div>*/}
-                                        {/*    <form method='dialog' className='modal-backdrop'>*/}
-                                        {/*        <button className='outline-none'>close</button>*/}
-                                        {/*    </form>*/}
-                                        {/*</dialog>*/}
                                     </div>
                                 )}
                                 <input
@@ -212,61 +184,42 @@ const ProfilePage = () => {
                                         <div className='absolute top-5 right-3 p-1 bg-gray-800 rounded-full group-hover/avatar:opacity-100 opacity-0 cursor-pointer'>
                                             {isMyProfile && (
                                                 <div
-                                                    // onClick={() => document.getElementById("edit_avatarUrl_modal").showModal()}
                                                     onClick={() => avatarImgRef.current.click()}>
                                                     <MdEdit
                                                         className='w-4 h-4 text-white'
                                                     />
-                                                    {/*<dialog id='edit_avatarUrl_modal' className='modal'>*/}
-                                                    {/*    <div className='modal-box border rounded-md border-gray-700 shadow-md'>*/}
-                                                    {/*        <h3 className='font-bold text-lg my-3'>Update Avatar</h3>*/}
-                                                    {/*        <form*/}
-                                                    {/*            className='flex flex-col gap-4'*/}
-                                                    {/*            onSubmit={async (e) => {*/}
-                                                    {/*                e.preventDefault();*/}
-                                                    {/*                await updateProfile(updateAvatarUrlData);*/}
-                                                    {/*            }}*/}
-                                                    {/*        >*/}
-                                                    {/*            <div className='flex flex-wrap gap-2'>*/}
-                                                    {/*                <input*/}
-                                                    {/*                    type='text'*/}
-                                                    {/*                    placeholder='Avatar Url'*/}
-                                                    {/*                    className='flex-1 input border border-gray-700 rounded p-2 input-md'*/}
-                                                    {/*                    value={updateAvatarUrlData.avatarUrl}*/}
-                                                    {/*                    name='Avatar Url'*/}
-                                                    {/*                    onChange={handleAvatarInputChange}*/}
-                                                    {/*                />*/}
-                                                    {/*            </div>*/}
-                                                    {/*            <button className='btn btn-primary rounded-full btn-sm text-white'>*/}
-                                                    {/*                {isUpdatingProfile ? "Updating..." : "Update"}*/}
-                                                    {/*            </button>*/}
-                                                    {/*        </form>*/}
-                                                    {/*    </div>*/}
-                                                    {/*    <form method='dialog' className='modal-backdrop'>*/}
-                                                    {/*        <button className='outline-none'>close</button>*/}
-                                                    {/*    </form>*/}
-                                                    {/*</dialog>*/}
                                                 </div>
                                             )}
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <div className='flex justify-end px-4 mt-5'>
+                            <div className='flex justify-end px-4 mt-5 gap-2'>
                                 {isMyProfile && <EditProfileModal authUser={authUser} />}
                                 {!isMyProfile && (
-                                    <button
-                                        className='btn btn-outline bg-white hover:bg-blue-500 rounded-full btn-sm'
-                                        onClick={async (e) => {
-                                            e.preventDefault();
-                                            setFormData({...formData, id: `${user?._id}`});
-                                            await followUser(formData);
-                                        }}
-                                    >
-                                        {isFollowingUser && "Loading..."}
-                                        {!isFollowingUser && amIFollowing && "Unfollow"}
-                                        {!isFollowingUser && !amIFollowing && "Follow"}
-                                    </button>
+                                    <>
+                                        <button
+                                            className='btn btn-outline bg-white hover:bg-blue-500 rounded-full btn-sm'
+                                            onClick={async (e) => {
+                                                e.preventDefault();
+                                                setFormData({...formData, id: `${user?._id}`});
+                                                await followUser(formData);
+                                            }}
+                                        >
+                                            {isFollowingUser && "Loading..."}
+                                            {!isFollowingUser && amIFollowing && "Unfollow"}
+                                            {!isFollowingUser && !amIFollowing && "Follow"}
+                                        </button>
+                                        {/* ---------- NEW CHAT BUTTON ---------- */}
+                                        <button
+                                            onClick={handleChatWithUser}
+                                            className="btn btn-outline bg-white hover:bg-blue-500 hover:text-white rounded-full btn-sm flex items-center gap-2"
+                                        >
+                                            <MessageCircle className="w-4 h-4" />
+                                            Chat
+                                        </button>
+                                        {/* --------------------------------- */}
+                                    </>
                                 )}
                             </div>
 

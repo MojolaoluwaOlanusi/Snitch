@@ -3,16 +3,31 @@ import { Link } from "react-router-dom";
 import {GiFlowerTwirl} from "react-icons/gi";
 import {SnitchLogoSmall} from "../svgs/snitch";
 import {useAuthStore} from "../../store/useAuthStore";
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 import {useChatStore} from "../../store/useChatStore";
 import {BiLogOut} from "react-icons/bi";
+import axiosInstance from "../../lib/axios";
 
 const Sidebar = () => {
-    const { logout, authUser,getProfile } = useAuthStore();
+    const { logout, authUser, getProfile } = useAuthStore();
+    const [isChatRestricted, setIsChatRestricted] = useState(false);
 
     useEffect(() => {
         getProfile();
+        checkChatRestriction();
     }, [getProfile]);
+
+    const checkChatRestriction = async () => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.get('/chat/check-restriction', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setIsChatRestricted(res.data.restricted || false);
+        } catch (error) {
+            setIsChatRestricted(false);
+        }
+    };
 
     return (
         <div className="h-screen w-full max-w-[200px] max-w-200px flex flex-col gap-2 border-r border-gray-200">
@@ -26,10 +41,29 @@ const Sidebar = () => {
                         <HomeIcon className="mr-2 size-5"/>
                         <span className="hidden md:inline">Home</span>
                     </Link>
-                    <Link to={"/chat"} className="btn btn-primary w-full justify-start text-white hover: bg-blue-500">
+
+                    {/* CHAT BUTTON WITH RESTRICTION */}
+                    <Link
+                        to={isChatRestricted ? "#" : "/chat"}
+                        className={`btn w-full justify-start text-white ${
+                            isChatRestricted
+                                ? 'bg-gray-300 cursor-not-allowed opacity-50 pointer-events-none'
+                                : 'bg-blue-500 hover:bg-blue-600 btn-primary'
+                        }`}
+                        onClick={(e) => {
+                            if (isChatRestricted) {
+                                e.preventDefault();
+                                toast?.error?.('Chat access restricted due to reports');
+                            }
+                        }}
+                        title={isChatRestricted ? 'Chat access restricted' : 'Chat'}
+                    >
                         <MessageCircleIcon className="mr-2 size-5"/>
-                        <span className="hidden md:inline">Chat</span>
+                        <span className="hidden md:inline">
+                            {isChatRestricted ? 'Chat (Restricted)' : 'Chat'}
+                        </span>
                     </Link>
+
                     <Link to={`/profile/${authUser?.username}`} className="btn btn-primary w-full justify-start text-white hover: bg-blue-500">
                         <UserIcon className="mr-2 size-5"/>
                         <span className="hidden md:inline">Profile</span>

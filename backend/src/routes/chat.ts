@@ -1,8 +1,16 @@
 import express from "express";
+import {User} from "../models/User.ts";
 import Message from "../models/Message.ts";
 import Conversation from "../models/Conversation.ts";
 import Contact from "../models/Contact.ts";
+import bcrypt from 'bcryptjs';
 import { protectRoute } from "../middleware/protectRoute.ts";
+import { redis, getCachedMessages, updateCachedMessage } from '../utils/redisCache.ts';
+
+// Declare global io type so TypeScript knows it exists
+declare global {
+    var io: any;
+}
 
 const router = express.Router();
 
@@ -30,7 +38,6 @@ router.post("/conversation/:userId", protectRoute, async (req, res) => {
         const currentUserId = req.user._id;
         const targetUserId = req.params.userId;
 
-        // Check if conversation already exists
         let conversation = await Conversation.findOne({
             participants: { $all: [currentUserId, targetUserId] },
             isGroup: false,
@@ -39,7 +46,6 @@ router.post("/conversation/:userId", protectRoute, async (req, res) => {
             .populate("lastMessage");
 
         if (!conversation) {
-            // Create new conversation
             conversation = await Conversation.create({
                 participants: [currentUserId, targetUserId],
                 isGroup: false,
@@ -48,6 +54,18 @@ router.post("/conversation/:userId", protectRoute, async (req, res) => {
                 .populate("participants", "username displayName avatarUrl")
                 .populate("lastMessage");
         }
+
+        // Auto-add to contacts for both users
+        await Contact.findOneAndUpdate(
+            { userId: currentUserId, contactId: targetUserId },
+            { userId: currentUserId, contactId: targetUserId },
+            { upsert: true }
+        );
+        await Contact.findOneAndUpdate(
+            { userId: targetUserId, contactId: currentUserId },
+            { userId: targetUserId, contactId: currentUserId },
+            { upsert: true }
+        );
 
         res.json(conversation);
     } catch (error: any) {
@@ -61,6 +79,17 @@ router.get("/messages/:conversationId", protectRoute, async (req, res) => {
         const { conversationId } = req.params;
         const { limit = 50, before } = req.query;
 
+        // Try cache first
+        try {
+            const cached = await getCachedMessages(conversationId);
+            if (cached.length > 0) {
+                return res.json(cached.reverse());
+            }
+        } catch (cacheErr) {
+            console.warn('Redis cache failed, falling back to MongoDB:', cacheErr);
+        }
+
+        // Build MongoDB query
         const query: any = { conversationId };
         if (before) {
             query._id = { $lt: before };
@@ -70,12 +99,12 @@ router.get("/messages/:conversationId", protectRoute, async (req, res) => {
             .populate("senderId", "username displayName avatarUrl")
             .populate("replyTo")
             .populate("mentions", "username displayName avatarUrl")
-            .sort({ createdAt: -1 })
+            .sort({ createdAt: 1 }) // oldest first
             .limit(Number(limit));
 
-        res.json(messages.reverse());
+        res.json(messages);
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error?.message || "Server error" });
     }
 });
 
@@ -110,11 +139,11 @@ router.put("/message/:messageId/star", protectRoute, async (req, res) => {
             return res.status(404).json({ error: "Message not found" });
         }
 
-        const isStarred = message.starredBy?.includes(userId);
+        const isStarred = message.starredBy?.some((id: any) => id.toString() === userId.toString());
         if (isStarred) {
             message.starredBy = message.starredBy.filter((id: any) => id.toString() !== userId.toString());
         } else {
-            message.starredBy.push(userId);
+            (message.starredBy as any[]).push(userId as any);
         }
 
         await message.save();
@@ -198,7 +227,7 @@ router.put("/conversation/:conversationId/archive", protectRoute, async (req, re
 router.put("/conversation/:conversationId/mute", protectRoute, async (req, res) => {
     try {
         const { conversationId } = req.params;
-        const { duration } = req.body; // in hours, or null for forever
+        const { duration } = req.body;
         const userId = req.user._id;
 
         const conversation = await Conversation.findById(conversationId);
@@ -208,10 +237,8 @@ router.put("/conversation/:conversationId/mute", protectRoute, async (req, res) 
 
         const existingMute = conversation.mutedBy?.find((m: any) => m.user.toString() === userId.toString());
         if (existingMute) {
-            // Unmute
             conversation.mutedBy = conversation.mutedBy.filter((m: any) => m.user.toString() !== userId.toString());
         } else {
-            // Mute
             const until = duration ? new Date(Date.now() + duration * 60 * 60 * 1000) : undefined;
             conversation.mutedBy.push({ user: userId, until });
         }
@@ -229,6 +256,12 @@ router.put("/conversation/:conversationId/read", protectRoute, async (req, res) 
         const { conversationId } = req.params;
         const userId = req.user._id;
 
+        const unreadMessages = await Message.find({
+            conversationId,
+            senderId: { $ne: userId },
+            [`readAt.${userId}`]: { $exists: false },
+        });
+
         await Message.updateMany(
             {
                 conversationId,
@@ -243,7 +276,26 @@ router.put("/conversation/:conversationId/read", protectRoute, async (req, res) 
             }
         );
 
-        // Update unread count
+        for (const msg of unreadMessages) {
+            const populated = await Message.findById(msg._id)
+                .populate('senderId', 'username displayName avatarUrl');
+
+            if (populated) {
+                await updateCachedMessage(conversationId, msg._id.toString(), populated)
+                    .catch(err => console.error('Redis update (REST read) error:', err?.message));
+            }
+
+            // Use the same pattern as poll voting
+            if ((globalThis as any).io) {
+                const senderId = msg.senderId.toString();
+                const senderSocket = Array.from((globalThis as any).io.sockets.sockets.values())
+                    .find((s: any) => s.data?.userId === senderId) as any;
+                if (senderSocket) {
+                    senderSocket.emit('message:read', { messageId: msg._id, userId });
+                }
+            }
+        }
+
         const conversation = await Conversation.findById(conversationId);
         if (conversation) {
             conversation.unreadCount.set(userId.toString(), 0);
@@ -256,13 +308,12 @@ router.put("/conversation/:conversationId/read", protectRoute, async (req, res) 
     }
 });
 
-// Clear chat (delete all messages for user)
+// Clear chat
 router.delete("/conversation/:conversationId/clear", protectRoute, async (req, res) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user._id;
 
-        // Soft delete messages by setting deletedAt for this user
         await Message.updateMany(
             {
                 conversationId,
@@ -271,9 +322,16 @@ router.delete("/conversation/:conversationId/clear", protectRoute, async (req, r
             { deletedAt: new Date() }
         );
 
+        try {
+            const key = `chat:${conversationId}:messages`;
+            await redis.del(key);
+        } catch (redisErr) {
+            console.warn('Redis clear cache failed:', redisErr);
+        }
+
         res.json({ success: true });
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error?.message || "Server error" });
     }
 });
 
@@ -465,19 +523,6 @@ router.put("/contact/:contactId", protectRoute, async (req, res) => {
     }
 });
 
-router.put("/conversation/:conversationId/favorite", protectRoute, async (req, res) => {
-    try {
-        const { conversationId } = req.params; const userId = req.user._id;
-        const conversation = await Conversation.findById(conversationId);
-        if (!conversation) return res.status(404).json({ error: "Conversation not found" });
-        const isFav = conversation.favoritedBy?.includes(userId);
-        if (isFav) conversation.favoritedBy = conversation.favoritedBy.filter((id) => id.toString() !== userId.toString());
-        else conversation.favoritedBy.push(userId);
-        await conversation.save();
-        res.json({ favorited: !isFav });
-    } catch (error: any) { res.status(500).json({ error: error?.message || "Server error" }); }
-});
-
 // Delete contact
 router.delete("/contact/:contactId", protectRoute, async (req, res) => {
     try {
@@ -492,11 +537,10 @@ router.delete("/contact/:contactId", protectRoute, async (req, res) => {
     }
 });
 
-// Report a message
+// Report message
 router.post("/message/:messageId/report", protectRoute, async (req, res) => {
     try {
         const { messageId } = req.params;
-        const { reason } = req.body;
         const userId = req.user._id;
 
         const message = await Message.findById(messageId);
@@ -504,13 +548,302 @@ router.post("/message/:messageId/report", protectRoute, async (req, res) => {
             return res.status(404).json({ error: "Message not found" });
         }
 
-        // Log the report (you can create a MessageReport model later)
-        console.log(`User ${userId} reported message ${messageId} for: ${reason}`);
+        console.log(`User ${userId} reported message ${messageId}`);
 
         res.status(200).json({ success: true, message: "Message reported" });
     } catch (error: any) {
         console.error("Error reporting message:", error);
         res.status(500).json({ error: error.message || "Server error" });
+    }
+});
+
+// Poll vote
+router.put("/message/:messageId/vote", protectRoute, async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const { optionIndex } = req.body;
+        const userId = req.user._id;
+
+        const message = await Message.findById(messageId);
+        if (!message || !message.poll) {
+            return res.status(404).json({ error: "Poll not found" });
+        }
+
+        if (!message.poll.votes) {
+            (message.poll as any).votes = new Map();
+        }
+
+        (message.poll.votes as Map<string, number>).set(userId.toString(), optionIndex);
+        message.markModified('poll.votes');
+        await message.save();
+
+        const votesObj: Record<string, number> = {};
+        (message.poll.votes as Map<string, number>).forEach((value: number, key: string) => {
+            votesObj[key] = value;
+        });
+
+        if ((globalThis as any).io) {
+            const targets = [message.senderId.toString(), message.receiverId?.toString()].filter(Boolean);
+            const sockets = Array.from((globalThis as any).io.sockets.sockets.values()).filter((s: any) => targets.includes(s.data?.userId));
+            sockets.forEach((s: any) => s.emit('poll:updated', { messageId, votes: votesObj }));
+        }
+
+        res.json({ ok: true, votes: votesObj });
+    } catch (error: any) {
+        res.status(500).json({ error: error?.message || "Server error" });
+    }
+});
+
+// Block status
+router.get("/block-status/:userId", protectRoute, async (req, res) => {
+    try {
+        const currentUserId = req.user._id;
+        const otherUserId = req.params.userId;
+
+        const currentUser = await User.findById(currentUserId);
+        const otherUser = await User.findById(otherUserId);
+
+        const isBlocked = currentUser?.blocked?.some((id: any) => id.toString() === otherUserId) || false;
+        const isBlockedBy = otherUser?.blocked?.some((id: any) => id.toString() === currentUserId) || false;
+
+        res.json({ isBlocked, isBlockedBy });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || "Server error" });
+    }
+});
+
+// Check chat restriction
+router.get("/check-restriction", protectRoute, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        const restrictedUntil = (user as any).chatRestrictedUntil;
+        const restricted: boolean = restrictedUntil && new Date(restrictedUntil) > new Date();
+
+        res.json({ restricted, until: restrictedUntil || null });
+    } catch (error: any) {
+        res.status(500).json({ error: error?.message || "Server error" });
+    }
+});
+
+// Lock conversation
+router.put("/conversation/:conversationId/lock", protectRoute, async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const { password } = req.body;
+        const userId = req.user._id;
+
+        const user = await User.findById(userId).select('+passwordHash');
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        const isPasswordValid = bcrypt.compareSync(password, user.passwordHash);
+        if (!isPasswordValid) {
+            return res.status(400).json({ error: "Incorrect password. Enter your login password." });
+        }
+
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) return res.status(404).json({ error: "Conversation not found" });
+
+        const salt = bcrypt.genSaltSync(10);
+        const hashedPassword = bcrypt.hashSync(password, salt);
+        (conversation as any).lockPassword = hashedPassword;   // cast to any
+
+        if (!conversation.lockedBy) conversation.lockedBy = [];
+        if (!conversation.lockedBy.some((id: any) => id.toString() === userId.toString())) {
+            (conversation.lockedBy as any[]).push(userId as any);
+        }
+        await conversation.save();
+
+        res.json({ success: true, message: "Chat locked successfully" });
+    } catch (error: any) {
+        res.status(500).json({ error: error?.message || "Server error" });
+    }
+});
+
+// Unlock conversation
+router.put("/conversation/:conversationId/unlock", protectRoute, async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const { password } = req.body;
+        const userId = req.user._id;
+
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) return res.status(404).json({ error: "Conversation not found" });
+
+        const storedHash = (conversation as any).lockPassword;   // cast to any
+        const isPasswordValid = storedHash && bcrypt.compareSync(password, storedHash);
+        if (!isPasswordValid) {
+            return res.status(400).json({ error: "Incorrect password." });
+        }
+
+        conversation.lockedBy = (conversation.lockedBy || []).filter((id: any) => id.toString() !== userId.toString());
+        if (conversation.lockedBy.length === 0) {
+            (conversation as any).lockPassword = undefined;
+        }
+        await conversation.save();
+
+        res.json({ success: true, message: "Chat unlocked successfully" });
+    } catch (error: any) {
+        res.status(500).json({ error: error?.message || "Server error" });
+    }
+});
+
+// Unlock all locked chats
+router.post("/unlock-all", protectRoute, async (req, res) => {
+    try {
+        const { password } = req.body;
+        const userId = req.user._id;
+
+        const user = await User.findById(userId).select('+passwordHash');
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        const isLoginPasswordValid = bcrypt.compareSync(password, user.passwordHash);
+        if (isLoginPasswordValid) {
+            return res.json({ success: true, message: "Access granted to locked chats" });
+        }
+
+        const lockedConversations = await Conversation.find({ lockedBy: userId });
+        let matchedAny = false;
+
+        for (const conv of lockedConversations) {
+            const storedHash = (conv as any).lockPassword;
+            if (storedHash && bcrypt.compareSync(password, storedHash)) {
+                matchedAny = true;
+                break;
+            }
+        }
+
+        if (matchedAny) {
+            return res.json({ success: true, message: "Access granted to locked chats" });
+        }
+
+        return res.status(400).json({ error: "Incorrect password." });
+    } catch (error: any) {
+        res.status(500).json({ error: error?.message || "Server error" });
+    }
+});
+
+// Favorite conversation
+router.put("/conversation/:conversationId/favorite", protectRoute, async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const userId = req.user._id;
+
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) return res.status(404).json({ error: "Conversation not found" });
+
+        if (!conversation.favoritedBy) conversation.favoritedBy = [];
+        const isFav = conversation.favoritedBy.some((id: any) => id.toString() === userId.toString());
+
+        if (isFav) {
+            conversation.favoritedBy = conversation.favoritedBy.filter((id: any) => id.toString() !== userId.toString());
+        } else {
+            (conversation.favoritedBy as any[]).push(userId as any);
+        }
+        await conversation.save();
+
+        res.json({ favorited: !isFav });
+    } catch (error: any) {
+        res.status(500).json({ error: error?.message || "Server error" });
+    }
+});
+
+// Report group
+router.post("/group/:conversationId/report", protectRoute, async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const { reason } = req.body;
+        const userId = req.user._id;
+
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) return res.status(404).json({ error: "Group not found" });
+
+        (conversation as any).reportCount = ((conversation as any).reportCount || 0) + 1;
+        (conversation as any).reportedBy = (conversation as any).reportedBy || [];
+        if (!(conversation as any).reportedBy.some((id: any) => id.toString() === userId.toString())) {
+            (conversation as any).reportedBy.push(userId);
+        }
+        await conversation.save();
+
+        if ((conversation as any).reportCount >= 20) {
+            await Conversation.findByIdAndDelete(conversationId);
+            return res.json({ success: true, message: "Group reported and removed" });
+        }
+
+        res.json({ success: true, message: "Group reported" });
+    } catch (error: any) {
+        res.status(500).json({ error: error?.message || "Server error" });
+    }
+});
+
+// Update group settings
+router.put("/group/:conversationId/settings", protectRoute, async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const { adminOnlyMessages, groupRules } = req.body;
+        const userId = req.user._id;
+
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation || !conversation.isGroup) {
+            return res.status(404).json({ error: "Group not found" });
+        }
+
+        if (conversation.admin?.toString() !== userId.toString()) {
+            return res.status(403).json({ error: "Only admin can update settings" });
+        }
+
+        if (adminOnlyMessages !== undefined) (conversation as any).adminOnlyMessages = adminOnlyMessages;
+        if (groupRules !== undefined) (conversation as any).groupRules = groupRules;
+
+        await conversation.save();
+        res.json(conversation);
+    } catch (error: any) {
+        res.status(500).json({ error: error?.message || "Server error" });
+    }
+});
+
+// Initiate chat from contact link
+router.get("/contact/:userId", protectRoute, async (req, res) => {
+    try {
+        const currentUserId = req.user._id;
+        const targetUserId = req.params.userId;
+
+        let conversation = await Conversation.findOne({
+            participants: { $all: [currentUserId, targetUserId] },
+            isGroup: false,
+        }).populate("participants", "username displayName avatarUrl");
+
+        if (!conversation) {
+            conversation = await Conversation.create({
+                participants: [currentUserId, targetUserId],
+                isGroup: false,
+            });
+            conversation = await Conversation.findById(conversation._id)
+                .populate("participants", "username displayName avatarUrl");
+        }
+
+        res.json(conversation);
+    } catch (error: any) {
+        res.status(500).json({ error: error?.message || "Server error" });
+    }
+});
+
+// Group info
+router.get("/group/:conversationId/info", protectRoute, async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const conversation = await Conversation.findById(conversationId)
+            .populate("participants", "username displayName avatarUrl bio")
+            .populate("admin", "username displayName avatarUrl");
+
+        if (!conversation || !conversation.isGroup) {
+            return res.status(404).json({ error: "Group not found" });
+        }
+
+        res.json(conversation);
+    } catch (error: any) {
+        res.status(500).json({ error: error?.message || "Server error" });
     }
 });
 

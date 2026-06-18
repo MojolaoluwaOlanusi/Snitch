@@ -83,4 +83,40 @@ router.post('/presign', authMiddleware, async (req: any, res: any) => {
     }
 });
 
+// Chat media presign - organizes by conversation and media type
+router.post('/chat-presign', authMiddleware, async (req: any, res: any) => {
+    try {
+        const userId = req.userId;
+        const { conversationId, fileName, contentType, mediaType } = req.body;
+        const bucket = process.env.S3_BUCKET || 'snitch-dev';
+
+        if (!contentType || !conversationId || !mediaType) {
+            return res.status(400).json({ ok: false, error: 'missing required fields' });
+        }
+
+        // Generate folder structure: messages/{conversationId}/{mediaType}/{date}/
+        const dateFolder = new Date().toISOString().split('T')[0]; // "2024-01-15"
+        const ext = fileName ? fileName.split('.').pop() : contentType.split('/').pop();
+        const uniqueName = `${Date.now()}-${randomUUID()}.${ext}`;
+        const key = `messages/${conversationId}/${mediaType}/${dateFolder}/${uniqueName}`;
+
+        const cmd = new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType });
+        const url = await getSignedUrl(s3, cmd, { expiresIn: 300 });
+
+        const baseUrl = process.env.S3_ENDPOINT
+            ? `${process.env.S3_ENDPOINT.replace(/\/$/, '')}/${bucket}`
+            : `https://${bucket}.s3.amazonaws.com`;
+
+        res.json({
+            ok: true,
+            uploadUrl: url,
+            key,
+            publicUrl: `${baseUrl}/${key}`,
+        });
+    } catch (err: any) {
+        console.error('chat-presign error', err);
+        res.status(500).json({ ok: false, error: err?.message || 'presign_error' });
+    }
+});
+
 export default router;

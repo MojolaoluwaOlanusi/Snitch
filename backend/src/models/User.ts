@@ -67,6 +67,9 @@ export interface UserDocument extends Document {
         issuedBy: Schema.Types.ObjectId,
         targetEmail: String
     };
+    chatReportCount: { type: Number, default: 0 };
+    chatRestrictedUntil: { type: Date };
+    lastSeen: { type: Date };
 }
 
 const UserSchema = new Schema<UserDocument>({
@@ -148,6 +151,9 @@ const UserSchema = new Schema<UserDocument>({
         issuedBy: Schema.Types.ObjectId,
         targetEmail: String
     },
+    chatReportCount: { type: Number, default: 0 },
+    chatRestrictedUntil: { type: Date },
+    lastSeen: { type: Date },
 });
 
 UserSchema.index(

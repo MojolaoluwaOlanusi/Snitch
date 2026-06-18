@@ -16,7 +16,8 @@ const PostSchema = new Schema({
 
     mediaType:{
         type:String,
-        enum:['Audio','Video','Image','None']
+        enum:['Audio','Video','Image','None'],
+        default: "None"
     },
 
     isWarp:{

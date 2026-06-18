@@ -19,9 +19,8 @@ router.post('/', async (req,res)=>{
     if(!req.user) return res.status(401).json({ error:'unauthorized' });
     const { text, url, isWarp, mediaType, mentions, hashtags } = req.body;
     if (!text) return  res.status(400).json({message: "Post Content is Required"});
-    if (!mediaType) return  res.status(400).json({message: "Media Type is Required"});
     const p =
-        await Post.create({ author: req.user._id, text, url, isWarp, mediaType, mentions, hashtags, createdAt: new Date() });
+        await Post.create({ author: req.user._id, text, url, isWarp, mediaType: mediaType || "None", mentions, hashtags, createdAt: new Date() });
     res.status(201).json(p);
 });
 

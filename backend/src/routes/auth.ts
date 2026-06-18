@@ -555,13 +555,16 @@ router.post('/report/:id', authMiddleware, async (req, res) => {
                 { new: true }
             );
 
-            if (updatedPost && updatedPost.reportCount >= 10) {
+            // FIX: Add null check with optional chaining and default to 0
+            const reportCount = updatedPost?.reportCount ?? 0;
+
+            if (updatedPost && reportCount >= 10) {
                 await Post.findByIdAndDelete(id);
             }
 
             try {
                 const io = (globalThis as any).io;
-                if (io) io.emit('post:reported', { id, reports: updatedPost?.reportCount || 0 });
+                if (io) io.emit('post:reported', { id, reports: reportCount });
             } catch (e) {
                 console.log(e);
             }
@@ -636,30 +639,33 @@ router.get('/get-users', authMiddleware, async (_req, res) => {
     res.json(users);
 });
 
-// Report a USER (not a post)
+// Report a user (from chat)
 router.post('/report-user/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
         const { reason } = req.body;
-        const userId = req.userId;
 
-        // You can create a UserReport model or just log it
-        // For now, we'll just send a success response
-        console.log(`User ${userId} reported user ${id} for: ${reason}`);
+        const reportedUser = await User.findById(id);
+        if (!reportedUser) return res.status(404).json({ error: "User not found" });
 
-        // Optionally create a report in your Report model
-        // const report = await Report.create({
-        //     reportedUserId: id,
-        //     reportedBy: userId,
-        //     reason,
-        //     type: 'user',
-        //     createdAt: new Date()
-        // });
+        const currentCount: number = (reportedUser as any).chatReportCount || 0;
+        const newCount: number = currentCount + 1;
+        (reportedUser as any).chatReportCount = newCount;
+
+        if (newCount >= 100) {
+            await User.findByIdAndDelete(id);
+            return res.json({ success: true, message: "User reported and removed" });
+        } else if (newCount >= 50) {
+            (reportedUser as any).chatRestrictedUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        } else if (newCount >= 20) {
+            (reportedUser as any).chatRestrictedUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        }
+        await reportedUser.save();
 
         res.status(200).json({ success: true, message: "User reported successfully" });
     } catch (error: any) {
         console.error("Error reporting user:", error);
-        res.status(500).json({ error: error.message || "Server error" });
+        res.status(500).json({ error: error?.message || "Server error" });
     }
 });
 

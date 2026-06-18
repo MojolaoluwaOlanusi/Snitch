@@ -31,8 +31,9 @@ const messageSchema = new mongoose.Schema(
                     size: Number,
                     caption: String,
                     filename: String,
-                    duration: Number, // for audio/video
+                    duration: Number,
                     thumbnail: String,
+                    isHexagon: { type: Boolean, default: false }, // FIX: Add this
                 },
             ],
             default: [],
@@ -137,8 +138,21 @@ const messageSchema = new mongoose.Schema(
             type: Date,
             default: undefined,
         },
-        poll: { question: String, options: [String], votes: { type: Map, of: Number, default: {} } },
-        event: { name: String, date: String, time: String, location: String },
+        pinned: { type: Boolean, default: false },
+        pinnedAt: { type: Date },
+        pinnedUntil: { type: Date },
+        poll: {
+            question: String,
+            options: [String],
+            votes: { type: Map, of: Number, default: new Map() }
+        },
+        event: {
+            name: String,
+            date: String,
+            time: String,
+            location: String
+        },
+        isHexagon: { type: Boolean, default: false },
     },
     { timestamps: true }
 );

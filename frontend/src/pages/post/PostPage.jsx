@@ -11,7 +11,7 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 import {formatPostDate} from "../../utils/date";
 import {useAuthStore} from "../../store/useAuthStore";
 import EditPostModal from "../../components/common/EditPostModal";
-import ReactionEmojiPicker from "../../components/common/ReactionEmojiPicker";
+import ReactionEmojiPicker from "../../components/common/ReactionEmojiPicker.tsx";
 import ReactionsDisplay from "../../components/common/ReactionsDisplay";
 import axiosInstance from "../../lib/axios";
 
@@ -55,13 +55,10 @@ const PostPage = () => {
 
     useEffect(() => {
         if (singlePost?.author) {
-            console.log("Single post author:", singlePost.author);
-            console.log("Single post type:", typeof singlePost.author);
             // Check if author is an object or just an ID string
             if (typeof singlePost.author === 'string') {
                 // Author is just an ID, try to find user in comments first
                 const commentUser = singlePost?.comments?.find(comment => comment.user === singlePost.author);
-                console.log("Found comment user:", commentUser);
                 if (commentUser) {
                     setAuthorData({
                         _id: commentUser.user,
@@ -72,23 +69,19 @@ const PostPage = () => {
                 } else {
                     // Try to find in users array
                     const authorUser = users?.find(user => user._id === singlePost.author);
-                    console.log("Found in users array:", authorUser);
                     if (authorUser) {
                         // Check if we have displayName and avatarUrl, if not fetch full data
                         if (authorUser.displayName && authorUser.avatarUrl) {
                             setAuthorData(authorUser);
                         } else {
                             // Fetch full user data
-                            console.log("Fetching full user data for:", singlePost.author);
                             fetchUserData(singlePost.author);
                         }
                     } else if (singlePost.author === authUserId) {
                         // Author is current user
-                        console.log("Author is current user");
                         setAuthorData(authUser);
                     } else {
                         // Fetch user data directly
-                        console.log("Fetching user data for:", singlePost.author);
                         fetchUserData(singlePost.author);
                     }
                 }
@@ -106,20 +99,14 @@ const PostPage = () => {
             const res = await axiosInstance.get(`/auth/get-user-by-id/${userId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            console.log("Fetched user data:", res.data);
             setAuthorData(res.data);
         } catch (error) {
             console.error("Error fetching user data:", error);
         }
     };
 
-    useEffect(() => {
-        console.log("Author data updated:", authorData);
-    }, [authorData]);
-
     const handlePostComment = (e) => {
         e.preventDefault();
-        console.log("Submitting comment:", commentData);
         commentPost({...commentData, postId: singlePost._id}).then(() => {
             console.log("Comment posted, refreshing post");
             // Refresh the post data after commenting
