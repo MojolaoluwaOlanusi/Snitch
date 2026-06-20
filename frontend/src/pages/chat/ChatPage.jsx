@@ -21,7 +21,7 @@ import MessageReactionEmojiPicker from "../../components/common/MessageReactionE
 import { motion, AnimatePresence } from "framer-motion";
 import axiosInstance from "../../lib/axios";
 import toast from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 // ==================== Sub-Components ====================
 
@@ -141,8 +141,11 @@ const ChatPage = () => {
 
     const { authUser, socket } = useAuthStore();
     const navigate = useNavigate();
+    const location = useLocation();
 
     // --- State ---
+    const [isViewOnce, setIsViewOnce] = useState(false);
+    const [isRinging, setIsRinging] = useState(false);
     const [showPollVoters, setShowPollVoters] = useState(null);
     const [pollVoterDetails, setPollVoterDetails] = useState({});
     const [loadingPollVoters, setLoadingPollVoters] = useState(false);
@@ -240,6 +243,9 @@ const ChatPage = () => {
     const [isVideoMode, setIsVideoMode] = useState(true);
 
     // --- Refs ---
+    const navigationHandled = useRef(false);
+    const callAnsweredRef = useRef(false);
+    const isRingingRef = useRef(false);
     const callTimerRef = useRef(null);
     const callTimeoutRef = useRef(null);
     const hexagonTimers = useRef({});
@@ -292,6 +298,12 @@ const ChatPage = () => {
             addedMessageIds.current.add(message._id);
             addMessage(message);
             if (message.conversationId === useChatStore.getState().selectedConversation?._id) scrollToBottom();
+
+            // Remove reaction notifications when a real message arrives
+            const state = useChatStore.getState();
+            const filtered = state.messages.filter(m => !m.isReactionNotification);
+            useChatStore.setState({ messages: filtered });
+
             getConversations();
         });
 
@@ -302,12 +314,26 @@ const ChatPage = () => {
                 addMessage(message);
                 scrollToBottom();
             }
+
+            // Remove reaction notifications when a real message arrives
+            const state = useChatStore.getState();
+            const filtered = state.messages.filter(m => !m.isReactionNotification);
+            useChatStore.setState({ messages: filtered });
         });
 
         socket.on('message:edited', (message) => updateMessage(message._id, message));
         socket.on('message:deleted', ({ messageId }) => removeMessage(messageId));
         socket.on('message:deleted:everyone', ({ messageId }) => removeMessage(messageId));
-        socket.on('reaction:update', ({ messageId, reactions }) => updateMessage(messageId, { reactions }));
+        socket.on('reaction:update', ({ messageId, reactions, userId }) => {
+            updateMessage(messageId, { reactions });
+            // Only show notification for the remote user (not the one who reacted)
+            if (userId && userId !== authUser?._id) {
+                const latestReaction = reactions[userId];
+                if (latestReaction) {
+                    addReactionNotification(messageId, userId, latestReaction);
+                }
+            }
+        });
         socket.on('message:read', ({ messageId }) => {
             updateMessage(messageId, { status: 'read' });
         });
@@ -360,6 +386,9 @@ const ChatPage = () => {
             updateMessage(messageId, {
                 starredBy: starred ? [uid] : []
             });
+        });
+        socket.on('message:viewed', ({ messageId, viewedBy }) => {
+            updateMessage(messageId, { viewedBy });
         });
         socket.on('webrtc:call:incoming', ({ callId, from, isVideo, metadata }) => {
             const conv = conversations.find(c => c.participants?.some(p => p._id === from));
@@ -437,6 +466,49 @@ const ChatPage = () => {
             'webrtc:call:participant_joined'
         ].forEach(e => socket.off(e));
     }, [socket]);
+
+    // Handle navigation from search page
+    useEffect(() => {
+        if (!location.state?.conversationId || !location.state?.messageId) return;
+        if (navigationHandled.current) return;
+        navigationHandled.current = true;
+
+        const { conversationId, messageId } = location.state;
+
+        const openConversationAndScroll = async () => {
+            let conv = conversations.find(c => c._id === conversationId);
+
+            if (!conv || !conv.participants?.length) {
+                // Fetch full conversation from backend
+                try {
+                    const token = localStorage.getItem('access-token');
+                    const res = await axiosInstance.post(
+                        `/chat/conversation/${conversationId}`,
+                        {},
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                    conv = res.data;
+                } catch (error) {
+                    console.error('Failed to fetch conversation:', error);
+                    toast.error('Could not open conversation');
+                    navigate('/chat', { replace: true, state: {} });
+                    return;
+                }
+            }
+
+            selectConversation(conv);
+
+            // Wait for messages to load, then scroll
+            setTimeout(() => {
+                scrollToMessage(messageId);
+            }, 600);
+
+            // Clear navigation state
+            navigate('/chat', { replace: true, state: {} });
+        };
+
+        openConversationAndScroll();
+    }, [location.state, conversations]);
 
     useEffect(() => {
         getConversations(); fetchContacts();
@@ -689,10 +761,10 @@ const ChatPage = () => {
         const audio = audioRef.current;
         if (!audio) return;
 
-        // If the same audio is already loaded, and we want to resume
-        if (playingVoiceId === messageId && audio.src === url) {
+        // If this exact audio is already loaded
+        if (audio.src === url) {
             if (audio.paused) {
-                audio.play();
+                audio.play().catch(() => {});
                 setPlayingVoiceId(messageId);
             } else {
                 audio.pause();
@@ -701,19 +773,22 @@ const ChatPage = () => {
             return;
         }
 
-        // Otherwise load and play new audio
+        // Otherwise load new audio
         audio.pause();
         audio.src = url;
         audio.play().catch(() => {});
         setPlayingVoiceId(messageId);
 
+        // Update metadata and time only when needed
         audio.onloadedmetadata = () => {
             setVoiceDurations(prev => ({ ...prev, [messageId]: audio.duration }));
         };
         audio.ontimeupdate = () => {
-            setVoiceCurrentTimes(prev => ({ ...prev, [messageId]: audio.currentTime }));
-            if (audio.duration) {
-                setVoiceProgressWidths(prev => ({ ...prev, [messageId]: (audio.currentTime / audio.duration) * 100 }));
+            const current = audio.currentTime;
+            const duration = audio.duration;
+            setVoiceCurrentTimes(prev => ({ ...prev, [messageId]: current }));
+            if (duration) {
+                setVoiceProgressWidths(prev => ({ ...prev, [messageId]: (current / duration) * 100 }));
             }
         };
         audio.onended = () => {
@@ -790,7 +865,7 @@ const ChatPage = () => {
                 if (unread === 0) return false;
             }
             if (quickFilter === 'favorites') {
-                if (!Array.isArray(c.favoritedBy) && c.favoritedBy.includes(authUser?._id)) return false;
+                if (!Array.isArray(c.favoritedBy) || !c.favoritedBy.includes(authUser?._id)) return false;
             }
             if (quickFilter === 'groups') {
                 if (!c.isGroup) return false;
@@ -938,7 +1013,7 @@ const ChatPage = () => {
                     const res = await axiosInstance.get(`/auth/get-user-by-id/${uid}`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
-                    details[uid] = res.data.displayName || res.data.username || uid;
+                    details[uid] = res.data;
                 } catch {
                     details[uid] = uid; // fallback to ID
                 }
@@ -960,6 +1035,40 @@ const ChatPage = () => {
             setIsBlockedBy(res.data.isBlockedBy || false);
         } catch (error) {
             /* silent */
+        }
+    };
+
+    const addReactionNotification = (messageId, userId, reaction) => {
+        const message = messages.find(m => m._id === messageId);
+        if (!message) return;
+
+        const isOwn = userId === authUser?._id;
+        const senderName = isOwn
+            ? 'You'
+            : (message.senderId?.displayName || 'Someone');
+
+        const notification = {
+            _id: `reaction-${messageId}-${Date.now()}`,
+            isReactionNotification: true,
+            text: `${senderName} reacted ${reaction} to a message`,
+            conversationId: selectedConversation?._id,
+            createdAt: new Date().toISOString(),
+        };
+
+        addMessage(notification);
+        scrollToBottom();
+
+        // Optimistically update the conversation's lastMessage in the sidebar
+        const currentConvId = selectedConversation?._id;
+        if (currentConvId) {
+            const updatedConversations = conversations.map(conv => {
+                if (conv._id === currentConvId) {
+                    return { ...conv, lastMessage: notification };
+                }
+                return conv;
+            });
+            // Update the store's conversations list
+            useChatStore.setState({ conversations: updatedConversations });
         }
     };
 
@@ -1045,6 +1154,7 @@ const ChatPage = () => {
                     media: finalMedia,
                     isVoiceMessage: selectedFile?.isVoice || false,
                     voiceDuration: selectedFile?.isVoice ? recordingDuration : undefined,
+                    viewOnce: isViewOnce || undefined,
                 });
 
                 if (result?._id) {
@@ -1052,6 +1162,8 @@ const ChatPage = () => {
                     addedMessageIds.current.add(result._id);
                     addMessage(result);
                 }
+
+                setIsViewOnce(false);
             } catch (error) {
                 updateMessage(tempId, { status: 'failed' });
                 if (error?.message?.includes('blocked')) toast.error('You have been blocked by this user');
@@ -1094,7 +1206,22 @@ const ChatPage = () => {
     // ==================== Message Actions ====================
 
     const handleReaction = async (messageId, reaction) => {
+        // Optimistically update local reactions
+        const message = messages.find(m => m._id === messageId);
+        if (message) {
+            const newReactions = { ...message.reactions };
+            if (newReactions[authUser._id] === reaction) {
+                delete newReactions[authUser._id];
+            } else {
+                newReactions[authUser._id] = reaction;
+            }
+            updateMessage(messageId, { reactions: newReactions });
+        }
         await reactToMessage({ messageId, reaction });
+
+        // Insert reaction notification
+        addReactionNotification(messageId, authUser._id, reaction);
+
         setShowReactionPicker(null);
     };
     const handleReply = (message) => {
@@ -1477,33 +1604,29 @@ const ChatPage = () => {
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             const callId = Date.now().toString();
-            setActiveCall({
-                callId,
-                isVideo,
-                otherUserId: otherId
-            });
+            setActiveCall({ callId, isVideo, otherUserId: otherId });
             setCallAnswered(false);
+            setIsRinging(true);
+            callAnsweredRef.current = false;
+            isRingingRef.current = true;
             startCallTimer();
+
+            // 60‑second ringing timeout
             callTimeoutRef.current = setTimeout(() => {
-                if (activeCall && !callAnswered) {
+                if (isRingingRef.current && !callAnsweredRef.current) {
                     endCall();
                     sendCallSummary(isVideo ? 'video' : 'audio', callDuration, 'no_answer');
-                    toast('Call ended – no answer');
+                    toast.error('Call ended – no answer');
                 }
             }, 60000);
+
             socket?.emit('webrtc:call:initiate', {
                 targets: [otherId],
                 isVideo,
-                metadata: {
-                    callerName: authUser?.displayName
-                }
+                metadata: { callerName: authUser?.displayName }
             });
             setTimeout(() => {
-                socket?.emit('webrtc:signal', {
-                    toUserId: otherId,
-                    type: 'offer',
-                    data: offer
-                });
+                socket?.emit('webrtc:signal', { toUserId: otherId, type: 'offer', data: offer });
             }, 500);
         } catch (error) {
             toast.error('Camera/mic access denied');
@@ -1528,12 +1651,13 @@ const ChatPage = () => {
                 otherUserId: incomingCall.callerId
             });
             setCallAnswered(true);
+            setIsRinging(false);
+            callAnsweredRef.current = true;
+            isRingingRef.current = false;
             clearTimeout(callTimeoutRef.current);
             startCallTimer();
             setIncomingCall(null);
-            socket?.emit('webrtc:call:join', {
-                callId: incomingCall.callId
-            });
+            socket?.emit('webrtc:call:join', { callId: incomingCall.callId });
         } catch (error) {
             toast.error('Camera/mic access denied');
             rejectCall();
@@ -1541,22 +1665,31 @@ const ChatPage = () => {
     };
     const rejectCall = () => {
         if (incomingCall) {
-            socket?.emit('webrtc:call:leave', {
-                callId: incomingCall.callId
-            });
+            socket?.emit('webrtc:call:leave', { callId: incomingCall.callId });
             setIncomingCall(null);
         }
     };
     const cleanupCall = () => {
-        if (localStream) localStream.getTracks().forEach(t => t.stop());
-        if (screenStream) screenStream.getTracks().forEach(t => t.stop());
-        peerConnectionsRef.current.forEach(pc => pc.close()); peerConnectionsRef.current.clear();
+        // Send call summary before clearing anything
         if (activeCall) {
-            const status = callAnswered ? 'ended' : 'missed';
-            sendCallSummary(activeCall.isVideo ? 'video' : 'audio', callDuration, status);
+            const status = callAnsweredRef.current ? 'ended' : 'missed';
+            sendCallSummary(
+                activeCall.isVideo ? 'video' : 'audio',
+                callDuration,
+                status
+            );
         }
+
         stopCallTimer();
         clearTimeout(callTimeoutRef.current);
+        setIsRinging(false);
+        isRingingRef.current = false;
+        callAnsweredRef.current = false;
+
+        if (localStream) localStream.getTracks().forEach(t => t.stop());
+        if (screenStream) screenStream.getTracks().forEach(t => t.stop());
+        peerConnectionsRef.current.forEach(pc => pc.close());
+        peerConnectionsRef.current.clear();
         setLocalStream(null);
         setRemoteStreams(new Map());
         setScreenStream(null);
@@ -1567,9 +1700,7 @@ const ChatPage = () => {
     };
     const endCall = () => {
         if (activeCall) {
-            socket?.emit('webrtc:call:end', {
-                callId: activeCall.callId
-            });
+            socket?.emit('webrtc:call:end', { callId: activeCall.callId });
         }
         cleanupCall();
     };
@@ -1579,12 +1710,14 @@ const ChatPage = () => {
             setCallDuration(prev => prev + 1);
         }, 1000);
     };
+
     const stopCallTimer = () => {
         if (callTimerRef.current) {
             clearInterval(callTimerRef.current);
             callTimerRef.current = null;
         }
     };
+
     const toggleVideoMode = async () => {
         if (!localStream || !activeCall) return;
         try {
@@ -1821,27 +1954,33 @@ const ChatPage = () => {
     };
     const handleAddToFavorites = async () => {
         const convId = selectedConversation?._id;
+        if (!convId) return;
+
         try {
             const token = localStorage.getItem('access-token');
-            await axiosInstance.put(`/chat/conversation/${convId}/favorite`, {}, { headers: { Authorization: `Bearer ${token}` } });
-            // Update local state
-            const updatedConversations = conversations.map(c => {
-                if (c._id === convId) {
-                    const isFav = c.favoritedBy?.includes(authUser?._id);
-                    return {
-                        ...c,
-                        favoritedBy: isFav
-                            ? c.favoritedBy.filter(id => id !== authUser?._id)
-                            : [...(c.favoritedBy || []), authUser?._id]
-                    };
-                }
-                return c;
-            });
-            set({ conversations: updatedConversations }); // if using useChatStore directly? Actually you'd need to use the store's set.
-            // But easier: just call getConversations()
-            await getConversations();
-            toast.success('Updated');
-        } catch (error) { toast.error('Failed'); }
+            const res = await axiosInstance.put(
+                `/chat/conversation/${convId}/favorite`,
+                {},
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            // Refresh the conversations list to get the updated data
+            const updatedConversations = await getConversations();
+            const updatedConv = updatedConversations.find(c => c._id === convId);
+
+            if (updatedConv) {
+                selectConversation(updatedConv);
+            }
+
+            toast.success(
+                res.data.favorited
+                    ? 'Added to favorites'
+                    : 'Removed from favorites'
+            );
+        } catch (error) {
+            console.error('Favorite error:', error);
+            toast.error('Failed to update favorites');
+        }
     };
     // ==================== Media, Starred, Groups Modals ====================
 
@@ -1923,12 +2062,74 @@ const ChatPage = () => {
     ).length;
 
     // ==================== Render Message ====================
+    const renderAudioFilePlayer = (message, mediaItem) => {
+        const isOwn = getIsOwn(message);
+        return (
+            <div className="py-1.5" style={{ width: '100%', minWidth: '250px' }}>
+                <div className="flex items-center gap-2">
+                    <button
+                        className="p-1.5 rounded-full hover:bg-white/20 flex-shrink-0"
+                        onClick={() => handleVoicePlay(message._id, mediaItem.url)}
+                    >
+                        {playingVoiceId === message._id ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                    </button>
+                    <span className={`text-xs flex-shrink-0 w-10 text-right tabular-nums ${isOwn ? 'text-white' : 'text-gray-600'}`}>
+                    {formatVoiceTime(voiceCurrentTimes[message._id] || 0)}
+                </span>
+                    <div
+                        className={`flex-1 h-1.5 rounded-full overflow-hidden cursor-pointer relative ${isOwn ? 'bg-white/30' : 'bg-gray-200'}`}
+                        onClick={(e) => handleProgressClick(e, message._id)}
+                    >
+                        <div
+                            className={`h-full rounded-full transition-all duration-100 ${isOwn ? 'bg-white' : 'bg-gray-500'}`}
+                            style={{ width: `${voiceProgressWidths[message._id] || 0}%` }}
+                        />
+                        <div
+                            className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full shadow cursor-pointer hover:scale-125 transition-transform ${isOwn ? 'bg-white' : 'bg-gray-600'}`}
+                            style={{ left: `calc(${voiceProgressWidths[message._id] || 0}% - 6px)` }}
+                            onMouseDown={(e) => {
+                                e.stopPropagation();
+                                const bar = e.currentTarget.parentElement;
+                                const onMove = (moveEvent) => {
+                                    const rect = bar.getBoundingClientRect();
+                                    const percent = Math.max(0, Math.min(100, ((moveEvent.clientX - rect.left) / rect.width) * 100));
+                                    if (audioRef.current && playingVoiceId === message._id) {
+                                        audioRef.current.currentTime = (percent / 100) * audioRef.current.duration;
+                                        setVoiceProgressWidths(prev => ({ ...prev, [message._id]: percent }));
+                                    }
+                                };
+                                const onUp = () => {
+                                    document.removeEventListener('mousemove', onMove);
+                                    document.removeEventListener('mouseup', onUp);
+                                };
+                                document.addEventListener('mousemove', onMove);
+                                document.addEventListener('mouseup', onUp);
+                            }}
+                        />
+                    </div>
+                    <span className={`text-xs flex-shrink-0 w-10 tabular-nums ${isOwn ? 'text-white' : 'text-gray-600'}`}>
+                    {formatVoiceTime(voiceDurations[message._id] || 0)}
+                </span>
+                </div>
+            </div>
+        );
+    };
 
     const renderMessage = (message) => {
         if (!message) return null;
         const isOwn = getIsOwn(message);
         const isDeleted = message.deletedAt || message.deletedForEveryone;
         const isStarred = Array.isArray(message.starredBy) && message.starredBy.includes(authUser?._id);
+
+        if (message.isReactionNotification) {
+            return (
+                <div className="flex justify-center mb-1 px-4">
+                    <div className="bg-gray-100 rounded-full px-4 py-1 text-xs text-gray-500 italic">
+                        {message.text}
+                    </div>
+                </div>
+            );
+        }
 
         if (isDeleted) {
             return (
@@ -2158,6 +2359,8 @@ const ChatPage = () => {
                                 onReact={(emoji) => handleReaction(message._id, emoji)}
                                 onClose={() => setShowReactionPicker(null)}
                                 isOpen={true}
+                                position={{ top: Math.min(reactionPickerPos.top, window.innerHeight - 300), left: Math.min(reactionPickerPos.left, window.innerWidth - 320) }}
+                                currentUserReaction={message.reactions?.[authUser?._id] || null}
                             />
                         </div>
                     )}
@@ -2210,7 +2413,13 @@ const ChatPage = () => {
 
                 {/* OUTER CONTAINER - voice messages get fixed 280px width */}
                 <div
-                    className={`relative ${isOwn ? 'order-2' : 'order-1'} ${message.isVoiceMessage && !message.text ? 'voice-bubble-container' : 'max-w-[70%]'}`}
+                    className={`relative ${isOwn ? 'order-2' : 'order-1'} ${
+                        message.isVoiceMessage && !message.text
+                            ? 'voice-bubble-container'
+                            : message.contact
+                                ? 'max-w-[90%] min-w-[250px]'
+                                : 'max-w-[70%]'
+                    }`}
                 >
                     {message.pinned && <div className="absolute -top-4 left-2 flex items-center gap-1">
                         <Pin className="w-3 h-3 text-blue-400" />
@@ -2307,39 +2516,44 @@ const ChatPage = () => {
                             </div>
                         )}
 
-                        {/* Contact */}
-                        {message.contact && (
+                        {message.viewOnce && message.media?.length > 0 && !isOwn ? (
                             <div
-                                className="mb-2 bg-white/10 rounded-lg p-2.5 cursor-pointer hover:bg-white/20 transition-colors"
+                                className="relative cursor-pointer mb-2"
                                 onClick={async () => {
-                                    if (message.contact.userId) {
+                                    if (!message.viewedBy?.includes(authUser?._id)) {
+                                        // Temporarily show the media
+                                        setShowMediaViewer(message.media[0]);
+                                        // Mark as viewed
                                         try {
-                                            const conv = await getConversation(message.contact.userId);
-                                            if (conv) selectConversation(conv);
-                                            else toast.error('Could not open conversation');
-                                        } catch { toast.error('Failed'); }
+                                            const token = localStorage.getItem('access-token');
+                                            await axiosInstance.put(
+                                                `/chat/message/${message._id}/view-once`,
+                                                {},
+                                                { headers: { Authorization: `Bearer ${token}` } }
+                                            );
+                                        } catch (error) {
+                                            toast.error('Failed to mark as viewed');
+                                        }
                                     }
                                 }}
                             >
-                                <div className="flex items-center gap-2 mb-1">
-                                    <div className="w-10 h-10 rounded-full bg-gray-300 overflow-hidden flex-shrink-0">
-                                        {message.contact.avatarUrl ?
-                                            <img src={message.contact.avatarUrl} alt="" className="w-full h-full object-cover" /> :
-                                            <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white font-bold text-sm">
-                                                {message.contact.name?.charAt(0) || '?'}
-                                            </div>
-                                        }
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-semibold">{message.contact.name}</p>
-                                        {message.contact.username && <p className="text-[10px] opacity-75">@{message.contact.username}</p>}
+                                <div className="relative w-40 h-40">
+                                    <img
+                                        src={message.media[0].url}
+                                        className="w-full h-full object-cover rounded-lg blur-md"
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <p className="text-white text-xs font-bold bg-black/50 px-2 py-1 rounded">
+                                            View Once
+                                        </p>
                                     </div>
                                 </div>
-                                <p className="text-[10px] opacity-60 text-center mt-1 border-t border-white/10 pt-1">
-                                    Tap to open conversation
-                                </p>
                             </div>
-                        )}
+                        ) : message.viewOnce && isOwn ? (
+                            <div className="mb-2 text-xs text-gray-400 italic">
+                                {message.viewedBy?.length > 0 ? 'Viewed' : 'Sent as view‑once'}
+                            </div>
+                        ) : null}
 
                         {/* Regular Media (skip hexagon videos and voice messages) */}
                         {message.media && message.media.length > 0 && message.media.map((m, i) => {
@@ -2366,13 +2580,58 @@ const ChatPage = () => {
                                                     </div>
                                                 </div> :
                                                 <video src={m.url} className="rounded-lg w-full" />) :
-                                                m.mime?.startsWith('audio/') ? <audio src={m.url}  controls className="w-full" /> :
-                                                <div
-                                                    className="flex items-center gap-2 bg-white/20 p-2 rounded"
-                                                >
-                                                    <FileText className="w-6 h-6" />
-                                                    <span className="text-xs truncate">{m.filename || 'File'}</span>
+                                                m.mime?.startsWith('audio/') && !message.isVoiceMessage ? (
+                                                    <div className="py-1.5" style={{ width: '100%', minWidth: '250px' }}>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            className="p-1.5 rounded-full hover:bg-white/20 flex-shrink-0"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleVoicePlay(message._id, m.url);
+                                                            }}
+                                                        >
+                                                            {playingVoiceId === message._id ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                                                        </button>
+                                                        <span className={`text-xs flex-shrink-0 w-10 text-right tabular-nums ${isOwn ? 'text-white' : 'text-gray-600'}`}>
+                                                            {formatVoiceTime(voiceCurrentTimes[message._id] || 0)}
+                                                        </span>
+                                                        <div
+                                                            className={`flex-1 h-1.5 rounded-full overflow-hidden cursor-pointer relative ${isOwn ? 'bg-white/30' : 'bg-gray-200'}`}
+                                                            onClick={(e) => handleProgressClick(e, message._id)}
+                                                        >
+                                                            <div
+                                                                className={`h-full rounded-full transition-all duration-100 ${isOwn ? 'bg-white' : 'bg-gray-500'}`}
+                                                                style={{ width: `${voiceProgressWidths[message._id] || 0}%` }}
+                                                            />
+                                                            <div
+                                                                className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full shadow cursor-pointer hover:scale-125 transition-transform ${isOwn ? 'bg-white' : 'bg-gray-600'}`}
+                                                                style={{ left: `calc(${voiceProgressWidths[message._id] || 0}% - 6px)` }}
+                                                                onMouseDown={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const bar = e.currentTarget.parentElement;
+                                                                    const onMove = (moveEvent) => {
+                                                                        const rect = bar.getBoundingClientRect();
+                                                                        const percent = Math.max(0, Math.min(100, ((moveEvent.clientX - rect.left) / rect.width) * 100));
+                                                                        if (audioRef.current && playingVoiceId === message._id) {
+                                                                            audioRef.current.currentTime = (percent / 100) * audioRef.current.duration;
+                                                                            setVoiceProgressWidths(prev => ({ ...prev, [message._id]: percent }));
+                                                                        }
+                                                                    };
+                                                                    const onUp = () => {
+                                                                        document.removeEventListener('mousemove', onMove);
+                                                                        document.removeEventListener('mouseup', onUp);
+                                                                    };
+                                                                    document.addEventListener('mousemove', onMove);
+                                                                    document.addEventListener('mouseup', onUp);
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <span className={`text-xs flex-shrink-0 w-10 tabular-nums ${isOwn ? 'text-white' : 'text-gray-600'}`}>
+                                                            {formatVoiceTime(voiceDurations[message._id] || 0)}
+                                                        </span>
+                                                    </div>
                                                 </div>
+                                            ) : null
                                     }
                                 </div>
                             );
@@ -2528,11 +2787,44 @@ const ChatPage = () => {
                             </div>
                         )}
 
-                        {/* Text */}
-                        {message.text && !message.poll?.question && !message.event?.name && (
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                                {renderTextWithLinks(message.text)}
-                            </p>
+                        {/* Text & Contact */}
+                        {message.contact ? (
+                            <div
+                                className="mb-2 bg-white/10 rounded-lg p-2.5 cursor-pointer hover:bg-white/20 transition-colors"
+                                onClick={() => {
+                                    if (message.contact.userId) {
+                                        handleOpenContactLink(message.contact.userId);
+                                        console.log(message.contact.userId);
+                                    }
+                                }}
+                            >
+                                <div className="flex items-center gap-2 mb-1">
+                                    <div className="w-10 h-10 rounded-full bg-gray-300 overflow-hidden flex-shrink-0">
+                                        {message.contact.avatarUrl ? (
+                                            <img src={message.contact.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white font-bold text-sm">
+                                                {message.contact.name?.charAt(0) || '?'}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-semibold">{message.contact.name}</p>
+                                        {message.contact.username && (
+                                            <p className="text-[10px] opacity-75">@{message.contact.username}</p>
+                                        )}
+                                    </div>
+                                </div>
+                                <p className="text-[10px] opacity-60 text-center mt-1 border-t border-white/10 pt-1">
+                                    Tap to open conversation
+                                </p>
+                            </div>
+                        ) : (
+                            message.text && !message.poll?.question && !message.event?.name && (
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                                    {renderTextWithLinks(message.text)}
+                                </p>
+                            )
                         )}
 
                         {message.call && (
@@ -2597,6 +2889,8 @@ const ChatPage = () => {
                             onReact={(emoji) => handleReaction(message._id, emoji)}
                             onClose={() => setShowReactionPicker(null)}
                             isOpen={true}
+                            position={{ top: Math.min(reactionPickerPos.top, window.innerHeight - 300), left: Math.min(reactionPickerPos.left, window.innerWidth - 320) }}
+                            currentUserReaction={message.reactions?.[authUser?._id] || null}
                         />
                     </div>
                 )}
@@ -3393,6 +3687,18 @@ const ChatPage = () => {
                                                 >
                                                     <X className="w-5 h-5" />
                                                 </button>
+                                            )}
+
+                                            {selectedFile && !selectedFile.isVoice && (
+                                                <label className="flex items-center gap-2 px-4 py-1 text-xs text-gray-500 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isViewOnce}
+                                                        onChange={(e) => setIsViewOnce(e.target.checked)}
+                                                        className="rounded"
+                                                    />
+                                                    View once
+                                                </label>
                                             )}
 
                                             {/* Send button - only shows when there's text or file */}
@@ -4826,10 +5132,18 @@ const ChatPage = () => {
                                         </div>
                                         <p className="text-white text-lg font-medium">{getOtherUser(selectedConversation)?.displayName || 'Call'}</p>
                                         <p className="text-gray-400 text-sm">{isVideoMode ? 'Video call' : 'Audio call'}</p>
-                                        <div className="mt-6 w-64">
-                                            <AudioWaveform isActive={true} isMuted={isMicMuted} />
-                                            <p className="text-white text-sm mt-2">{formatCallDuration(callDuration)}</p>
-                                        </div>
+                                        {callAnswered ? (
+                                            <div className="mt-6 w-64">
+                                                <AudioWaveform isActive={true} isMuted={isMicMuted} />
+                                                <p className="text-white text-sm mt-2">
+                                                    {formatCallDuration(callDuration)}
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="mt-6">
+                                                <p className="text-white text-lg animate-pulse">Ringing...</p>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                                 {
@@ -5200,14 +5514,24 @@ const ChatPage = () => {
                                                     <p className="text-xs text-gray-400 ml-2">No votes</p>
                                                 ) : (
                                                     <ul className="text-xs text-gray-600 ml-2 space-y-0.5">
-                                                        {voters.map(uid => (
-                                                            <li key={uid} className="flex items-center gap-2">
-                                                                <div className="w-4 h-4 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
-                                                                    {/* tiny avatar if available – optional */}
-                                                                </div>
-                                                                {pollVoterDetails[uid] || uid}
-                                                            </li>
-                                                        ))}
+                                                        <div className="max-h-40 overflow-y-auto">
+                                                            {voters.map(uid => (
+                                                                <li key={uid} className="flex items-center gap-2 py-2">
+                                                                    <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
+                                                                        {pollVoterDetails[uid]?.avatarUrl ? (
+                                                                            <img src={pollVoterDetails[uid].avatarUrl} alt="" className="w-full h-full object-cover" />
+                                                                        ) : (
+                                                                            <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white text-[10px] font-bold">
+                                                                                {(pollVoterDetails[uid]?.displayName || uid).charAt(0)}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <span>
+                                                                        {pollVoterDetails[uid]?.displayName || pollVoterDetails[uid]?.username || uid}
+                                                                    </span>
+                                                                </li>
+                                                            ))}
+                                                        </div>
                                                     </ul>
                                                 )}
                                             </div>

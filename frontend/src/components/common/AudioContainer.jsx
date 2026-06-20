@@ -95,10 +95,15 @@ const AudioContainer = ({ audioSrc }) => {
 
             <audio
                 ref={audioRef}
-                src={audioSrc}
-                onTimeUpdate={handleTimeUpdate}
-                onLoadedMetadata={handleLoadedMetadata}
-                onEnded={() => setIsPlaying(false)}
+                onTimeUpdate={(e) => {
+                    const a = e.currentTarget;
+                    if (a.duration) setAudioProgress((a.currentTime / a.duration) * 100);
+                }}
+                onEnded={() => {
+                    setIsPlayingAudio(null);
+                    setAudioProgress(0);
+                }}
+                className="hidden"
             />
         </div>
     );

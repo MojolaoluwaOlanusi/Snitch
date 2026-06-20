@@ -25,9 +25,10 @@ export const useChatStore = create((set, get) => ({
                 mentions: data.mentions || [], location: data.location,
                 contact: data.contact, isVoiceMessage: data.isVoiceMessage,
                 voiceDuration: data.voiceDuration, poll: data.poll, event: data.event,
+                call: data.call,
             }, (ack) => {
                 if (!ack?.ok) { toast.error(ack?.error || "Failed to send message"); reject(new Error(ack?.error || "Failed to send")); return; }
-                get().getConversations();
+                get().getConversations();   // refresh list after sending
                 resolve(ack.message);
             });
         });
@@ -50,7 +51,9 @@ export const useChatStore = create((set, get) => ({
         return new Promise((resolve, reject) => {
             socket.emit('message:edit', { messageId: data.messageId, newText: data.newText }, (ack) => {
                 if (!ack?.ok) { toast.error("Failed to edit message"); reject(new Error(ack?.error)); return; }
-                toast.success("Message edited"); resolve(ack.message);
+                toast.success("Message edited");
+                get().getConversations();   // refresh in case last message changed
+                resolve(ack.message);
             });
         });
     },
@@ -60,8 +63,10 @@ export const useChatStore = create((set, get) => ({
         const socket = useAuthStore.getState().socket;
         if (!socket?.connected) return;
         return new Promise((resolve, reject) => {
-            socket.emit('message:delete', { messageId: data.messageId }, (ack) => {
+            socket.emit('message:delete', { messageId: data.messageId }, async (ack) => {
                 if (!ack?.ok) { toast.error("Failed to delete"); reject(new Error(ack?.error)); return; }
+                // Refresh conversations so the lastMessage updates immediately
+                await get().getConversations();
                 resolve(ack);
             });
         });
@@ -72,8 +77,10 @@ export const useChatStore = create((set, get) => ({
         const socket = useAuthStore.getState().socket;
         if (!socket?.connected) return;
         return new Promise((resolve, reject) => {
-            socket.emit('message:delete:everyone', { messageId: data.messageId }, (ack) => {
+            socket.emit('message:delete:everyone', { messageId: data.messageId }, async (ack) => {
                 if (!ack?.ok) { toast.error("Failed to delete"); reject(new Error(ack?.error)); return; }
+                // Refresh conversations so the lastMessage updates immediately
+                await get().getConversations();
                 resolve(ack);
             });
         });
@@ -86,7 +93,6 @@ export const useChatStore = create((set, get) => ({
             socket.emit('message:forward', { messageId: data.messageId, targets: data.targets }, async (ack) => {
                 if (!ack?.ok) { toast.error("Failed to forward"); reject(new Error(ack?.error)); return; }
                 toast.success("Forwarded");
-                // Refresh conversations to show updated lastMessage
                 await get().getConversations();
                 resolve(ack);
             });
@@ -121,7 +127,8 @@ export const useChatStore = create((set, get) => ({
         return new Promise((resolve, reject) => {
             socket.emit('message:pin', { messageId, duration }, (ack) => {
                 if (!ack?.ok) { toast.error("Failed to pin message"); reject(new Error(ack?.error)); return; }
-                toast.success("Message pinned"); resolve(ack);
+                toast.success("Message pinned");
+                resolve(ack);
             });
         });
     },
@@ -132,7 +139,8 @@ export const useChatStore = create((set, get) => ({
         return new Promise((resolve, reject) => {
             socket.emit('message:unpin', { messageId }, (ack) => {
                 if (!ack?.ok) { toast.error("Failed to unpin message"); reject(new Error(ack?.error)); return; }
-                toast.success("Message unpinned"); resolve(ack);
+                toast.success("Message unpinned");
+                resolve(ack);
             });
         });
     },
@@ -145,9 +153,11 @@ export const useChatStore = create((set, get) => ({
         return new Promise((resolve, reject) => {
             socket.emit('poll:vote', { messageId, optionIndex }, (ack) => {
                 if (!ack?.ok) { toast.error("Failed to vote"); reject(new Error(ack?.error)); return; }
-                // Update the message with new votes
-                const { updateMessage } = get();
-                updateMessage(messageId, { poll: { ...get().messages.find(m => m._id === messageId)?.poll, votes: ack.votes } });
+                const { updateMessage, messages } = get();
+                const msg = messages.find(m => m._id === messageId);
+                if (msg) {
+                    updateMessage(messageId, { poll: { ...msg.poll, votes: ack.votes } });
+                }
                 resolve(ack);
             });
         });
@@ -168,6 +178,32 @@ export const useChatStore = create((set, get) => ({
                 } catch (error) { reject(error); }
             });
         });
+    },
+
+    // Upload chat media to MinIO
+    uploadChatMedia: async ({ file, conversationId, mediaType }) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const presignRes = await axiosInstance.post('/media/chat-presign', {
+                conversationId,
+                fileName: file.name,
+                contentType: file.type,
+                mediaType,
+            }, { headers: { Authorization: `Bearer ${token}` } });
+
+            if (!presignRes.data.ok) throw new Error('Failed to get upload URL');
+
+            await fetch(presignRes.data.uploadUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': file.type },
+                body: file,
+            });
+
+            return { url: presignRes.data.publicUrl, key: presignRes.data.key };
+        } catch (error) {
+            console.error('uploadChatMedia error:', error);
+            throw error;
+        }
     },
 
     // ==================== Call Management ====================
@@ -309,8 +345,8 @@ export const useChatStore = create((set, get) => ({
         if (conversation?._id) get().markConversationAsRead(conversation._id);
     },
 
-        getMessages: async (conversationId, before = null) => {
-            set({ isMessagesLoading: true });
+    getMessages: async (conversationId, before = null) => {
+        set({ isMessagesLoading: true });
         try {
             const token = localStorage.getItem('access-token');
             const params = before ? { before, limit: 50 } : { limit: 50 };
@@ -331,17 +367,12 @@ export const useChatStore = create((set, get) => ({
     starMessage: async (messageId) => {
         try {
             const token = localStorage.getItem('access-token');
-            const res = await axiosInstance.put(`/chat/message/${messageId}/star`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await axiosInstance.put(`/chat/message/${messageId}/star`, {}, { headers: { Authorization: `Bearer ${token}` } });
             const { authUser } = useAuthStore.getState();
             get().updateMessage(messageId, { starredBy: res.data.starred ? [authUser?._id] : [] });
             return res.data;
         } catch (error) {
-            // Don't show error for temp messages
-            if (error?.response?.status !== 404) {
-                toast.error('Failed to star message');
-            }
+            if (error?.response?.status !== 404) toast.error('Failed to star message');
         }
     },
 
@@ -356,27 +387,24 @@ export const useChatStore = create((set, get) => ({
     pinConversation: async (conversationId) => {
         try {
             const token = localStorage.getItem('access-token');
-            const res = await axiosInstance.put(`/chat/conversation/${conversationId}/pin`, {}, { headers: { Authorization: `Bearer ${token}` } });
+            await axiosInstance.put(`/chat/conversation/${conversationId}/pin`, {}, { headers: { Authorization: `Bearer ${token}` } });
             await get().getConversations();
-            return res.data;
         } catch (error) { console.error('Error pinning conversation:', error); toast.error('Failed to pin conversation'); }
     },
 
     archiveConversation: async (conversationId) => {
         try {
             const token = localStorage.getItem('access-token');
-            const res = await axiosInstance.put(`/chat/conversation/${conversationId}/archive`, {}, { headers: { Authorization: `Bearer ${token}` } });
+            await axiosInstance.put(`/chat/conversation/${conversationId}/archive`, {}, { headers: { Authorization: `Bearer ${token}` } });
             await get().getConversations();
-            return res.data;
         } catch (error) { console.error('Error archiving conversation:', error); toast.error('Failed to archive conversation'); }
     },
 
     muteConversation: async (conversationId, duration = null) => {
         try {
             const token = localStorage.getItem('access-token');
-            const res = await axiosInstance.put(`/chat/conversation/${conversationId}/mute`, { duration }, { headers: { Authorization: `Bearer ${token}` } });
+            await axiosInstance.put(`/chat/conversation/${conversationId}/mute`, { duration }, { headers: { Authorization: `Bearer ${token}` } });
             await get().getConversations();
-            return res.data;
         } catch (error) { console.error('Error muting conversation:', error); toast.error('Failed to mute conversation'); }
     },
 
@@ -396,6 +424,7 @@ export const useChatStore = create((set, get) => ({
             await axiosInstance.delete(`/chat/conversation/${conversationId}/clear`, { headers: { Authorization: `Bearer ${token}` } });
             set({ messages: [] });
             toast.success('Chat cleared');
+            await get().getConversations();
         } catch (error) { console.error('Error clearing chat:', error); toast.error('Failed to clear chat'); }
     },
 
@@ -432,41 +461,6 @@ export const useChatStore = create((set, get) => ({
             await axiosInstance.delete(`/chat/contact/${contactId}`, { headers: { Authorization: `Bearer ${token}` } });
             toast.success('Contact deleted');
         } catch (error) { console.error('Error deleting contact:', error); toast.error('Failed to delete contact'); }
-    },
-
-    // Upload chat media to MinIO
-    uploadChatMedia: async ({ file, conversationId, mediaType }) => {
-        try {
-            const token = localStorage.getItem('access-token');
-
-            // 1. Get presigned URL
-            const presignRes = await axiosInstance.post('/media/chat-presign', {
-                conversationId,
-                fileName: file.name,
-                contentType: file.type,
-                mediaType, // "images", "videos", "audio", "hexagonvideo", "documents"
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            if (!presignRes.data.ok) throw new Error('Failed to get upload URL');
-
-            // 2. Upload file directly to MinIO
-            await fetch(presignRes.data.uploadUrl, {
-                method: 'PUT',
-                headers: { 'Content-Type': file.type },
-                body: file,
-            });
-
-            // 3. Return the public URL
-            return {
-                url: presignRes.data.publicUrl,
-                key: presignRes.data.key,
-            };
-        } catch (error) {
-            console.error('uploadChatMedia error:', error);
-            throw error;
-        }
     },
 
     // ==================== Socket Event State Updaters ====================

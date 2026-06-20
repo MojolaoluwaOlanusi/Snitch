@@ -21,6 +21,7 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
-.idea/
+.idea/*
+!.idea/rcb-settings.xml
 .vscode/
 *.swp

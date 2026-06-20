@@ -21,9 +21,9 @@ router.get("/conversations", protectRoute, async (req, res) => {
         const conversations = await Conversation.find({
             participants: userId,
         })
-            .populate("participants", "username displayName avatarUrl")
+            .populate("participants", "username displayName avatarUrl lastSeen")
             .populate("lastMessage")
-            .populate("admin", "username displayName avatarUrl")
+            .populate("admin", "username displayName avatarUrl lastSeen")
             .sort({ updatedAt: -1 });
 
         res.json(conversations);
@@ -42,7 +42,7 @@ router.post("/conversation/:userId", protectRoute, async (req, res) => {
             participants: { $all: [currentUserId, targetUserId] },
             isGroup: false,
         })
-            .populate("participants", "username displayName avatarUrl")
+            .populate("participants", "username displayName avatarUrl lastSeen")
             .populate("lastMessage");
 
         if (!conversation) {
@@ -51,7 +51,7 @@ router.post("/conversation/:userId", protectRoute, async (req, res) => {
                 isGroup: false,
             });
             conversation = await Conversation.findById(conversation._id)
-                .populate("participants", "username displayName avatarUrl")
+                .populate("participants", "username displayName avatarUrl lastSeen")
                 .populate("lastMessage");
         }
 
@@ -96,9 +96,9 @@ router.get("/messages/:conversationId", protectRoute, async (req, res) => {
         }
 
         const messages = await Message.find(query)
-            .populate("senderId", "username displayName avatarUrl")
+            .populate("senderId", "username displayName avatarUrl lastSeen")
             .populate("replyTo")
-            .populate("mentions", "username displayName avatarUrl")
+            .populate("mentions", "username displayName avatarUrl lastSeen")
             .sort({ createdAt: 1 }) // oldest first
             .limit(Number(limit));
 
@@ -119,7 +119,7 @@ router.get("/search/:conversationId", protectRoute, async (req, res) => {
             text: { $regex: q, $options: "i" },
             deletedAt: null,
         })
-            .populate("senderId", "username displayName avatarUrl")
+            .populate("senderId", "username displayName avatarUrl lastSeen")
             .sort({ createdAt: -1 });
 
         res.json(messages);
@@ -164,7 +164,7 @@ router.get("/starred/:conversationId", protectRoute, async (req, res) => {
             starredBy: userId,
             deletedAt: null,
         })
-            .populate("senderId", "username displayName avatarUrl")
+            .populate("senderId", "username displayName avatarUrl lastSeen")
             .sort({ createdAt: -1 });
 
         res.json(messages);
@@ -278,7 +278,7 @@ router.put("/conversation/:conversationId/read", protectRoute, async (req, res) 
 
         for (const msg of unreadMessages) {
             const populated = await Message.findById(msg._id)
-                .populate('senderId', 'username displayName avatarUrl');
+                .populate('senderId', 'username displayName avatarUrl lastSeen');
 
             if (populated) {
                 await updateCachedMessage(conversationId, msg._id.toString(), populated)
@@ -351,8 +351,8 @@ router.post("/group", protectRoute, async (req, res) => {
         });
 
         const populatedConversation = await Conversation.findById(conversation._id)
-            .populate("participants", "username displayName avatarUrl")
-            .populate("admin", "username displayName avatarUrl");
+            .populate("participants", "username displayName avatarUrl lastSeen")
+            .populate("admin", "username displayName avatarUrl lastSeen");
 
         res.json(populatedConversation);
     } catch (error: any) {
@@ -380,8 +380,8 @@ router.put("/group/:conversationId/add", protectRoute, async (req, res) => {
         await conversation.save();
 
         const populatedConversation = await Conversation.findById(conversationId)
-            .populate("participants", "username displayName avatarUrl")
-            .populate("admin", "username displayName avatarUrl");
+            .populate("participants", "username displayName avatarUrl lastSeen")
+            .populate("admin", "username displayName avatarUrl lastSeen");
 
         res.json(populatedConversation);
     } catch (error: any) {
@@ -411,8 +411,8 @@ router.put("/group/:conversationId/remove", protectRoute, async (req, res) => {
         await conversation.save();
 
         const populatedConversation = await Conversation.findById(conversationId)
-            .populate("participants", "username displayName avatarUrl")
-            .populate("admin", "username displayName avatarUrl");
+            .populate("participants", "username displayName avatarUrl lastSeen")
+            .populate("admin", "username displayName avatarUrl lastSeen");
 
         res.json(populatedConversation);
     } catch (error: any) {
@@ -443,8 +443,8 @@ router.put("/group/:conversationId", protectRoute, async (req, res) => {
         await conversation.save();
 
         const populatedConversation = await Conversation.findById(conversationId)
-            .populate("participants", "username displayName avatarUrl")
-            .populate("admin", "username displayName avatarUrl");
+            .populate("participants", "username displayName avatarUrl lastSeen")
+            .populate("admin", "username displayName avatarUrl lastSeen");
 
         res.json(populatedConversation);
     } catch (error: any) {
@@ -457,7 +457,7 @@ router.get("/contacts", protectRoute, async (req, res) => {
     try {
         const userId = req.user._id;
         const contacts = await Contact.find({ userId })
-            .populate("contactId", "username displayName avatarUrl")
+            .populate("contactId", "username displayName avatarUrl lastSeen")
             .sort({ createdAt: -1 });
 
         res.json(contacts);
@@ -486,7 +486,7 @@ router.post("/contact/:contactId", protectRoute, async (req, res) => {
 
         const populatedContact = await Contact.findById(contact._id).populate(
             "contactId",
-            "username displayName avatarUrl"
+            "username displayName avatarUrl lastSeen"
         );
 
         res.json(populatedContact);
@@ -514,7 +514,7 @@ router.put("/contact/:contactId", protectRoute, async (req, res) => {
 
         const populatedContact = await Contact.findById(contact._id).populate(
             "contactId",
-            "username displayName avatarUrl"
+            "username displayName avatarUrl lastSeen"
         );
 
         res.json(populatedContact);
@@ -812,7 +812,7 @@ router.get("/contact/:userId", protectRoute, async (req, res) => {
         let conversation = await Conversation.findOne({
             participants: { $all: [currentUserId, targetUserId] },
             isGroup: false,
-        }).populate("participants", "username displayName avatarUrl");
+        }).populate("participants", "username displayName avatarUrl lastSeen");
 
         if (!conversation) {
             conversation = await Conversation.create({
@@ -820,7 +820,7 @@ router.get("/contact/:userId", protectRoute, async (req, res) => {
                 isGroup: false,
             });
             conversation = await Conversation.findById(conversation._id)
-                .populate("participants", "username displayName avatarUrl");
+                .populate("participants", "username displayName avatarUrl lastSeen");
         }
 
         res.json(conversation);
@@ -834,8 +834,8 @@ router.get("/group/:conversationId/info", protectRoute, async (req, res) => {
     try {
         const { conversationId } = req.params;
         const conversation = await Conversation.findById(conversationId)
-            .populate("participants", "username displayName avatarUrl bio")
-            .populate("admin", "username displayName avatarUrl");
+            .populate("participants", "username displayName avatarUrl bio lastSeen")
+            .populate("admin", "username displayName avatarUrl lastSeen");
 
         if (!conversation || !conversation.isGroup) {
             return res.status(404).json({ error: "Group not found" });
@@ -844,6 +844,43 @@ router.get("/group/:conversationId/info", protectRoute, async (req, res) => {
         res.json(conversation);
     } catch (error: any) {
         res.status(500).json({ error: error?.message || "Server error" });
+    }
+});
+
+// Mark view‑once message as viewed (and clear media)
+router.put("/message/:messageId/view-once", protectRoute, async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const userId = req.user._id;
+
+        const message = await Message.findById(messageId);
+        if (!message || !message.viewOnce) {
+            return res.status(404).json({ error: "Not a view‑once message" });
+        }
+
+        if (message.viewedBy?.some((id: any) => id.toString() === userId)) {
+            return res.status(400).json({ error: "Already viewed" });
+        }
+
+        message.viewedBy.push(userId);
+        // Clear media so it can't be viewed again
+        message.media = [];
+        message.text = message.text || 'View‑once media';
+        await message.save();
+
+        // Notify sender
+        const io = (globalThis as any).io;
+        if (io) {
+            const senderSocket = Array.from(io.sockets.sockets.values())
+                .find((s: any) => s.data?.userId === message.senderId.toString());
+            if (senderSocket) {
+                senderSocket.emit('message:viewed', { messageId: message._id, viewedBy: userId });
+            }
+        }
+
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
     }
 });
 

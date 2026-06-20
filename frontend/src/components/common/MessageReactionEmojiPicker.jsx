@@ -1,4 +1,3 @@
-// ChatReactionEmojiPicker.jsx
 import { useState, useRef, useEffect, Suspense, lazy } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -17,7 +16,7 @@ const SmileIcon = () => (
     </svg>
 );
 
-const MessageReactionEmojiPicker = ({ postId, onReact, onClose, isOpen }) => {
+const MessageReactionEmojiPicker = ({ postId, onReact, onClose, isOpen, position, currentUserReaction }) => {
     const pickerRef = useRef(null);
     const [showFullPicker, setShowFullPicker] = useState(false);
 
@@ -41,7 +40,6 @@ const MessageReactionEmojiPicker = ({ postId, onReact, onClose, isOpen }) => {
             document.addEventListener("mousedown", handleClickOutside);
             return () => document.removeEventListener("mousedown", handleClickOutside);
         }
-
     }, [isOpen, onClose]);
 
     if (!isOpen) return null;
@@ -50,11 +48,15 @@ const MessageReactionEmojiPicker = ({ postId, onReact, onClose, isOpen }) => {
         <AnimatePresence>
             <motion.div
                 ref={pickerRef}
-                initial={{ opacity: 0, y: 0, scale: 0.95 }}
+                initial={{ opacity: 0, y: 10, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                exit={{ opacity: 0, y: 10, scale: 0.9 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 bottom-full mb-2 z-50 bg-white p-2 rounded-xl shadow-2xl border-2 border-blue-200 w-80 max-h-64 overflow-auto"
+                className="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-100"
+                style={{
+                    top: position?.top || 0,
+                    left: position?.left || 0,
+                }}
             >
                 {!showFullPicker ? (
                     <div className="flex items-center gap-1 p-1.5">
@@ -62,7 +64,9 @@ const MessageReactionEmojiPicker = ({ postId, onReact, onClose, isOpen }) => {
                             <button
                                 key={idx}
                                 onClick={() => handleQuickReact(emoji)}
-                                className="w-9 h-9 flex items-center justify-center text-xl hover:bg-gray-100 rounded-lg transition-colors hover:scale-125 transform"
+                                className={`w-9 h-9 flex items-center justify-center text-xl hover:bg-gray-100 rounded-lg transition-colors hover:scale-125 transform ${
+                                    currentUserReaction === emoji ? 'bg-blue-100 ring-2 ring-blue-400' : ''
+                                }`}
                             >
                                 {emoji}
                             </button>

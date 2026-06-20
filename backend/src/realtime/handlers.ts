@@ -54,7 +54,7 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
             const { receiverId, text, media, conversationId, replyTo, mentions, location, contact, isVoiceMessage, voiceDuration } = payload;
 
             if (!receiverId && !conversationId) return ack?.({ ok: false, error: 'No receiver or conversation specified' });
-            if (!text && (!media || !media.length) && !location && !contact && !isVoiceMessage) {
+            if (!text && (!media || !media.length) && !location && !contact && !isVoiceMessage && !payload.call) {
                 return ack?.({ ok: false, error: 'Empty message' });
             }
 
@@ -224,7 +224,7 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
             const targets = [msg.senderId.toString(), msg.receiverId?.toString()].filter(Boolean);
             const receivers = Array.from(io.sockets.sockets.values())
                 .filter((s) => targets.includes(s.data?.userId));
-            receivers.forEach((r) => r.emit('reaction:update', { messageId: msg._id, reactions: msg.reactions }));
+            receivers.forEach((r) => r.emit('reaction:update', { messageId: msg._id, reactions: msg.reactions, userId }));
 
             ack?.({ ok: true, reactions: msg.reactions });
         } catch (err: any) {
@@ -264,6 +264,7 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
         }
     });
 
+    // Soft Delete (Delete for me)
     socket.on('message:delete', async (payload: { messageId: string }, ack?: Function) => {
         try {
             const msg = await Message.findById(payload.messageId);
@@ -273,25 +274,28 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
             msg.deletedAt = new Date();
             await msg.save();
 
+            // Update conversation's lastMessage to the previous non‑deleted message
+            const latestMessage = await Message.findOne(
+                { conversationId: msg.conversationId, deletedForEveryone: { $ne: true } },
+                {},
+                { sort: { createdAt: -1 } }
+            );
+            await Conversation.findByIdAndUpdate(msg.conversationId, {
+                lastMessage: latestMessage?._id || null
+            });
+
+            // Update Redis cache for the deleted message (already present)
             const conversationId = msg.conversationId?.toString();
             if (conversationId) {
-                await updateCachedMessage(conversationId, payload.messageId, msg).catch(err =>
-                    console.error('Redis update (soft delete) error:', err?.message)
-                );
+                await updateCachedMessage(conversationId, payload.messageId, msg)
+                    .catch(err => console.error('Redis update (soft delete) error:', err?.message));
             }
 
+            // Notify participants
             const targets = [msg.senderId.toString(), msg.receiverId?.toString()].filter(Boolean);
             const receivers = Array.from(io.sockets.sockets.values())
                 .filter((s) => targets.includes(s.data?.userId));
             receivers.forEach((r) => r.emit('message:deleted', { messageId: msg._id }));
-
-            // Update conversation's lastMessage
-            const latestMessage = await Message.findOne(
-                { conversationId: msg.conversationId, deletedAt: null, deletedForEveryone: false },
-                {},
-                { sort: { createdAt: -1 } }
-            );
-            await Conversation.findByIdAndUpdate(msg.conversationId, { lastMessage: latestMessage?._id || null });
 
             ack?.({ ok: true });
         } catch (err: any) {
@@ -312,6 +316,14 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
             msg.media = [];
             await msg.save();
 
+            // Update conversation's lastMessage
+            const latestMessage = await Message.findOne(
+                { conversationId: msg.conversationId, deletedForEveryone: { $ne: true } },
+                {},
+                { sort: { createdAt: -1 } }
+            );
+            await Conversation.findByIdAndUpdate(msg.conversationId, { lastMessage: latestMessage?._id || null });
+
             const conversationId = msg.conversationId?.toString();
             if (conversationId) {
                 await removeCachedMessage(conversationId, payload.messageId).catch(err =>
@@ -323,14 +335,6 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
             const receivers = Array.from(io.sockets.sockets.values())
                 .filter((s) => targets.includes(s.data?.userId));
             receivers.forEach((r) => r.emit('message:deleted:everyone', { messageId: msg._id }));
-
-            // Update conversation's lastMessage
-            const latestMessage = await Message.findOne(
-                { conversationId: msg.conversationId, deletedAt: null, deletedForEveryone: false },
-                {},
-                { sort: { createdAt: -1 } }
-            );
-            await Conversation.findByIdAndUpdate(msg.conversationId, { lastMessage: latestMessage?._id || null });
 
             ack?.({ ok: true });
         } catch (err: any) {

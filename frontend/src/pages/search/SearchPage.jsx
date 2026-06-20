@@ -4,12 +4,13 @@ import {Input} from "../../components/common/input"
 import {useUserStore} from "../../store/useUserStore";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import {useState, useEffect} from "react";
-import {Link, useLocation} from "react-router-dom";
+import {Link, useLocation, useNavigate} from "react-router-dom";
 import {formatPostDate} from "../../utils/date";
 import axiosInstance from "../../lib/axios";
 
 const SearchPage = () => {
     const location = useLocation();
+    const navigate = useNavigate();
 
     const [searchType, setSearchType] = useState("all");
     const [showSearchType, setShowSearchType] = useState(false);
@@ -35,6 +36,31 @@ const SearchPage = () => {
         isGettingTrending,
         trendingHasMore,
     } = useUserStore();
+
+    useEffect(() => {
+        if (location.state?.conversationId && location.state?.messageId) {
+            const { conversationId, messageId } = location.state;
+            // Find the conversation and select it
+            const conv = conversations.find(c => c._id === conversationId);
+            if (conv) {
+                selectConversation(conv);
+                // Wait for messages to load, then scroll
+                setTimeout(() => {
+                    scrollToMessage(messageId);
+                }, 500);
+            } else {
+                // If conversation not in list yet, fetch it
+                getConversation(conversationId).then(conv => {
+                    if (conv) {
+                        selectConversation(conv);
+                        setTimeout(() => scrollToMessage(messageId), 500);
+                    }
+                });
+            }
+            // Clear the state so it doesn't re-trigger
+            navigate('/chat', { replace: true, state: {} });
+        }
+    }, [location.state]);
 
     useEffect(() => {
         getTrending();
@@ -179,11 +205,13 @@ const SearchPage = () => {
         });
     };
 
-    const handleChatClick = (chatId) => {
-        // Placeholder for chat page navigation when built
-        console.log('Navigate to chat:', chatId);
-        // TODO: Uncomment when chat page is built
-        // navigate(`/chat/${chatId}`);
+    const handleChatClick = (chat) => {
+        navigate('/chat', {
+            state: {
+                conversationId: chat.conversationId,
+                messageId: chat._id
+            }
+        });
     };
 
     const renderSearchResult = (item, index, type) => {
@@ -252,7 +280,7 @@ const SearchPage = () => {
 
         if (type === "chat") {
             return (
-                <div key={index} onClick={() => handleChatClick(item._id)} className="cursor-pointer">
+                <div key={index} onClick={() => handleChatClick(item)} className="cursor-pointer">
                     <div className="flex items-center gap-4 p-4 bg-white rounded-xl border border-gray-300 hover:border-blue-200 hover:shadow-md transition-all duration-200">
                         <div className="avatar">
                             <div className="w-12 h-12 rounded-full overflow-hidden bg-blue-200 flex items-center justify-center">

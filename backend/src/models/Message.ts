@@ -94,6 +94,12 @@ const messageSchema = new mongoose.Schema(
         contact: {
             name: String,
             phoneNumber: String,
+            userId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User",
+            },
+            username: String,
+            avatarUrl: String,
         },
         // view once (like WhatsApp)
         viewOnce: {
@@ -138,9 +144,6 @@ const messageSchema = new mongoose.Schema(
             type: Date,
             default: undefined,
         },
-        pinned: { type: Boolean, default: false },
-        pinnedAt: { type: Date },
-        pinnedUntil: { type: Date },
         poll: {
             question: String,
             options: [String],
@@ -153,6 +156,12 @@ const messageSchema = new mongoose.Schema(
             location: String
         },
         isHexagon: { type: Boolean, default: false },
+        call: {
+            type: { type: String, enum: ['audio', 'video'] },
+            duration: Number,
+            status: { type: String, enum: ['missed', 'ended', 'no_answer'] },
+            callerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+        }
     },
     { timestamps: true }
 );

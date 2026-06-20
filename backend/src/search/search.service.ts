@@ -71,10 +71,10 @@ export class SearchService {
         })
             .skip(skip)
             .limit(limit)
-            .select("text read media createdAt updatedAt");
-        
+            .select("text read media createdAt updatedAt conversationId");   // <-- add conversationId
+
         const total = await Message.countDocuments({ text: regex });
-        
+
         return { chats, hasMore: skip + limit < total };
     }
 
