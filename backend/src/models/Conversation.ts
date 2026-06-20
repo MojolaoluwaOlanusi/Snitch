@@ -65,6 +65,8 @@ const conversationSchema = new mongoose.Schema(
         reportCount: { type: Number, default: 0 },
         reportedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
         lockPassword: String,
+        disappearingTimer: { type: Number, default: null }, // in seconds, null = off
+        wallpaper: { type: String, default: null },
     },
     { timestamps: true }
 );

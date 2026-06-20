@@ -11,21 +11,23 @@ async function authMiddleware(req: any, res: any, next: any) {
         const token = h.split(' ')[1];
         const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
         req.userId = decoded.id;
+        // Also set a user object for convenience (optional)
+        req.user = { _id: decoded.id };
         next();
     } catch (e) {
-        console.log(`An exception occured: ${e}`)
+        console.log(`An exception occured: ${e}`);
         return res.status(401).json({ error: 'invalid' });
     }
 }
 
 router.get('/get-notifications', authMiddleware, async (req, res) => {
     try {
-        const userId = req.userId;
+        const userId = req.userId;  // ← use req.userId, not req.user._id
 
-        const notifications = await Notification.find({ to: userId }).populate({
-            path: "from",
-            select: "username profileImg",
-        });
+        const notifications = await Notification.find({ to: userId })
+            .populate("from", "username displayName avatarUrl")
+            .populate("conversationId", "_id")
+            .sort({ createdAt: -1 });
 
         await Notification.updateMany({ to: userId }, { read: true });
 
@@ -36,7 +38,7 @@ router.get('/get-notifications', authMiddleware, async (req, res) => {
     }
 });
 
-router.delete( '/delete-notification', authMiddleware, async (req, res) => {
+router.delete('/delete-notification', authMiddleware, async (req, res) => {
     try {
         const userId = req.userId;
 

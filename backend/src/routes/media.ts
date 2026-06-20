@@ -119,4 +119,42 @@ router.post('/chat-presign', authMiddleware, async (req: any, res: any) => {
     }
 });
 
+// Wallpaper presign (authenticated)
+router.post('/wallpaper-presign', authMiddleware, async (req: any, res: any) => {
+    try {
+        const userId = req.userId;
+        const { conversationId, fileName, contentType } = req.body;
+        if (!contentType || !conversationId) {
+            return res.status(400).json({ ok: false, error: 'missing required fields' });
+        }
+
+        // Allow only images
+        if (!contentType.startsWith('image/')) {
+            return res.status(400).json({ ok: false, error: 'invalid content type, only images allowed' });
+        }
+
+        const bucket = process.env.S3_BUCKET || 'snitch-dev';
+        const ext = fileName ? fileName.split('.').pop() : contentType.split('/').pop();
+        const uniqueName = `${Date.now()}-${randomUUID()}.${ext}`;
+        const key = `wallpapers/${conversationId}/${uniqueName}`;
+
+        const cmd = new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType });
+        const url = await getSignedUrl(s3, cmd, { expiresIn: 300 });
+
+        const baseUrl = process.env.S3_ENDPOINT
+            ? `${process.env.S3_ENDPOINT.replace(/\/$/, '')}/${bucket}`
+            : `https://${bucket}.s3.amazonaws.com`;
+
+        res.json({
+            ok: true,
+            uploadUrl: url,
+            key,
+            publicUrl: `${baseUrl}/${key}`,
+        });
+    } catch (err: any) {
+        console.error('wallpaper-presign error', err);
+        res.status(500).json({ ok: false, error: err?.message || 'presign_error' });
+    }
+});
+
 export default router;

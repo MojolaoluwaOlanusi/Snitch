@@ -14,7 +14,7 @@ import {
     Minimize2, Maximize2, Camera, MessageSquare, User, Contact,
     BarChart3, Calendar, Lock, Shield, Flag, Download, ExternalLink,
     Heart, UserCheck, UserX, VolumeX, Eye, EyeOff, StarOff, VideoIcon,
-    StopCircle, Unlock, Hexagon, Edit, Volume2
+    StopCircle, Unlock, Hexagon, Edit, Volume2, Languages, Upload
 } from "lucide-react";
 import EmojiPicker from "../../components/common/EmojiPicker";
 import MessageReactionEmojiPicker from "../../components/common/MessageReactionEmojiPicker";
@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axiosInstance from "../../lib/axios";
 import toast from "react-hot-toast";
 import { useNavigate, useLocation } from "react-router-dom";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
 
 // ==================== Sub-Components ====================
 
@@ -144,6 +145,17 @@ const ChatPage = () => {
     const location = useLocation();
 
     // --- State ---
+    const [customWallpapers, setCustomWallpapers] = useState([]);
+    const [showWallpaperModal, setShowWallpaperModal] = useState(false);
+    const [wallpaperUploading, setWallpaperUploading] = useState(false);
+    const [translations, setTranslations] = useState({}); // { [messageId]: translatedText }
+    const [translating, setTranslating] = useState({});     // { [messageId]: true/false }
+    const [showMentionsDropdown, setShowMentionsDropdown] = useState(false);
+    const [mentionSearch, setMentionSearch] = useState('');
+    const [mentionableUsers, setMentionableUsers] = useState([]);
+    const [cursorPosition, setCursorPosition] = useState(0);
+    const [showDisappearingModal, setShowDisappearingModal] = useState(false);
+    const [isSending, setIsSending] = useState(false);
     const [isViewOnce, setIsViewOnce] = useState(false);
     const [isRinging, setIsRinging] = useState(false);
     const [showPollVoters, setShowPollVoters] = useState(null);
@@ -334,6 +346,15 @@ const ChatPage = () => {
                 }
             }
         });
+        socket.on('notification:mention', ({ messageId, conversationId, from, text }) => {
+            // If we are in the same conversation, show a toast
+            if (conversationId === selectedConversation?._id) {
+                toast(text, { icon: '💬' });
+            } else {
+                // Otherwise, show a notification toast that can navigate
+                toast(text, { icon: '💬' });
+            }
+        });
         socket.on('message:read', ({ messageId }) => {
             updateMessage(messageId, { status: 'read' });
         });
@@ -388,7 +409,7 @@ const ChatPage = () => {
             });
         });
         socket.on('message:viewed', ({ messageId, viewedBy }) => {
-            updateMessage(messageId, { viewedBy });
+            updateMessage(messageId, { viewedBy, media: [] });
         });
         socket.on('webrtc:call:incoming', ({ callId, from, isVideo, metadata }) => {
             const conv = conversations.find(c => c.participants?.some(p => p._id === from));
@@ -551,6 +572,19 @@ const ChatPage = () => {
             toast.error('Could not open conversation');
         }
     };
+
+    useEffect(() => {
+        if (selectedConversation) {
+            // For direct chats: the other user
+            // For groups: all participants
+            if (selectedConversation.isGroup) {
+                setMentionableUsers(selectedConversation.participants || []);
+            } else {
+                const other = getOtherUser(selectedConversation);
+                setMentionableUsers(other ? [other] : []);
+            }
+        }
+    }, [selectedConversation]);
 
     useEffect(() => {
         if (selectedConversation?._id) {
@@ -723,6 +757,33 @@ const ChatPage = () => {
         setShowShareContactModal(true);
     };
 
+    const extractMentionedUserIds = (text) => {
+        const regex = /@(\w+)/g;
+        const matches = [...text.matchAll(regex)];
+        const mentionedUsernames = matches.map(m => m[1]);
+        // Find matching users from mentionableUsers
+        const mentionedUsers = mentionableUsers.filter(u => mentionedUsernames.includes(u.username));
+        return mentionedUsers.map(u => u._id);
+    };
+
+    const handleTranslate = async (messageId, text) => {
+        if (!text || translations[messageId]) return; // already translated
+
+        setTranslating(prev => ({ ...prev, [messageId]: true }));
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.post('/chat/translate',
+                { text, targetLang: 'en' },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setTranslations(prev => ({ ...prev, [messageId]: res.data.translated }));
+        } catch (error) {
+            toast.error('Translation failed');
+        } finally {
+            setTranslating(prev => ({ ...prev, [messageId]: false }));
+        }
+    };
+
     const handleSearchInput = (value) => {
         setSearchQuery(value);
         if (searchTimeout) clearTimeout(searchTimeout);
@@ -755,6 +816,67 @@ const ChatPage = () => {
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const handleSetWallpaper = async (url) => {
+        if (!selectedConversation) return;
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.put(
+                `/chat/conversation/${selectedConversation._id}/wallpaper`,
+                { wallpaperUrl: url },   // key must be wallpaperUrl
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            console.log('Wallpaper response:', res.data);
+
+            // Update the store
+            const updatedConv = { ...selectedConversation, wallpaper: url };
+            const updatedConversations = conversations.map(c =>
+                c._id === selectedConversation._id ? updatedConv : c
+            );
+            useChatStore.setState({
+                conversations: updatedConversations,
+                selectedConversation: updatedConv,
+            });
+
+            toast.success('Wallpaper updated');
+        } catch (error) {
+            console.error('Failed to set wallpaper:', error);
+            toast.error('Failed to set wallpaper');
+        }
+    };
+
+    const handleUploadWallpaper = async (file) => {
+        if (!selectedConversation) return;
+        setWallpaperUploading(true);
+        try {
+            const token = localStorage.getItem('access-token');
+            // 1. Get presigned URL
+            const presignRes = await axiosInstance.post('/media/wallpaper-presign', {
+                conversationId: selectedConversation._id,
+                fileName: file.name,
+                contentType: file.type,
+            }, { headers: { Authorization: `Bearer ${token}` } });
+
+            // 2. Upload to MinIO
+            await fetch(presignRes.data.uploadUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': file.type },
+                body: file,
+            });
+
+            const publicUrl = presignRes.data.publicUrl;
+
+            // 3. Set wallpaper in conversation (and update store)
+            await handleSetWallpaper(publicUrl);
+
+            // 4. Add to custom wallpapers collection
+            setCustomWallpapers(prev => [publicUrl, ...prev]);
+        } catch (error) {
+            toast.error('Failed to upload wallpaper');
+        } finally {
+            setWallpaperUploading(false);
+        }
     };
 
     const handleVoicePlay = (messageId, url) => {
@@ -1086,40 +1208,44 @@ const ChatPage = () => {
 
     const handleSendMessage = async () => {
         if (!messageText.trim() && !selectedFile) return;
+        if (isSending) return; // prevent double sends
         if (isChatRestricted) { toast.error('You are restricted from chatting'); return; }
         if (isBlocked) { toast.error('You have blocked this user. Unblock to send messages.'); return; }
         if (isBlockedBy) { toast.error('You have been blocked by this user'); return; }
 
-        if (editingMessageId) {
-            await editMessage({ messageId: editingMessageId, newText: messageText });
-            setEditingMessageId(null);
-        } else {
-            const tempId = `temp_${Date.now()}`;
-            addedMessageIds.current.add(tempId);
+        setIsSending(true);
 
-            // Use blob URL for instant preview
-            const optimisticMessage = {
-                _id: tempId,
-                senderId: { _id: authUser?._id, displayName: authUser?.displayName },
-                text: messageText,
-                conversationId: selectedConversation?._id,
-                createdAt: new Date().toISOString(),
-                status: 'sending',
-                media: selectedFile ? [{
-                    url: selectedFile.url, // temporary blob
-                    mime: selectedFile.type,
-                    size: selectedFile.size,
-                    filename: selectedFile.name,
-                    isHexagon: selectedFile.isHexagon || false,
-                    isVoice: selectedFile.isVoice || false,
-                }] : [],
-                replyTo: replyingTo || undefined,
-            };
+        try {
+            if (editingMessageId) {
+                await editMessage({ messageId: editingMessageId, newText: messageText });
+                setEditingMessageId(null);
+            } else {
+                const tempId = `temp_${Date.now()}`;
+                addedMessageIds.current.add(tempId);
 
-            addMessage(optimisticMessage);
-            scrollToBottom();
+                // Optimistic message with blob preview
+                const optimisticMessage = {
+                    _id: tempId,
+                    senderId: { _id: authUser?._id, displayName: authUser?.displayName },
+                    text: messageText,
+                    conversationId: selectedConversation?._id,
+                    createdAt: new Date().toISOString(),
+                    status: 'sending',
+                    media: selectedFile ? [{
+                        url: selectedFile.url, // temporary blob
+                        mime: selectedFile.type,
+                        size: selectedFile.size,
+                        filename: selectedFile.name,
+                        isHexagon: selectedFile.isHexagon || false,
+                        isVoice: selectedFile.isVoice || false,
+                    }] : [],
+                    replyTo: replyingTo || undefined,
+                    viewOnce: isViewOnce || undefined,
+                };
 
-            try {
+                addMessage(optimisticMessage);
+                scrollToBottom();
+
                 let finalMedia = null;
 
                 // Upload to MinIO if there's a file
@@ -1145,7 +1271,9 @@ const ChatPage = () => {
                     }];
                 }
 
-                // Send message with final URLs
+                const mentionedIds = extractMentionedUserIds(messageText);
+
+                // Send the message with final URLs and all metadata
                 const result = await sendMessage({
                     receiverId: getOtherUser(selectedConversation)?._id,
                     conversationId: selectedConversation?._id,
@@ -1155,6 +1283,7 @@ const ChatPage = () => {
                     isVoiceMessage: selectedFile?.isVoice || false,
                     voiceDuration: selectedFile?.isVoice ? recordingDuration : undefined,
                     viewOnce: isViewOnce || undefined,
+                    mentions: mentionedIds,
                 });
 
                 if (result?._id) {
@@ -1162,19 +1291,19 @@ const ChatPage = () => {
                     addedMessageIds.current.add(result._id);
                     addMessage(result);
                 }
-
-                setIsViewOnce(false);
-            } catch (error) {
-                updateMessage(tempId, { status: 'failed' });
-                if (error?.message?.includes('blocked')) toast.error('You have been blocked by this user');
-                else toast.error('Failed to send message');
             }
+        } catch (error) {
+            updateMessage(tempId, { status: 'failed' });
+            if (error?.message?.includes('blocked')) toast.error('You have been blocked by this user');
+            else toast.error('Failed to send message');
+        } finally {
+            setIsSending(false);
+            setMessageText("");
+            setSelectedFile(null);
+            setReplyingTo(null);
+            setShowEmojiPicker(false);
+            setIsViewOnce(false);
         }
-
-        setMessageText("");
-        setSelectedFile(null);
-        setReplyingTo(null);
-        setShowEmojiPicker(false);
     };
 
     const handleKeyDown = (e) => {
@@ -2120,7 +2249,9 @@ const ChatPage = () => {
         const isOwn = getIsOwn(message);
         const isDeleted = message.deletedAt || message.deletedForEveryone;
         const isStarred = Array.isArray(message.starredBy) && message.starredBy.includes(authUser?._id);
+        const isMentioned = Array.isArray(message.mentions) && message.mentions.includes(authUser?._id);
 
+        // Reaction notification message
         if (message.isReactionNotification) {
             return (
                 <div className="flex justify-center mb-1 px-4">
@@ -2131,6 +2262,7 @@ const ChatPage = () => {
             );
         }
 
+        // Deleted message
         if (isDeleted) {
             return (
                 <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-1 px-4`}>
@@ -2141,219 +2273,118 @@ const ChatPage = () => {
             );
         }
 
-        // ==================== HEXAGON VIDEO - Standalone Container (No Chat Bubble) ====================
         const hasHexagonVideo = message.media && message.media.length > 0 && message.media[0]?.isHexagon;
 
-        const AudioPlayer = ({message,src}) => (
-            <div className="py-1.5" style={{ width: '100%', minWidth: '250px' }}>
-                <div className="flex items-center gap-2">
-                    {/* Play/Pause Button */}
-                    <button
-                        className="p-1.5 rounded-full hover:bg-white/20 flex-shrink-0"
-                        onClick={() => handleVoicePlay(message._id, src)}
-                    >
-                        {playingVoiceId === message._id ? (
-                            <Pause className="w-5 h-5" />
-                        ) : (
-                            <Play className="w-5 h-5" />
-                        )}
-                    </button>
-
-                    {/* Current Time */}
-                    <span className={`text-xs flex-shrink-0 w-10 text-right tabular-nums ${isOwn ? 'text-white' : 'text-gray-600'}`}>
-                {formatVoiceTime(voiceCurrentTimes[message._id] || 0)}
-            </span>
-
-                    {/* Progress Bar */}
-                    <div
-                        className={`flex-1 h-1.5 rounded-full overflow-hidden cursor-pointer relative ${
-                            isOwn ? 'bg-white/30' : 'bg-gray-200'
-                        }`}
-                        onClick={(e) => handleProgressClick(e, message._id)}
-                    >
-                        <div
-                            className={`h-full rounded-full transition-all duration-100 ${
-                                isOwn ? 'bg-white' : 'bg-gray-500'
-                            }`}
-                            style={{ width: `${voiceProgressWidths[message._id] || 0}%` }}
-                        />
-                        <div
-                            className={`absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full shadow cursor-pointer hover:scale-125 transition-transform ${
-                                isOwn ? 'bg-white' : 'bg-gray-600'
-                            }`}
-                            style={{ left: `calc(${voiceProgressWidths[message._id] || 0}% - 6px)` }}
-                            onMouseDown={(e) => {
-                                e.stopPropagation();
-                                const bar = e.currentTarget.parentElement;
-                                const onMove = (moveEvent) => {
-                                    const rect = bar.getBoundingClientRect();
-                                    const percent = Math.max(0, Math.min(100, ((moveEvent.clientX - rect.left) / rect.width) * 100));
-                                    if (audioRef.current && playingVoiceId === message._id) {
-                                        audioRef.current.currentTime = (percent / 100) * audioRef.current.duration;
-                                        setVoiceProgressWidths(prev => ({ ...prev, [message._id]: percent }));
-                                    }
-                                };
-                                const onUp = () => {
-                                    document.removeEventListener('mousemove', onMove);
-                                    document.removeEventListener('mouseup', onUp);
-                                };
-                                document.addEventListener('mousemove', onMove);
-                                document.addEventListener('mouseup', onUp);
-                            }}
-                        />
-                    </div>
-
-                    {/* Duration */}
-                    <span className={`text-xs flex-shrink-0 w-10 tabular-nums ${isOwn ? 'text-white' : 'text-gray-600'}`}>
-                {formatVoiceTime(voiceDurations[message._id] || message.voiceDuration || 0)}
-            </span>
-
-                </div>
-            </div>
-        )
-
+        // ==================== HEXAGON VIDEO ====================
         if (hasHexagonVideo) {
             const hexMedia = message.media[0];
-            return (
-                <div
-                    className={`flex items-end mb-3 px-4 group ${isOwn ? 'justify-end' : 'justify-start'}`}
-                    onContextMenu={(e) => handleContextMenu(e, message._id)}
-                >
-                    {/* Action buttons */}
-                    <div
-                        className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${isOwn ? 'order-1 mr-1' : 'order-2 ml-1'}`}
-                    >
-                        <button onClick={
-                            (e) => {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setReactionPickerPos({ top: rect.top - 60, left: rect.left });
-                                setShowReactionPicker(message._id);
-                            }}
-                            className="p-1 hover:bg-gray-100 rounded-full"
-                            title="React"
-                        >
-                            <Smile className="w-4 h-4 text-gray-400" />
-                        </button>
-                        <button onClick={
-                            (e) => {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setMenuPosition(
-                                    {
-                                        x: rect.left,
-                                        y: rect.bottom + 4
-                                    });
-                                setShowMenu(message._id);
-                            }}
-                            className="p-1 hover:bg-gray-100 rounded-full"
-                            title="More"
-                        >
-                            <MoreHorizontal className="w-4 h-4 text-gray-400" />
-                        </button>
-                    </div>
 
-                    {/* Hexagon Video Container - with colored outline */}
-                    <div className={`relative ${isOwn ? 'order-2' : 'order-1'}`}>
-                        {/* Pinned indicator */}
-                        {message.pinned && (
-                            <div className="absolute -top-5 left-0 flex items-center gap-1 z-10">
-                                <Pin className="w-3 h-3 text-blue-400" />
-                                <span className="text-[10px] text-blue-400">Pinned</span>
+            // Receiver view‑once hexagon
+            if (message.viewOnce && !isOwn) {
+                const alreadyViewed = message.viewedBy?.includes(authUser?._id);
+                return (
+                    <div className={`flex items-end mb-3 px-4 group ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                        {alreadyViewed ? (
+                            <div className="text-xs text-gray-500 italic flex items-center gap-2">
+                                <Eye className="w-4 h-4" />
+                                You viewed this
+                            </div>
+                        ) : (
+                            <div
+                                className="relative cursor-pointer"
+                                onClick={async () => {
+                                    updateMessage(message._id, {
+                                        viewedBy: [...(message.viewedBy || []), authUser?._id],
+                                        media: [],
+                                    });
+                                    if (hexMedia) setShowMediaViewer(hexMedia);
+                                    try {
+                                        const token = localStorage.getItem('access-token');
+                                        await axiosInstance.put(`/chat/message/${message._id}/view-once`, {}, {
+                                            headers: { Authorization: `Bearer ${token}` }
+                                        });
+                                    } catch (error) { toast.error('Failed'); }
+                                }}
+                            >
+                                <div className={`w-[216px] h-[216px] flex items-center justify-center bg-gray-200`}
+                                     style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', WebkitClipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}>
+                                    <div className="w-[208px] h-[208px] relative"
+                                         style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', WebkitClipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}>
+                                        <video src={hexMedia.url} className="w-full h-full object-cover blur-md" />
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                            <p className="text-white text-xs font-bold bg-black/50 px-2 py-1 rounded">View Once</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
+                    </div>
+                );
+            }
 
-                        {/* Outer hexagon - this creates the colored border */}
-                        <div
-                            className={`w-[216px] h-[216px] flex items-center justify-center ${
-                                isOwn ? 'bg-emerald-500' : 'bg-gray-200'
-                            }`}
-                            style={{
-                                clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
-                                WebkitClipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
-                            }}
-                        >
-                            {/* Inner hexagon - slightly smaller, contains the video */}
-                            <div
-                                className="w-[208px] h-[208px] cursor-pointer relative group/hex"
-                                style={{
-                                    clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
-                                    WebkitClipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
-                                }}
-                                onMouseEnter={() => {
-                                    setHoveredHexagonId(message._id);
-                                    const vid = document.getElementById(`hex-vid-${message._id}`);
-                                    if (vid) {
-                                        vid.muted = true;
-                                        vid.currentTime = 0;
-                                        vid.play().catch(() => {});
-                                        hexagonTimers.current[message._id] = setTimeout(() => {
-                                            vid.pause();
-                                            vid.currentTime = 0;
-                                        }, 10000);
-                                    }
-                                }}
-                                onMouseLeave={() => {
-                                    setHoveredHexagonId(null);
-                                    const vid = document.getElementById(`hex-vid-${message._id}`);
-                                    if (vid) {
-                                        vid.pause();
-                                        vid.currentTime = 0;
-                                    }
-                                    clearTimeout(hexagonTimers.current[message._id]);
-                                }}
-                                onClick={() => setShowMediaViewer(hexMedia)}
-                            >
-                                <video
-                                    id={`hex-vid-${message._id}`}
-                                    src={hexMedia.url}
-                                    className="w-full h-full object-cover"
-                                    preload="metadata"
-                                />
+            // Sender view‑once hexagon
+            if (message.viewOnce && isOwn) {
+                return (
+                    <div className={`flex items-end mb-3 px-4 group ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`w-[216px] h-[216px] flex items-center justify-center bg-emerald-500`}
+                             style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', WebkitClipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}>
+                            <div className="w-[208px] h-[208px] relative"
+                                 style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', WebkitClipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}>
+                                {message.viewedBy?.length > 0 ? (
+                                    <div className="w-full h-full flex items-center justify-center text-white text-xs">
+                                        Viewed
+                                    </div>
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-white text-xs">
+                                        Sent as view‑once
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Normal (non‑view‑once) hexagon
+            return (
+                <div className={`flex items-end mb-3 px-4 group ${isOwn ? 'justify-end' : 'justify-start'}`}
+                     onContextMenu={(e) => handleContextMenu(e, message._id)}>
+                    {/* Action buttons */}
+                    <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${isOwn ? 'order-1 mr-1' : 'order-2 ml-1'}`}>
+                        <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setReactionPickerPos({ top: rect.top - 60, left: rect.left }); setShowReactionPicker(message._id); }} className="p-1 hover:bg-gray-100 rounded-full" title="React"><Smile className="w-4 h-4 text-gray-400" /></button>
+                        <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setMenuPosition({ x: rect.left, y: rect.bottom + 4 }); setShowMenu(message._id); }} className="p-1 hover:bg-gray-100 rounded-full" title="More"><MoreHorizontal className="w-4 h-4 text-gray-400" /></button>
+                    </div>
+
+                    <div className={`relative ${isOwn ? 'order-2' : 'order-1'}`}>
+                        {message.pinned && <div className="absolute -top-5 left-0 flex items-center gap-1 z-10"><Pin className="w-3 h-3 text-blue-400" /><span className="text-[10px] text-blue-400">Pinned</span></div>}
+                        <div className={`w-[216px] h-[216px] flex items-center justify-center ${isOwn ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                             style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', WebkitClipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}>
+                            <div className="w-[208px] h-[208px] cursor-pointer relative group/hex"
+                                 style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', WebkitClipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+                                 onMouseEnter={() => { /* hover play */ }}
+                                 onMouseLeave={() => { /* stop hover play */ }}
+                                 onClick={() => setShowMediaViewer(hexMedia)}>
+                                <video id={`hex-vid-${message._id}`} src={hexMedia.url} className="w-full h-full object-cover" preload="metadata" />
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover/hex:opacity-100 transition-opacity">
                                     <Play className="w-10 h-10 text-white drop-shadow-lg" />
                                 </div>
                             </div>
                         </div>
-
-                        {/* Time and status below hexagon */}
                         <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end text-emerald-100' : 'justify-end text-gray-400'}`}>
                             {message.editedAt && <span className="text-[10px]">edited</span>}
                             {isStarred && <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />}
-                            {message.status === 'failed' && isOwn && (
-                                <button
-                                    onClick={() => handleResendMessage(message)}
-                                    className="text-[10px] text-red-400 hover:text-red-500 underline"
-                                >
-                                    Resend
-                                </button>
-                            )}
+                            {message.status === 'failed' && isOwn && <button onClick={() => handleResendMessage(message)} className="text-[10px] text-red-400 hover:text-red-500 underline">Resend</button>}
                             <span className="text-[10px]">{formatMessageTime(message.createdAt)}</span>
                             {getMessageStatusIcon(message)}
                         </div>
-
-                        {/* Reactions on hexagon */}
                         {message.reactions && Object.keys(message.reactions).length > 0 && (
                             <div className={`absolute -top-2 ${isOwn ? '-left-2' : '-right-2'} flex gap-0.5`}>
-                                {Object.values(message.reactions).slice(0, 3).map((r, i) => (
-                                    <span
-                                        key={i}
-                                        className="text-xs bg-white shadow px-1.5 py-0.5 rounded-full border"
-                                    >
-                                        {r}
-                                    </span>
-                                ))}
+                                {Object.values(message.reactions).slice(0, 3).map((r, i) => <span key={i} className="text-xs bg-white shadow px-1.5 py-0.5 rounded-full border">{r}</span>)}
                             </div>
                         )}
                     </div>
-
-                    {/* Reaction picker */}
                     {showReactionPicker === message._id && (
-                        <div
-                            className="fixed z-50"
-                            style={{
-                                top: Math.min(reactionPickerPos.top, window.innerHeight - 300),
-                                left: Math.min(reactionPickerPos.left, window.innerWidth - 320)
-                            }}
-                        >
+                        <div className="fixed z-50" style={{ top: Math.min(reactionPickerPos.top, window.innerHeight - 300), left: Math.min(reactionPickerPos.left, window.innerWidth - 320) }}>
                             <MessageReactionEmojiPicker
                                 postId={message._id}
                                 onReact={(emoji) => handleReaction(message._id, emoji)}
@@ -2369,68 +2400,62 @@ const ChatPage = () => {
         }
 
         // ==================== REGULAR MESSAGE (Chat Bubble) ====================
+        // Receiver view‑once for non‑hexagon media (images)
+        if (message.viewOnce && !isOwn && !hasHexagonVideo) {
+            const alreadyViewed = message.viewedBy?.includes(authUser?._id);
+            const mediaUrl = message.media?.[0]?.url;
+            return (
+                <div className={`flex items-end mb-1 px-4 group ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                    {alreadyViewed ? (
+                        <div className="text-xs text-gray-500 italic flex items-center gap-2">
+                            <Eye className="w-4 h-4" />
+                            You viewed this
+                        </div>
+                    ) : (
+                        <div
+                            className="relative cursor-pointer"
+                            onClick={async () => {
+                                updateMessage(message._id, {
+                                    viewedBy: [...(message.viewedBy || []), authUser?._id],
+                                    media: [],
+                                });
+                                if (mediaUrl) setShowMediaViewer({ url: mediaUrl, mime: message.media[0].mime });
+                                try {
+                                    const token = localStorage.getItem('access-token');
+                                    await axiosInstance.put(`/chat/message/${message._id}/view-once`, {}, {
+                                        headers: { Authorization: `Bearer ${token}` }
+                                    });
+                                } catch (error) { toast.error('Failed'); }
+                            }}
+                        >
+                            <div className="w-40 h-40 relative">
+                                <img src={mediaUrl} alt="" className="w-full h-full object-cover rounded-lg blur-md" />
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <p className="text-white text-xs font-bold bg-black/50 px-2 py-1 rounded">View Once</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // Regular message return
         return (
-            <div
-                className={`flex items-end mb-1 px-4 group ${isOwn ? 'justify-end' : 'justify-start'}`}
-                onContextMenu={(e) => handleContextMenu(e, message._id)}
-            >
-                <div
-                    className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${isOwn ? 'order-1 mr-1' : 'order-2 ml-1'}`}
-                >
-                    <button
-                        onClick={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setReactionPickerPos(
-                                {
-                                    top: rect.top - 60,
-                                    left: rect.left
-                                }
-                            );
-                            setShowReactionPicker(message._id);
-                        }}
-                        className="p-1 hover:bg-gray-100 rounded-full"
-                        title="React"
-                    >
-                        <Smile className="w-4 h-4 text-gray-400" />
-                    </button>
-                    <button
-                        onClick={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setMenuPosition(
-                                {
-                                    x: rect.left,
-                                    y: rect.bottom + 4
-                                }
-                            );
-                            setShowMenu(message._id);
-                        }}
-                        className="p-1 hover:bg-gray-100 rounded-full"
-                        title="More"
-                    >
-                        <MoreHorizontal className="w-4 h-4 text-gray-400" />
-                    </button>
+            <div className={`flex items-end mb-1 px-4 group ${isOwn ? 'justify-end' : 'justify-start'}`}
+                 onContextMenu={(e) => handleContextMenu(e, message._id)}>
+                <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${isOwn ? 'order-1 mr-1' : 'order-2 ml-1'}`}>
+                    <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setReactionPickerPos({ top: rect.top - 60, left: rect.left }); setShowReactionPicker(message._id); }} className="p-1 hover:bg-gray-100 rounded-full" title="React"><Smile className="w-4 h-4 text-gray-400" /></button>
+                    <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setMenuPosition({ x: rect.left, y: rect.bottom + 4 }); setShowMenu(message._id); }} className="p-1 hover:bg-gray-100 rounded-full" title="More"><MoreHorizontal className="w-4 h-4 text-gray-400" /></button>
                 </div>
 
-                {/* OUTER CONTAINER - voice messages get fixed 280px width */}
-                <div
-                    className={`relative ${isOwn ? 'order-2' : 'order-1'} ${
-                        message.isVoiceMessage && !message.text
-                            ? 'voice-bubble-container'
-                            : message.contact
-                                ? 'max-w-[90%] min-w-[250px]'
-                                : 'max-w-[70%]'
-                    }`}
-                >
-                    {message.pinned && <div className="absolute -top-4 left-2 flex items-center gap-1">
-                        <Pin className="w-3 h-3 text-blue-400" />
-                        <span className="text-[10px] text-blue-400">
-                            Pinned
-                        </span>
-                    </div>}
+                <div className={`relative ${isOwn ? 'order-2' : 'order-1'} ${
+                    message.isVoiceMessage && !message.text ? 'voice-bubble-container' :
+                        message.contact ? 'max-w-[90%] min-w-[250px]' : 'max-w-[70%]'
+                }`}>
+                    {message.pinned && <div className="absolute -top-4 left-2 flex items-center gap-1"><Pin className="w-3 h-3 text-blue-400" /><span className="text-[10px] text-blue-400">Pinned</span></div>}
 
-                    {/* INNER BUBBLE */}
-                    <div
-                        className={`rounded-xl px-3 py-2 shadow-sm ${isOwn ? 'bg-emerald-500 text-white rounded-br-md' : 'bg-white text-gray-800 rounded-bl-md border border-gray-100'} ${message.isVoiceMessage && !message.text ? 'w-full' : ''}`}>
+                    <div className={`rounded-xl px-3 py-2 shadow-sm ${isOwn ? 'bg-emerald-500 text-white rounded-br-md' : 'bg-white text-gray-800 rounded-bl-md border border-gray-100'} ${isMentioned && !isOwn ? 'border-l-4 border-l-blue-400' : ''} ${message.isVoiceMessage && !message.text ? 'w-full' : ''}`}>
                         {/* Poll */}
                         {message.poll?.question && (
                             <div className="mb-2 bg-white/10 rounded-lg p-2" style={{ minWidth: '180px' }}>
@@ -2516,51 +2541,12 @@ const ChatPage = () => {
                             </div>
                         )}
 
-                        {message.viewOnce && message.media?.length > 0 && !isOwn ? (
-                            <div
-                                className="relative cursor-pointer mb-2"
-                                onClick={async () => {
-                                    if (!message.viewedBy?.includes(authUser?._id)) {
-                                        // Temporarily show the media
-                                        setShowMediaViewer(message.media[0]);
-                                        // Mark as viewed
-                                        try {
-                                            const token = localStorage.getItem('access-token');
-                                            await axiosInstance.put(
-                                                `/chat/message/${message._id}/view-once`,
-                                                {},
-                                                { headers: { Authorization: `Bearer ${token}` } }
-                                            );
-                                        } catch (error) {
-                                            toast.error('Failed to mark as viewed');
-                                        }
-                                    }
-                                }}
-                            >
-                                <div className="relative w-40 h-40">
-                                    <img
-                                        src={message.media[0].url}
-                                        className="w-full h-full object-cover rounded-lg blur-md"
-                                    />
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <p className="text-white text-xs font-bold bg-black/50 px-2 py-1 rounded">
-                                            View Once
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : message.viewOnce && isOwn ? (
-                            <div className="mb-2 text-xs text-gray-400 italic">
-                                {message.viewedBy?.length > 0 ? 'Viewed' : 'Sent as view‑once'}
-                            </div>
-                        ) : null}
-
                         {/* Regular Media (skip hexagon videos and voice messages) */}
-                        {message.media && message.media.length > 0 && message.media.map((m, i) => {
+                        {!message.viewOnce && message.media && message.media.length > 0 && message.media.map((m, i) => {
                             if (m.isHexagon) return null;
-                            // Skip audio for voice messages - they use the custom player
                             if (message.isVoiceMessage && m.mime?.startsWith('audio/')) return null;
-
+                            // Skip view‑once media for receiver if not yet viewed
+                            if (message.viewOnce && !isOwn && !message.viewedBy?.includes(authUser?._id)) return null;
                             return (
                                 <div
                                     key={i}
@@ -2571,67 +2557,13 @@ const ChatPage = () => {
                                 >
                                     {m.mime?.startsWith('image/') ? <img src={m.url} alt="" className="rounded-lg w-full" loading="lazy" /> :
                                         m.mime?.startsWith('video/') ? (message.isVoiceMessage ?
-                                                <div className="w-40 h-40 rounded-full overflow-hidden relative">
-                                                    <video src={m.url} className="w-full h-full object-cover" />
-                                                    <div
-                                                        className="absolute inset-0 flex items-center justify-center"
-                                                    >
-                                                        <Play className="w-8 h-8 text-white drop-shadow-lg" />
-                                                    </div>
-                                                </div> :
+                                                <div className="w-40 h-40 rounded-full overflow-hidden relative"><video src={m.url} className="w-full h-full object-cover" /><div className="absolute inset-0 flex items-center justify-center"><Play className="w-8 h-8 text-white drop-shadow-lg" /></div></div> :
                                                 <video src={m.url} className="rounded-lg w-full" />) :
-                                                m.mime?.startsWith('audio/') && !message.isVoiceMessage ? (
-                                                    <div className="py-1.5" style={{ width: '100%', minWidth: '250px' }}>
-                                                    <div className="flex items-center gap-2">
-                                                        <button
-                                                            className="p-1.5 rounded-full hover:bg-white/20 flex-shrink-0"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleVoicePlay(message._id, m.url);
-                                                            }}
-                                                        >
-                                                            {playingVoiceId === message._id ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                                                        </button>
-                                                        <span className={`text-xs flex-shrink-0 w-10 text-right tabular-nums ${isOwn ? 'text-white' : 'text-gray-600'}`}>
-                                                            {formatVoiceTime(voiceCurrentTimes[message._id] || 0)}
-                                                        </span>
-                                                        <div
-                                                            className={`flex-1 h-1.5 rounded-full overflow-hidden cursor-pointer relative ${isOwn ? 'bg-white/30' : 'bg-gray-200'}`}
-                                                            onClick={(e) => handleProgressClick(e, message._id)}
-                                                        >
-                                                            <div
-                                                                className={`h-full rounded-full transition-all duration-100 ${isOwn ? 'bg-white' : 'bg-gray-500'}`}
-                                                                style={{ width: `${voiceProgressWidths[message._id] || 0}%` }}
-                                                            />
-                                                            <div
-                                                                className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full shadow cursor-pointer hover:scale-125 transition-transform ${isOwn ? 'bg-white' : 'bg-gray-600'}`}
-                                                                style={{ left: `calc(${voiceProgressWidths[message._id] || 0}% - 6px)` }}
-                                                                onMouseDown={(e) => {
-                                                                    e.stopPropagation();
-                                                                    const bar = e.currentTarget.parentElement;
-                                                                    const onMove = (moveEvent) => {
-                                                                        const rect = bar.getBoundingClientRect();
-                                                                        const percent = Math.max(0, Math.min(100, ((moveEvent.clientX - rect.left) / rect.width) * 100));
-                                                                        if (audioRef.current && playingVoiceId === message._id) {
-                                                                            audioRef.current.currentTime = (percent / 100) * audioRef.current.duration;
-                                                                            setVoiceProgressWidths(prev => ({ ...prev, [message._id]: percent }));
-                                                                        }
-                                                                    };
-                                                                    const onUp = () => {
-                                                                        document.removeEventListener('mousemove', onMove);
-                                                                        document.removeEventListener('mouseup', onUp);
-                                                                    };
-                                                                    document.addEventListener('mousemove', onMove);
-                                                                    document.addEventListener('mouseup', onUp);
-                                                                }}
-                                                            />
-                                                        </div>
-                                                        <span className={`text-xs flex-shrink-0 w-10 tabular-nums ${isOwn ? 'text-white' : 'text-gray-600'}`}>
-                                                            {formatVoiceTime(voiceDurations[message._id] || 0)}
-                                                        </span>
-                                                    </div>
+                                            m.mime?.startsWith('audio/') && !message.isVoiceMessage ? renderAudioFilePlayer(message, m) :
+                                                <div className="flex items-center gap-2 bg-white/20 p-2 rounded">
+                                                    <FileText className="w-6 h-6" />
+                                                    <span className="text-xs truncate">{m.filename || 'File'}</span>
                                                 </div>
-                                            ) : null
                                     }
                                 </div>
                             );
@@ -2757,35 +2689,45 @@ const ChatPage = () => {
                             </div>
                         )}
 
-                        {message.replyTo && (
-                            <div
-                                className={`flex items-stretch mb-1 cursor-pointer rounded-sm overflow-hidden ${isOwn ? 'bg-emerald-600' : 'bg-gray-100'}`}
-                                onClick={() => {
-                                    const targetEl = document.getElementById(`msg-${message.replyTo._id}`);
-                                    if (targetEl) {
-                                        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                        targetEl.classList.add('bg-yellow-50/50');
-                                        setTimeout(() => targetEl.classList.remove('bg-yellow-50/50'), 2000);
-                                    }
-                                }}
-                            >
-                                {/* Colored bar on the left */}
-                                <div className={`w-1 flex-shrink-0 ${isOwn ? 'bg-emerald-300' : 'bg-gray-400'}`} />
+                        {message.replyTo && (() => {
+                            // Try to get the full replied message from the current messages list if replyTo is incomplete
+                            const repliedMsg = messages.find(m => m._id === message.replyTo?._id) || message.replyTo;
+                            const replyText = repliedMsg?.text?.substring(0, 80);
+                            const replyMedia = repliedMsg?.media?.length > 0;
+                            const replyVoice = repliedMsg?.isVoiceMessage;
+                            const replySenderName = repliedMsg?.senderId?._id === authUser?._id ? 'You' : repliedMsg?.senderId?.displayName || 'User';
+                            const replyId = message.replyTo._id || message.replyTo;
 
-                                {/* Reply content */}
-                                <div className="px-3 py-1.5 flex-1 min-w-0">
-                                    <p className={`text-[11px] font-semibold truncate ${isOwn ? 'text-emerald-100' : 'text-gray-500'}`}>
-                                        {message.replyTo.senderId?._id === authUser?._id ? 'You' : message.replyTo.senderId?.displayName || 'User'}
-                                    </p>
-                                    <p className={`text-[11px] truncate ${isOwn ? 'text-emerald-50/80' : 'text-gray-500'}`}>
-                                        {
-                                            message.replyTo.text?.substring(0, 80) ||
-                                            (message.replyTo.media?.length > 0 ? '📎 Media' : message.replyTo.isVoiceMessage ? '🎤 Voice message' : 'Message')
+                            return (
+                                <div
+                                    className={`flex items-stretch mb-1 cursor-pointer rounded-sm overflow-hidden ${isOwn ? 'bg-emerald-600' : 'bg-gray-100'}`}
+                                    onClick={() => {
+                                        const targetEl = document.getElementById(`msg-${replyId}`);
+                                        if (targetEl) {
+                                            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                            targetEl.classList.add('bg-yellow-50/50');
+                                            setTimeout(() => targetEl.classList.remove('bg-yellow-50/50'), 2000);
                                         }
-                                    </p>
+                                    }}
+                                >
+                                    <div className={`w-1 flex-shrink-0 ${isOwn ? 'bg-emerald-300' : 'bg-gray-400'}`} />
+                                    <div className="px-3 py-1.5 flex-1 min-w-0">
+                                        <p className={`text-[11px] font-semibold truncate ${isOwn ? 'text-emerald-100' : 'text-gray-500'}`}>
+                                            {replySenderName}
+                                        </p>
+                                        <p className={`text-[11px] truncate ${isOwn ? 'text-emerald-50/80' : 'text-gray-500'}`}>
+                                            {replyText
+                                                ? replyText
+                                                : replyMedia
+                                                    ? '📎 Media'
+                                                    : replyVoice
+                                                        ? '🎤 Voice message'
+                                                        : 'Message'}
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            );
+                        })()}
 
                         {/* Text & Contact */}
                         {message.contact ? (
@@ -2820,11 +2762,27 @@ const ChatPage = () => {
                                 </p>
                             </div>
                         ) : (
-                            message.text && !message.poll?.question && !message.event?.name && (
+                            !message.viewOnce && message.text && !message.poll?.question && !message.event?.name && (
                                 <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                                     {renderTextWithLinks(message.text)}
                                 </p>
                             )
+                        )}
+
+                        {translations[message._id] && (
+                            <div className="mt-2 pt-2 border-t border-white/20">
+                                <p className="text-xs italic opacity-80">
+                                    {translations[message._id]}
+                                </p>
+                                <p className="text-[10px] opacity-50 mt-1">
+                                    Translated to English
+                                </p>
+                            </div>
+                        )}
+                        {translating[message._id] && (
+                            <div className="mt-2 pt-2 border-t border-white/20">
+                                <p className="text-xs italic opacity-60">Translating…</p>
+                            </div>
                         )}
 
                         {message.call && (
@@ -2837,6 +2795,13 @@ const ChatPage = () => {
                                     {message.call.status === 'missed' && ' (Missed)'}
                                     {message.call.status === 'no_answer' && ' (No answer)'}
                                 </span>
+                            </div>
+                        )}
+
+                        {message.viewOnce && isOwn && message.viewedBy?.length > 0 && (
+                            <div className="mb-2 flex items-center gap-2 text-xs text-gray-800 italic">
+                                <Eye className="w-3 h-3" />
+                                Viewed
                             </div>
                         )}
 
@@ -2872,18 +2837,10 @@ const ChatPage = () => {
                             }
                         </div>
                     )}
-
                 </div>
 
-                {/* Reaction picker */}
                 {showReactionPicker === message._id && (
-                    <div
-                        className="fixed z-50"
-                        style={{
-                            top: Math.min(reactionPickerPos.top, window.innerHeight - 300),
-                            left: Math.min(reactionPickerPos.left, window.innerWidth - 320)
-                        }}
-                    >
+                    <div className="fixed z-50" style={{ top: Math.min(reactionPickerPos.top, window.innerHeight - 300), left: Math.min(reactionPickerPos.left, window.innerWidth - 320) }}>
                         <MessageReactionEmojiPicker
                             postId={message._id}
                             onReact={(emoji) => handleReaction(message._id, emoji)}
@@ -3104,7 +3061,15 @@ const ChatPage = () => {
             </div>
 
             {/* ========== Chat Area ========== */}
-            <div className="flex-1 flex flex-col min-w-0 bg-gray-50/50">
+            <div
+                className="flex-1 flex flex-col min-w-0 bg-gray-50/50"
+                style={selectedConversation?.wallpaper ? {
+                    backgroundImage: `url(${selectedConversation.wallpaper})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat'
+                } : {}}
+            >
                 {isChatRestricted ? (
                     <div className="flex-1 flex items-center justify-center bg-gray-50">
                         <div className="text-center p-8">
@@ -3146,9 +3111,14 @@ const ChatPage = () => {
                                 }
                             </div>
                             <div>
-                                <h3 className="font-semibold text-gray-800 text-sm">
-                                    {selectedConversation.isGroup ? selectedConversation.groupName : getOtherUser(selectedConversation)?.displayName || 'Unknown'}
-                                </h3>
+                                <div className="flex flex-row px-4">
+                                    <h3 className="font-semibold text-gray-800 text-sm">
+                                        {selectedConversation.isGroup ? selectedConversation.groupName : getOtherUser(selectedConversation)?.displayName || 'Unknown'}
+                                    </h3>
+                                    {selectedConversation?.disappearingTimer && (
+                                        <Clock className="w-4 h-4 text-gray-500 ml-1" title="Disappearing messages on" />
+                                    )}
+                                </div>
                                 <p className="text-xs text-gray-400">
                                     {isTyping(getOtherUser(selectedConversation)?._id)
                                         ? 'typing...'
@@ -3605,15 +3575,27 @@ const ChatPage = () => {
                                         ref={messageInputRef}
                                         value={messageText}
                                         onChange={(e) => {
-                                            setMessageText(e.target.value);
+                                            const value = e.target.value;
+                                            setMessageText(value);
                                             const otherId = getOtherUser(selectedConversation)?._id;
-                                            if (otherId && e.target.value) startTyping({ toUserId: otherId });
-                                            else if (otherId) stopTyping(
-                                                { toUserId: otherId }
-                                            );
+                                            if (otherId && value) startTyping({ toUserId: otherId });
+                                            else if (otherId) stopTyping({ toUserId: otherId });
                                             const el = e.target;
                                             el.style.height = 'auto';
                                             el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+
+                                            // Check for @ symbol to show mentions dropdown
+                                            const cursorPos = el.selectionStart;
+                                            setCursorPosition(cursorPos);
+                                            const textBeforeCursor = value.substring(0, cursorPos);
+                                            const atIndex = textBeforeCursor.lastIndexOf('@');
+                                            if (atIndex !== -1 && (atIndex === 0 || textBeforeCursor[atIndex - 1] === ' ')) {
+                                                const searchTerm = textBeforeCursor.substring(atIndex + 1).toLowerCase();
+                                                setMentionSearch(searchTerm);
+                                                setShowMentionsDropdown(true);
+                                            } else {
+                                                setShowMentionsDropdown(false);
+                                            }
                                         }}
                                         onKeyDown={handleKeyDown}
                                         placeholder={editingMessageId ? "Edit message..." : "Type a message..."}
@@ -3624,6 +3606,36 @@ const ChatPage = () => {
                                             maxHeight: '120px'
                                         }}
                                     />
+                                    {showMentionsDropdown && (
+                                        <div className="absolute bottom-full left-0 mb-2 w-48 bg-white rounded-xl shadow-lg border z-50 max-h-40 overflow-y-auto">
+                                            {mentionableUsers
+                                                .filter(u => u.username?.toLowerCase().includes(mentionSearch) || u.displayName?.toLowerCase().includes(mentionSearch))
+                                                .slice(0, 5)
+                                                .map(user => (
+                                                    <div
+                                                        key={user._id}
+                                                        className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                                                        onClick={() => {
+                                                            // Insert the @username into the text
+                                                            const beforeAt = messageText.substring(0, messageText.lastIndexOf('@', cursorPosition));
+                                                            const afterCursor = messageText.substring(cursorPosition);
+                                                            const newText = beforeAt + '@' + user.username + ' ' + afterCursor;
+                                                            setMessageText(newText);
+                                                            setShowMentionsDropdown(false);
+                                                            messageInputRef.current?.focus();
+                                                        }}
+                                                    >
+                                                        <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden">
+                                                            <img src={user.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
+                                                        </div>
+                                                        <span className="text-sm">{user.username}</span>
+                                                    </div>
+                                                ))}
+                                            {mentionableUsers.filter(u => u.username?.toLowerCase().includes(mentionSearch) || u.displayName?.toLowerCase().includes(mentionSearch)).length === 0 && (
+                                                <div className="px-3 py-2 text-xs text-gray-400">No users found</div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="relative">
                                     <button
@@ -3705,10 +3717,19 @@ const ChatPage = () => {
                                             {(messageText.trim() || selectedFile) && (
                                                 <button
                                                     onClick={handleSendMessage}
-                                                    className="p-2.5 bg-emerald-500 text-white rounded-full hover:bg-emerald-600 transition-colors shadow-sm"
+                                                    disabled={isSending}
+                                                    className={`p-2.5 rounded-full transition-colors shadow-sm ${
+                                                        isSending
+                                                            ? 'bg-gray-300 cursor-not-allowed'
+                                                            : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                                    }`}
                                                     title="Send message"
                                                 >
-                                                    <Send className="w-5 h-5" />
+                                                    {isSending ? (
+                                                        <LoadingSpinner size="sm" />   // or a simple <Clock/>
+                                                    ) : (
+                                                        <Send className="w-5 h-5" />
+                                                    )}
                                                 </button>
                                             )}
                                         </div>
@@ -3829,6 +3850,16 @@ const ChatPage = () => {
                                         </button>
                                         <button
                                             onClick={() => {
+                                                setShowContactInfo(false);
+                                                setShowWallpaperModal(true);
+                                            }}
+                                            className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                        >
+                                            <ImageIcon className="w-4 h-4" />
+                                            Wallpaper
+                                        </button>
+                                        <button
+                                            onClick={() => {
                                                 handleOpenGroupsInCommon();
                                                 setShowContactInfo(false);
                                             }}
@@ -3846,6 +3877,16 @@ const ChatPage = () => {
                                         >
                                             <Contact className="w-4 h-4" />
                                             Share Contact
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setShowContactInfo(false);
+                                                setShowDisappearingModal(true);
+                                            }}
+                                            className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                        >
+                                            <Clock className="w-4 h-4" />
+                                            Disappearing Messages
                                         </button>
                                         {/* Fix: Use selectedConversation or find the conversation */}
                                         {selectedConversation?.lockedBy?.includes(authUser?._id) ? (
@@ -3994,6 +4035,12 @@ const ChatPage = () => {
                                 >
                                     <Copy className="w-4 h-4" />
                                     Copy
+                                </button>
+                                <button
+                                    onClick={() => handleTranslate(message._id, message.text)}
+                                    className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600"
+                                >
+                                    <Languages className="w-4 h-4" /> Translate
                                 </button>
                                 <button
                                     onClick={() => handlePinMessage(message._id)}
@@ -5548,6 +5595,153 @@ const ChatPage = () => {
                         </motion.div>
                     );
                 })()}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {showDisappearingModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                        onClick={() => setShowDisappearingModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                            className="bg-white rounded-2xl p-6 w-80 shadow-xl"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <h3 className="text-lg font-bold mb-4">Disappearing Messages</h3>
+                            <p className="text-sm text-gray-500 mb-4">
+                                Messages will be automatically deleted after the selected time.
+                            </p>
+                            <div className="space-y-2">
+                                {[
+                                    { label: '24 hours', value: 86400 },
+                                    { label: '7 days', value: 604800 },
+                                    { label: '90 days', value: 7776000 },
+                                    { label: 'Off', value: null },
+                                ].map(option => (
+                                    <button
+                                        key={option.value}
+                                        onClick={async () => {
+                                            try {
+                                                const token = localStorage.getItem('access-token');
+                                                await axiosInstance.put(
+                                                    `/chat/conversation/${selectedConversation._id}/disappearing`,
+                                                    { timer: option.value },
+                                                    { headers: { Authorization: `Bearer ${token}` } }
+                                                );
+                                                // Update local conversation object
+                                                const updatedConv = { ...selectedConversation, disappearingTimer: option.value };
+                                                selectConversation(updatedConv);
+                                                toast.success(
+                                                    option.value ? `Disappearing after ${option.label}` : 'Disappearing messages off'
+                                                );
+                                            } catch (error) {
+                                                toast.error('Failed to update');
+                                            }
+                                            setShowDisappearingModal(false);
+                                        }}
+                                        className={`w-full py-2.5 rounded-xl text-sm font-medium ${
+                                            selectedConversation?.disappearingTimer === option.value
+                                                ? 'bg-blue-50 text-blue-500'
+                                                : 'hover:bg-gray-50 text-gray-600'
+                                        }`}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <button
+                                onClick={() => setShowDisappearingModal(false)}
+                                className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200"
+                            >
+                                Cancel
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {showWallpaperModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                        onClick={() => setShowWallpaperModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                            className="bg-white rounded-2xl p-6 w-[420px] max-h-[80vh] overflow-y-auto shadow-xl"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-bold">Chat Wallpaper</h3>
+                                <button onClick={() => setShowWallpaperModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <p className="text-sm text-gray-500 mb-4">Choose a preset or upload your own image.</p>
+
+                            {/* Preset + Custom Wallpapers */}
+                            <div className="grid grid-cols-3 gap-3 mb-4">
+                                {[
+                                    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=200&h=200&fit=crop',
+                                    'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=200&h=200&fit=crop',
+                                    'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=200&h=200&fit=crop',
+                                    'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=200&h=200&fit=crop',
+                                    'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&h=200&fit=crop',
+                                    'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=200&h=200&fit=crop',
+                                    'https://images.unsplash.com/photo-1505144808419-1957a94ca61e?w=200&h=200&fit=crop',
+                                    'https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=200&h=200&fit=crop',
+                                    'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=200&h=200&fit=crop',
+                                    ...customWallpapers, // uploaded wallpapers
+                                ].map((url, idx) => (
+                                    <div
+                                        key={idx}
+                                        onClick={() => {
+                                            handleSetWallpaper(url);
+                                            setShowWallpaperModal(false);
+                                        }}
+                                        className="aspect-square rounded-lg cursor-pointer border-2 hover:border-blue-400 transition-colors overflow-hidden"
+                                    >
+                                        <img src={url} alt="" className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Upload from device */}
+                            <div className="border-t border-gray-100 pt-4">
+                                <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-3 rounded-xl">
+                                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                        {wallpaperUploading ? (
+                                            <Clock className="w-5 h-5 text-gray-500 animate-spin" />
+                                        ) : (
+                                            <Upload className="w-5 h-5 text-gray-500" />
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-700">
+                                            {wallpaperUploading ? 'Uploading...' : 'Upload from device'}
+                                        </p>
+                                        <p className="text-xs text-gray-400">JPEG, PNG, or GIF</p>
+                                    </div>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+                                            await handleUploadWallpaper(file);
+                                        }}
+                                        disabled={wallpaperUploading}
+                                    />
+                                </label>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
             </AnimatePresence>
         </div>
     );

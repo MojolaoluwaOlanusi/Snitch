@@ -6,13 +6,30 @@ import Contact from "../models/Contact.ts";
 import bcrypt from 'bcryptjs';
 import { protectRoute } from "../middleware/protectRoute.ts";
 import { redis, getCachedMessages, updateCachedMessage } from '../utils/redisCache.ts';
-
+import axios from 'axios';
 // Declare global io type so TypeScript knows it exists
 declare global {
     var io: any;
 }
 
 const router = express.Router();
+
+// Translate message text
+router.post("/translate", protectRoute, async (req, res) => {
+    try {
+        const { text, targetLang } = req.body;
+        if (!text) return res.status(400).json({ error: "Text required" });
+
+        const response = await axios.get(
+            `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang || 'en'}&dt=t&q=${encodeURIComponent(text)}`
+        );
+        const translated = response.data[0][0][0];
+        res.json({ translated });
+    } catch (error: any) {
+        console.error("Translation error:", error.message);
+        res.status(500).json({ error: "Translation failed" });
+    }
+});
 
 // Get all conversations for a user
 router.get("/conversations", protectRoute, async (req, res) => {
@@ -87,6 +104,16 @@ router.get("/messages/:conversationId", protectRoute, async (req, res) => {
             }
         } catch (cacheErr) {
             console.warn('Redis cache failed, falling back to MongoDB:', cacheErr);
+        }
+
+        // In GET /messages/:conversationId
+        const conversation = await Conversation.findById(conversationId);
+        if (conversation?.disappearingTimer) {
+            const cutoff = new Date(Date.now() - conversation.disappearingTimer * 1000);
+            await Message.deleteMany({
+                conversationId,
+                createdAt: { $lt: cutoff }
+            });
         }
 
         // Build MongoDB query
@@ -285,7 +312,6 @@ router.put("/conversation/:conversationId/read", protectRoute, async (req, res) 
                     .catch(err => console.error('Redis update (REST read) error:', err?.message));
             }
 
-            // Use the same pattern as poll voting
             if ((globalThis as any).io) {
                 const senderId = msg.senderId.toString();
                 const senderSocket = Array.from((globalThis as any).io.sockets.sockets.values())
@@ -868,11 +894,16 @@ router.put("/message/:messageId/view-once", protectRoute, async (req, res) => {
         message.text = message.text || 'View‑once media';
         await message.save();
 
+        // Update Redis cache so the change persists across navigations
+        if (message.conversationId) {
+            await updateCachedMessage(message.conversationId.toString(), messageId, message)
+                .catch(err => console.error('Redis update (view-once) error:', err));
+        }
+
         // Notify sender
-        const io = (globalThis as any).io;
-        if (io) {
-            const senderSocket = Array.from(io.sockets.sockets.values())
-                .find((s: any) => s.data?.userId === message.senderId.toString());
+        if ((globalThis as any).io) {
+            const senderSocket = Array.from((globalThis as any).io.sockets.sockets.values())
+                .find((s: any) => s.data?.userId === message.senderId.toString()) as any;
             if (senderSocket) {
                 senderSocket.emit('message:viewed', { messageId: message._id, viewedBy: userId });
             }
@@ -881,6 +912,55 @@ router.put("/message/:messageId/view-once", protectRoute, async (req, res) => {
         res.json({ success: true });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
+    }
+});
+
+// Toggle disappearing messages timer
+router.put("/conversation/:conversationId/disappearing", protectRoute, async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const { timer } = req.body; // timer in seconds, or null/0 to disable
+
+        const conversation = await Conversation.findByIdAndUpdate(
+            conversationId,
+            { disappearingTimer: timer || null },
+            { new: true }
+        );
+
+        if (!conversation) {
+            return res.status(404).json({ error: "Conversation not found" });
+        }
+
+        res.json(conversation);
+    } catch (error: any) {
+        res.status(500).json({ error: error?.message || "Server error" });
+    }
+});
+
+// Set wallpaper for a conversation
+router.put("/conversation/:conversationId/wallpaper", protectRoute, async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const { wallpaperUrl } = req.body;
+
+        if (!wallpaperUrl) {
+            return res.status(400).json({ error: "wallpaperUrl is required" });
+        }
+
+        const conversation = await Conversation.findByIdAndUpdate(
+            conversationId,
+            { wallpaper: wallpaperUrl },
+            { new: true }   // return updated document
+        );
+
+        if (!conversation) {
+            return res.status(404).json({ error: "Conversation not found" });
+        }
+
+        res.json(conversation);
+    } catch (error: any) {
+        console.error('Wallpaper route error:', error);
+        res.status(500).json({ error: error?.message || "Server error" });
     }
 });
 

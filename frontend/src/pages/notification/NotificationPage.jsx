@@ -11,6 +11,7 @@ import {BiRepost} from "react-icons/bi";
 import {MdOutlineAddReaction} from "react-icons/md";
 import Sidebar from "../../components/common/Sidebar";
 import RightPanel from "../../components/common/RightPanel";
+import { MessageCircle } from "lucide-react";
 
 const NotificationPage = () => {
 
@@ -102,36 +103,76 @@ const NotificationPage = () => {
                 )}
 
                 {!isGettingNotifications && notifications?.map((notification) => (
-                    <div 
-                        className='border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200' 
+                    <div
+                        className='border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200'
                         key={notification._id}
                     >
-                        <Link to={`/profile/${notification.from.username}`} className='block'>
-                            <div className='flex items-center gap-4 p-5'>
-                                <div className='flex-shrink-0'>
-                                    {getNotificationIcon(notification.type)}
-                                </div>
-                                <div className='avatar flex-shrink-0'>
-                                    <div className='w-12 h-12 rounded-full ring-2 ring-gray-100 ring-offset-2'>
-                                        <img 
-                                            src={notification?.fromAvatarUrl || "/avatar-placeholder.png"} 
-                                            alt={notification.from.username} 
-                                            className='w-full h-full object-cover'
-                                        />
+                        {notification.type === "mention" ? (
+                            // Mention notification – link to the chat conversation
+                            <Link
+                                to={`/chat`}
+                                state={{ conversationId: notification.conversationId, messageId: notification.message?._id }}
+                                className='block'
+                            >
+                                <div className='flex items-center gap-4 p-5'>
+                                    <div className='flex-shrink-0'>
+                                        <MessageCircle className="w-6 h-6 text-blue-400" />
+                                    </div>
+                                    <div className='avatar flex-shrink-0'>
+                                        <div className='w-12 h-12 rounded-full ring-2 ring-gray-100 ring-offset-2'>
+                                            <img
+                                                src={notification.fromAvatarUrl || "/avatar-placeholder.png"}
+                                                alt={notification.from.username}
+                                                className='w-full h-full object-cover'
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className='flex-1 min-w-0'>
+                                        <p className='text-gray-800'>
+                            <span className='font-semibold text-gray-900 hover:text-blue-400 transition-colors duration-200'>
+                                @{notification.from?.username}
+                            </span>
+                                            <span className='text-gray-500 ml-1'>
+                                mentioned you in a chat
+                            </span>
+                                        </p>
+                                        {notification.text && (
+                                            <p className='text-sm text-gray-500 truncate mt-1'>
+                                                "{notification.text}"
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
-                                <div className='flex-1 min-w-0'>
-                                    <p className='text-gray-800'>
-                                        <span className='font-semibold text-gray-900 hover:text-blue-400 transition-colors duration-200'>
-                                            @{notification.from.username}
-                                        </span>
-                                        <span className='text-gray-500 ml-1'>
-                                            {getNotificationText(notification.type)}
-                                        </span>
-                                    </p>
+                            </Link>
+                        ) : (
+                            // Original notification (follow, like, etc.)
+                            <Link to={`/profile/${notification.from.username}`} className='block'>
+                                <div className='flex items-center gap-4 p-5'>
+                                    <div className='flex-shrink-0'>
+                                        {getNotificationIcon(notification.type)}
+                                    </div>
+                                    <div className='avatar flex-shrink-0'>
+                                        <div className='w-12 h-12 rounded-full ring-2 ring-gray-100 ring-offset-2'>
+                                            <img
+                                                src={notification?.fromAvatarUrl || "/avatar-placeholder.png"}
+                                                alt={notification.from.username}
+                                                className='w-full h-full object-cover'
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className='flex-1 min-w-0'>
+                                        <p className='text-gray-800'>
+                            <span className='font-semibold text-gray-900 hover:text-blue-400 transition-colors duration-200'>
+                                @{notification.from.username}
+                            </span>
+                                            <span className='text-gray-500 ml-1'>
+                                {getNotificationText(notification.type)}
+                            </span>
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
-                        </Link>
+                            </Link>
+                        )}
                     </div>
                 ))}
             </div>

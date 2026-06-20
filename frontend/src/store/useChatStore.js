@@ -25,7 +25,7 @@ export const useChatStore = create((set, get) => ({
                 mentions: data.mentions || [], location: data.location,
                 contact: data.contact, isVoiceMessage: data.isVoiceMessage,
                 voiceDuration: data.voiceDuration, poll: data.poll, event: data.event,
-                call: data.call,
+                call: data.call, viewOnce: data.viewOnce,
             }, (ack) => {
                 if (!ack?.ok) { toast.error(ack?.error || "Failed to send message"); reject(new Error(ack?.error || "Failed to send")); return; }
                 get().getConversations();   // refresh list after sending

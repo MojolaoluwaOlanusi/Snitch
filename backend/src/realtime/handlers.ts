@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { RoomStore } from './rooms.ts';
 import Message from '../models/Message.ts';
+import Notification from "../models/Notification.ts"
 import Conversation from '../models/Conversation.ts';
 import {User} from '../models/User.ts';
 import { registerSignaling } from './signaling.ts';
@@ -116,12 +117,42 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
                 ...(payload.poll ? { poll: payload.poll } : {}),
                 ...(payload.event ? { event: payload.event } : {}),
                 ...(payload.call ? { call: payload.call } : {}),
+                viewOnce: payload.viewOnce || false,
+                viewedBy: [],
             });
 
             const populatedMessage = await Message.findById(message._id)
                 .populate('senderId', 'username displayName avatarUrl')
                 .populate('replyTo')
                 .populate('mentions', 'username displayName avatarUrl');
+
+            // Create notifications for mentioned users
+            if (payload.mentions && payload.mentions.length > 0) {
+                for (const mentionId of payload.mentions) {
+                    if (mentionId === userId) continue;
+
+                    await Notification.create({
+                        type: 'mention',
+                        from: userId,
+                        to: mentionId,
+                        message: message._id,
+                        text: `${user.displayName || 'Someone'} mentioned you: "${text?.substring(0, 100)}"`,
+                        conversationId: convId,
+                        fromAvatarUrl: user.avatarUrl || null,
+                    });
+
+                    const mentionedSocket = Array.from(io.sockets.sockets.values())
+                        .find((s: any) => s.data?.userId === mentionId);
+                    if (mentionedSocket) {
+                        mentionedSocket.emit('notification:mention', {
+                            messageId: message._id,
+                            conversationId: convId,
+                            from: userId,
+                            text: `${user.displayName || 'Someone'} mentioned you in a message`,
+                        });
+                    }
+                }
+            }
 
             await Conversation.findByIdAndUpdate(convId, {
                 lastMessage: message._id,

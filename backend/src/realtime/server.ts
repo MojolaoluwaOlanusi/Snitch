@@ -3,8 +3,25 @@ import { socketAuthMiddleware } from '../middleware/socket.auth.middlware.ts';
 import { registerSocketHandlers } from './handlers.ts';
 import { RoomStore } from './rooms.ts';
 import { RedisRoomStore } from './adapter/redisRoomStore.ts';
+import Message from "../models/Message.ts";
+import Conversation from "../models/Conversation.ts";
 import { createAdapter } from '@socket.io/redis-adapter';
-import IORedis from 'ioredis';
+import { Redis } from 'ioredis';
+
+setInterval(async () => {
+    try {
+        const conversations = await Conversation.find({ disappearingTimer: { $ne: null } });
+        for (const conv of conversations) {
+            const cutoff = new Date(Date.now() - conv.disappearingTimer * 1000);
+            await Message.deleteMany({
+                conversationId: conv._id,
+                createdAt: { $lt: cutoff }
+            });
+        }
+    } catch (err) {
+        console.error('Disappearing messages cleanup error:', err);
+    }
+}, 5 * 60 * 1000); // every 5 minutes
 
 export const initRealtime = (httpServer: any) => {
     const io = new Server(httpServer, {
@@ -23,9 +40,9 @@ export const initRealtime = (httpServer: any) => {
     if (useRedis) {
         try {
             const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
-            const pubClient = new IORedis(redisUrl, {
+            const pubClient = new Redis(redisUrl, {
                 maxRetriesPerRequest: null,
-                retryStrategy(times: number): number | null {
+                retryStrategy: (times: number): number | null => {
                     if (times > 10) return null;
                     return Math.min(times * 200, 2000);
                 },

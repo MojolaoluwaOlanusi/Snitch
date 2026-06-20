@@ -15,15 +15,27 @@ const notificationSchema = new mongoose.Schema(
         type: {
             type: String,
             required: true,
-            enum: ["follow", "like", "react", "repost"],
+            enum: ["follow", "like", "react", "repost", "mention"],   // <-- added "mention"
         },
         read: {
             type: Boolean,
             default: false,
         },
         fromAvatarUrl: {
-            type: String
-        }
+            type: String,
+        },
+        // Additional fields for mention notifications
+        message: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Message",
+        },
+        conversationId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Conversation",
+        },
+        text: {
+            type: String,
+        },
     },
     { timestamps: true }
 );
