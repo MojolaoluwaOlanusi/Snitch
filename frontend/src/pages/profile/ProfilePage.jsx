@@ -54,7 +54,7 @@ const ProfilePage = () => {
     const handleChatWithUser = async () => {
         if (!user?._id) return;
         try {
-            const conversation = await getConversation(user._id);
+            const conversation = await getConversation(user?._id);
             if (conversation) {
                 selectConversation(conversation);
                 navigate('/chat');
@@ -79,6 +79,9 @@ const ProfilePage = () => {
         localStorage.setItem("uploadUrl", uploadUrl);
 
         await updateProfile({ coverImg: coverImgUrl });
+        setTimeout(() => {
+            getUserProfile(username);
+        }, 3000);
     }
 
     async function uploadAvatarImg(data) {
@@ -95,6 +98,9 @@ const ProfilePage = () => {
         localStorage.setItem("uploadUrl", uploadUrl);
 
         await updateProfile({ avatarUrl: avatarUrl });
+        setTimeout(() => {
+            getUserProfile(username);
+        }, 3000);
     }
 
     const handleImgChange = async (e, state) => {

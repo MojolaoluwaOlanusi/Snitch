@@ -154,6 +154,25 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
                 }
             }
 
+            // Inside the mention loop (right after existing mention handling)
+            if (payload.text?.includes('@everyone') && convId) {
+                const conversation = await Conversation.findById(convId);
+                if (conversation?.isGroup) {
+                    for (const pid of conversation.participants) {
+                        if (pid.toString() === userId) continue;
+                        await Notification.create({
+                            type: 'mention',
+                            from: userId,
+                            to: pid,
+                            message: message._id,
+                            text: `${user.displayName || 'Someone'} mentioned @everyone`,
+                            conversationId: convId,
+                            fromAvatarUrl: user.avatarUrl || null,
+                        });
+                    }
+                }
+            }
+
             await Conversation.findByIdAndUpdate(convId, {
                 lastMessage: message._id,
                 updatedAt: new Date()

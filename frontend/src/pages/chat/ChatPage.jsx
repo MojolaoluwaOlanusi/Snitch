@@ -9,12 +9,12 @@ import {
     Search, MoreHorizontal, MoreVertical, Phone, Paperclip, Smile, Send,
     Video, Mic, Image as ImageIcon, FileText, MapPin, UserPlus, Star,
     Archive, Pin, BellOff, Trash2, Check, CheckCheck, Clock, Reply,
-    Forward, Copy, X, Search as SearchIcon, Play, Pause, VideoOff,
+    Forward, Copy, X, Play, Pause, VideoOff,
     MicOff, PhoneOff, MessageCircle, RotateCw, MonitorUp, Users,
     Minimize2, Maximize2, Camera, MessageSquare, User, Contact,
     BarChart3, Calendar, Lock, Shield, Flag, Download, ExternalLink,
     Heart, UserCheck, UserX, VolumeX, Eye, EyeOff, StarOff, VideoIcon,
-    StopCircle, Unlock, Hexagon, Edit, Volume2, Languages, Upload
+    StopCircle, Unlock, Hexagon, Edit, Volume2, Languages, Upload, DeleteIcon
 } from "lucide-react";
 import EmojiPicker from "../../components/common/EmojiPicker";
 import MessageReactionEmojiPicker from "../../components/common/MessageReactionEmojiPicker";
@@ -138,6 +138,7 @@ const ChatPage = () => {
         createGroup, addMessage, updateMessage, removeMessage,
         setOnlineUsers, addTypingUser, removeTypingUser,
         searchMessages, pinMessage, unpinMessage, votePoll,
+        updateGroupInfo,
     } = useChatStore();
 
     const { authUser, socket } = useAuthStore();
@@ -384,7 +385,17 @@ const ChatPage = () => {
                 });
             }
         });
-
+        socket.on('group:member_joined', ({ conversationId, userId }) => {
+            // If the user is viewing this group, show a toast
+            if (selectedConversation?._id === conversationId) {
+                // Find the member's name from the participants list
+                const newMember = selectedConversation?.participants?.find(p => p._id === userId);
+                const name = newMember?.displayName || newMember?.username || 'Someone';
+                toast(`${name} joined the group`, { icon: '👋' });
+            }
+            // Refresh the conversation list to get updated member count
+            getConversations();
+        });
         socket.on('typing:start', ({ from }) => {
             addTypingUser(from);
             if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -574,6 +585,32 @@ const ChatPage = () => {
     };
 
     useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const joinToken = params.get('join');
+        if (joinToken && authUser) {
+            handleJoinGroup(joinToken);
+        }
+    }, [authUser]);
+
+    const handleJoinGroup = async (token) => {
+        try {
+            const tokenHeader = localStorage.getItem('access-token');
+            const res = await axiosInstance.post(`/chat/join/${token}`, {}, {
+                headers: { Authorization: `Bearer ${tokenHeader}` }
+            });
+            // Add conversation to list and select it
+            const updatedConv = res.data;
+            selectConversation(updatedConv);
+            getConversations();
+            toast.success('You joined the group!');
+            // Clean URL
+            window.history.replaceState({}, document.title, '/chat');
+        } catch (error) {
+            toast.error(error.response?.data?.error || 'Could not join group');
+        }
+    };
+
+    useEffect(() => {
         if (selectedConversation) {
             // For direct chats: the other user
             // For groups: all participants
@@ -677,6 +714,12 @@ const ChatPage = () => {
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
+    const getOnlineCount = (conversation) => {
+        if (!conversation?.participants) return 0;
+        return conversation.participants.filter(p =>
+            onlineUsers.includes(p._id) && p._id !== authUser?._id
+        ).length;
+    };
     const getOtherUser = (conversation) => {
         if (!conversation?.participants || !authUser) return null;
         return conversation.participants.find(p => p._id !== authUser._id);
@@ -723,25 +766,51 @@ const ChatPage = () => {
         }
     };
 
-    const getGroupAvatarColor = (groupId) => {
-        if (!groupAvatarColors.current.has(groupId)) {
-            const shades =
-                [
-                    'from-blue-400 to-blue-500',
-                    'from-blue-500 to-blue-600',
-                    'from-indigo-400 to-indigo-500',
-                    'from-cyan-400 to-cyan-500',
-                    'from-sky-400 to-sky-500',
-                    'from-blue-600 to-indigo-500',
-                    'from-blue-500 to-cyan-500',
-                    'from-blue-400 to-indigo-400'
-                ];
-            groupAvatarColors.current.set(
-                groupId,
-                shades[Math.floor(Math.random() * shades.length)]
-            );
+    const handleGroupAvatarChange = async (file) => {
+        if (!selectedConversation?.isGroup) return;
+        try {
+            const token = localStorage.getItem('access-token');
+            // 1. Get presigned URL for group avatar
+            const presignRes = await axiosInstance.post('/media/wallpaper-presign', {
+                conversationId: selectedConversation._id,
+                fileName: file.name,
+                contentType: file.type,
+            }, { headers: { Authorization: `Bearer ${token}` } });
+
+            // 2. Upload to MinIO
+            await fetch(presignRes.data.uploadUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': file.type },
+                body: file,
+            });
+
+            // 3. Update group info
+            const updated = await updateGroupInfo(selectedConversation._id, { groupAvatar: presignRes.data.publicUrl });
+            if (updated) {
+                selectConversation({ ...selectedConversation, groupAvatar: presignRes.data.publicUrl });
+                toast.success('Group avatar updated');
+            }
+        } catch (error) {
+            toast.error('Failed to update group avatar');
         }
-        return groupAvatarColors.current.get(groupId);
+    };
+
+    const getGroupAvatarColor = (conv) => {
+        // If the conversation already has a stored avatarColor, use it
+        if (conv.avatarColor) return conv.avatarColor;
+
+        // Fallback for old groups without the field: generate and return a random one
+        const shades = [
+            'from-blue-400 to-blue-500',
+            'from-blue-500 to-blue-600',
+            'from-indigo-400 to-indigo-500',
+            'from-cyan-400 to-cyan-500',
+            'from-sky-400 to-sky-500',
+            'from-blue-600 to-indigo-500',
+            'from-blue-500 to-cyan-500',
+            'from-blue-400 to-indigo-400',
+        ];
+        return shades[Math.floor(Math.random() * shades.length)];
     };
 
     const formatCallDuration = (seconds) => {
@@ -2194,51 +2263,60 @@ const ChatPage = () => {
     const renderAudioFilePlayer = (message, mediaItem) => {
         const isOwn = getIsOwn(message);
         return (
-            <div className="py-1.5" style={{ width: '100%', minWidth: '250px' }}>
-                <div className="flex items-center gap-2">
+            <div className="py-1.5" style={{ width: '100%', minWidth: '250px' }} onClick={(e) => {e.stopPropagation();}}>
+                <div className="flex items-center gap-2" onClick={(e) => {e.stopPropagation()}}>
                     <button
                         className="p-1.5 rounded-full hover:bg-white/20 flex-shrink-0"
-                        onClick={() => handleVoicePlay(message._id, mediaItem.url)}
+                        onClick={(e) => {
+                            handleVoicePlay(message._id, mediaItem.url);
+                            e.stopPropagation();
+                        }}
                     >
                         {playingVoiceId === message._id ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                     </button>
                     <span className={`text-xs flex-shrink-0 w-10 text-right tabular-nums ${isOwn ? 'text-white' : 'text-gray-600'}`}>
                     {formatVoiceTime(voiceCurrentTimes[message._id] || 0)}
-                </span>
-                    <div
-                        className={`flex-1 h-1.5 rounded-full overflow-hidden cursor-pointer relative ${isOwn ? 'bg-white/30' : 'bg-gray-200'}`}
-                        onClick={(e) => handleProgressClick(e, message._id)}
-                    >
+                    </span>
                         <div
-                            className={`h-full rounded-full transition-all duration-100 ${isOwn ? 'bg-white' : 'bg-gray-500'}`}
-                            style={{ width: `${voiceProgressWidths[message._id] || 0}%` }}
-                        />
-                        <div
-                            className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full shadow cursor-pointer hover:scale-125 transition-transform ${isOwn ? 'bg-white' : 'bg-gray-600'}`}
-                            style={{ left: `calc(${voiceProgressWidths[message._id] || 0}% - 6px)` }}
-                            onMouseDown={(e) => {
+                            className={`flex-1 h-1.5 rounded-full overflow-hidden cursor-pointer relative ${isOwn ? 'bg-white/30' : 'bg-gray-200'}`}
+                            onClick={(e) => {
+                                handleProgressClick(e, message._id);
                                 e.stopPropagation();
-                                const bar = e.currentTarget.parentElement;
-                                const onMove = (moveEvent) => {
-                                    const rect = bar.getBoundingClientRect();
-                                    const percent = Math.max(0, Math.min(100, ((moveEvent.clientX - rect.left) / rect.width) * 100));
-                                    if (audioRef.current && playingVoiceId === message._id) {
-                                        audioRef.current.currentTime = (percent / 100) * audioRef.current.duration;
-                                        setVoiceProgressWidths(prev => ({ ...prev, [message._id]: percent }));
-                                    }
-                                };
-                                const onUp = () => {
-                                    document.removeEventListener('mousemove', onMove);
-                                    document.removeEventListener('mouseup', onUp);
-                                };
-                                document.addEventListener('mousemove', onMove);
-                                document.addEventListener('mouseup', onUp);
                             }}
-                        />
-                    </div>
+                        >
+                            <div
+                                className={`h-full rounded-full transition-all duration-100 ${isOwn ? 'bg-white' : 'bg-gray-500'}`}
+                                style={{ width: `${voiceProgressWidths[message._id] || 0}%` }}
+                            />
+                            <div
+                                className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full shadow cursor-pointer hover:scale-125 transition-transform ${isOwn ? 'bg-white' : 'bg-gray-600'}`}
+                                style={{ left: `calc(${voiceProgressWidths[message._id] || 0}% - 6px)` }}
+                                onMouseDown={(e) => {
+                                    e.stopPropagation();
+                                    const bar = e.currentTarget.parentElement;
+                                    const onMove = (moveEvent) => {
+                                        const rect = bar.getBoundingClientRect();
+                                        const percent = Math.max(0, Math.min(100, ((moveEvent.clientX - rect.left) / rect.width) * 100));
+                                        if (audioRef.current && playingVoiceId === message._id) {
+                                            audioRef.current.currentTime = (percent / 100) * audioRef.current.duration;
+                                            setVoiceProgressWidths(prev => ({ ...prev, [message._id]: percent }));
+                                        }
+                                    };
+                                    const onUp = () => {
+                                        document.removeEventListener('mousemove', onMove);
+                                        document.removeEventListener('mouseup', onUp);
+                                    };
+                                    document.addEventListener('mousemove', onMove);
+                                    document.addEventListener('mouseup', onUp);
+                                }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                }}
+                            />
+                        </div>
                     <span className={`text-xs flex-shrink-0 w-10 tabular-nums ${isOwn ? 'text-white' : 'text-gray-600'}`}>
-                    {formatVoiceTime(voiceDurations[message._id] || 0)}
-                </span>
+                        {formatVoiceTime(voiceDurations[message._id] || 0)}
+                    </span>
                 </div>
             </div>
         );
@@ -2454,6 +2532,13 @@ const ChatPage = () => {
                         message.contact ? 'max-w-[90%] min-w-[250px]' : 'max-w-[70%]'
                 }`}>
                     {message.pinned && <div className="absolute -top-4 left-2 flex items-center gap-1"><Pin className="w-3 h-3 text-blue-400" /><span className="text-[10px] text-blue-400">Pinned</span></div>}
+
+                    {/* Sender name for group conversations (not own message) */}
+                    {selectedConversation?.isGroup && !isOwn && message.senderId && (
+                        <p className="text-[11px] font-semibold mb-0.5 ml-1 text-gray-500">
+                            {message.senderId.displayName || message.senderId.username || 'Unknown'}
+                        </p>
+                    )}
 
                     <div className={`rounded-xl px-3 py-2 shadow-sm ${isOwn ? 'bg-emerald-500 text-white rounded-br-md' : 'bg-white text-gray-800 rounded-bl-md border border-gray-100'} ${isMentioned && !isOwn ? 'border-l-4 border-l-blue-400' : ''} ${message.isVoiceMessage && !message.text ? 'w-full' : ''}`}>
                         {/* Poll */}
@@ -2996,13 +3081,11 @@ const ChatPage = () => {
                                         >
                                             <div className="relative flex-shrink-0">
                                                 <div
-                                                    className={`w-12 h-12 rounded-full overflow-hidden ${conv.isGroup ? `bg-gradient-to-br ${getGroupAvatarColor(conv._id)}` : (other?.avatarUrl ? '' : 'bg-gradient-to-br from-blue-400 to-blue-500')}`}
+                                                    className={`w-12 h-12 rounded-full overflow-hidden ${conv.isGroup && !conv.groupAvatar ? `bg-gradient-to-br ${getGroupAvatarColor(conv)}` : (other?.avatarUrl ? '' : 'bg-gradient-to-br from-blue-400 to-blue-500')}`}
                                                 >
                                                     {
-                                                        conv.isGroup ?
-                                                            <div className="w-full h-full flex items-center justify-center text-white font-bold text-lg">
-                                                                {conv.groupName?.charAt(0) || 'G'}
-                                                            </div> :
+                                                        conv.isGroup && conv.groupAvatar ?
+                                                            <img src={conv.groupAvatar} alt="" className="w-full h-full object-cover" /> :
                                                             <img src={other?.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
                                                     }
                                                 </div>
@@ -3097,12 +3180,10 @@ const ChatPage = () => {
                         <div className="flex items-center gap-3">
                             <div className="relative">
                                 <div
-                                    className={`w-10 h-10 rounded-full overflow-hidden ${selectedConversation.isGroup ? `bg-gradient-to-br ${getGroupAvatarColor(selectedConversation._id)}` : (getOtherUser(selectedConversation)?.avatarUrl ? '' : 'bg-gradient-to-br from-blue-400 to-blue-500')}`}
+                                    className={`w-10 h-10 rounded-full overflow-hidden ${selectedConversation.isGroup && !selectedConversation.groupAvatar ? `bg-gradient-to-br ${getGroupAvatarColor(selectedConversation)}` : (getOtherUser(selectedConversation)?.avatarUrl ? '' : 'bg-gradient-to-br from-blue-400 to-blue-500')}`}
                                 >
-                                    {selectedConversation.isGroup ?
-                                        <div className="w-full h-full flex items-center justify-center text-white font-bold">
-                                            {selectedConversation.groupName?.charAt(0) || 'G'}
-                                        </div> :
+                                    {selectedConversation.isGroup && selectedConversation.groupAvatar ?
+                                        <img src={selectedConversation.groupAvatar} alt="" className="w-full h-full object-cover" /> :
                                         <img src={getOtherUser(selectedConversation)?.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
                                     }
                                 </div>
@@ -3122,10 +3203,13 @@ const ChatPage = () => {
                                 <p className="text-xs text-gray-400">
                                     {isTyping(getOtherUser(selectedConversation)?._id)
                                         ? 'typing...'
-                                        : isOnline(getOtherUser(selectedConversation)?._id)
-                                            ? 'online'
-                                            : getLastSeen(getOtherUser(selectedConversation)?.lastSeen)
-                                    }
+                                        : selectedConversation.isGroup
+                                            ? (getOnlineCount(selectedConversation) > 0
+                                                ? `${getOnlineCount(selectedConversation)} online`
+                                                : 'no one else online')
+                                            : isOnline(getOtherUser(selectedConversation)?._id)
+                                                ? 'online'
+                                                : getLastSeen(getOtherUser(selectedConversation)?.lastSeen)}
                                 </p>
                             </div>
                         </div>
@@ -3608,6 +3692,26 @@ const ChatPage = () => {
                                     />
                                     {showMentionsDropdown && (
                                         <div className="absolute bottom-full left-0 mb-2 w-48 bg-white rounded-xl shadow-lg border z-50 max-h-40 overflow-y-auto">
+                                            {/* @everyone option – only for group chats */}
+                                            {showMentionsDropdown && selectedConversation?.isGroup && (
+                                                <div
+                                                    className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                                                    onClick={() => {
+                                                        const beforeAt = messageText.substring(0, messageText.lastIndexOf('@', cursorPosition));
+                                                        const afterCursor = messageText.substring(cursorPosition);
+                                                        const newText = beforeAt + '@everyone ' + afterCursor;
+                                                        setMessageText(newText);
+                                                        setShowMentionsDropdown(false);
+                                                        messageInputRef.current?.focus();
+                                                    }}
+                                                >
+                                                    <div className="w-6 h-6 rounded-full bg-blue-400 flex items-center justify-center">
+                                                        <Users className="w-4 h-4 text-white" />
+                                                    </div>
+                                                    <span className="text-sm font-medium">@everyone</span>
+                                                </div>
+                                            )}
+                                            {/* existing user list */}
                                             {mentionableUsers
                                                 .filter(u => u.username?.toLowerCase().includes(mentionSearch) || u.displayName?.toLowerCase().includes(mentionSearch))
                                                 .slice(0, 5)
@@ -5318,6 +5422,17 @@ const ChatPage = () => {
                 isOpen={showGroupInfo}
                 onClose={() => setShowGroupInfo(false)}
                 conversationId={selectedConversation?._id}
+                onlineUsers={onlineUsers}
+                onMemberClick={async (memberId) => {
+                    setShowGroupInfo(false);
+                    try {
+                        const conv = await getConversation(memberId);
+                        if (conv) selectConversation(conv);
+                    } catch (error) {
+                        toast.error('Could not open conversation');
+                    }
+                }}
+                onAvatarChange={handleGroupAvatarChange}
             />
 
             {/* Video Recording Modal */}
@@ -5737,6 +5852,23 @@ const ChatPage = () => {
                                         }}
                                         disabled={wallpaperUploading}
                                     />
+                                </label>
+                            </div>
+                            <div className="border-t border-gray-100 pt-4">
+                                <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-3 rounded-xl"
+                                       onClick={() => {
+                                           handleSetWallpaper("");
+                                           setShowWallpaperModal(false);
+                                       }}
+                                >
+                                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                        <DeleteIcon className="w-5 h-5 text-red-500"/>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-700">
+                                            Remove Wallpaper
+                                        </p>
+                                    </div>
                                 </label>
                             </div>
                         </motion.div>

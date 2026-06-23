@@ -1,21 +1,24 @@
 // @ts-nocheck
-import { useState, useEffect } from "react";
+import {useState, useEffect, useRef} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     X, Users, UserPlus, UserX, Shield, Settings, LogOut, Flag,
     MessageSquare, Image as ImageIcon, Bell, BellOff, Trash2,
-    Edit3, Check, Crown, Search
+    Edit3, Check, Crown, LinkIcon, FileText, Download
 } from "lucide-react";
 import axiosInstance from "../../lib/axios";
 import toast from "react-hot-toast";
 import { useChatStore } from "../../store/useChatStore";
 import { useAuthStore } from "../../store/useAuthStore";
 
-const GroupInfoModal = ({ isOpen, onClose, conversationId }) => {
+const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMemberClick, onAvatarChange }) => {
     const [group, setGroup] = useState(null);
+    const [mediaItems, setMediaItems] = useState([]);
+    const [showMediaModal, setShowMediaModal] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [showMediaViewer, setShowMediaViewer] = useState(null);
     const [showAddMembers, setShowAddMembers] = useState(false);
-    const [followingUsers, setFollowingUsers] = useState([]);
+    const [contacts, setContacts] = useState([]);
     const [selectedUsers, setSelectedUsers] = useState([]);
     const [editingName, setEditingName] = useState(false);
     const [groupName, setGroupName] = useState("");
@@ -25,15 +28,24 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId }) => {
     const [muted, setMuted] = useState(false);
     const [showReportModal, setShowReportModal] = useState(false);
 
+    const mediaRef = useRef(null);
+    const mediaViewerRef = useRef(null);
+
     const { authUser } = useAuthStore();
     const {
-        getConversations, updateGroupInfo, addGroupParticipant,
-        removeGroupParticipant, muteConversation, selectConversation
+        getConversations, updateGroupInfo, addGroupParticipant, getMessages,
+        removeGroupParticipant, muteConversation, selectConversation, messages
     } = useChatStore();
 
     useEffect(() => {
         if (isOpen && conversationId) fetchGroupInfo();
     }, [isOpen, conversationId]);
+
+    useEffect(() => {
+        if (group?._id) {
+            getMessages(group._id);
+        }
+    }, [group?._id]);
 
     const fetchGroupInfo = async () => {
         setLoading(true);
@@ -53,29 +65,17 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId }) => {
         }
     };
 
-    const fetchFollowingUsers = async () => {
+    const fetchContacts = async () => {
         try {
             const token = localStorage.getItem('access-token');
-            const res = await axiosInstance.get('/auth/get-following', {
+            const res = await axiosInstance.get('/chat/contacts', {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            const ids = Array.isArray(res.data) ? res.data : (res.data?.following || []);
-            const users = (await Promise.all(ids.map(async (id) => {
-                try {
-                    const r = await axiosInstance.get(`/auth/get-user-by-id/${id}`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                    return r.data;
-                } catch { return null; }
-            }))).filter(Boolean);
-
-            // Convert existing participant IDs to strings for comparison
-            const existingIds = (group?.participants || []).map(p => String(p?._id || p));
-
-            // Filter out users already in group
-            setFollowingUsers(users.filter(u => !existingIds.includes(String(u?._id))));
+            // res.data is array of Contact objects with populated contactId
+            const users = res.data.map(c => c.contactId).filter(Boolean);
+            setContacts(users);
         } catch (error) {
-            setFollowingUsers([]);
+            setContacts([]);
         }
     };
 
@@ -148,6 +148,17 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId }) => {
         }
     };
 
+    const handleOpenMedia = () => {
+        const allMedia = messages.filter(m => m.media && m.media.length > 0).flatMap(m => m.media.map(
+            media => ({
+                ...media,
+                messageId: m._id
+            })
+        ));
+        setMediaItems(allMedia);
+        setShowMediaModal(true);
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -183,9 +194,33 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId }) => {
                                     </div>
 
                                     {/* Group Avatar */}
-                                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white text-2xl font-bold mx-auto mb-3">
-                                        {group.groupName?.charAt(0) || 'G'}
+                                    <div
+                                        className={`w-20 h-20 rounded-full ${!group.groupAvatar && `bg-gradient-to-br ${group.avatarColor}`} } flex items-center justify-center text-white text-2xl font-bold mx-auto mb-3 overflow-hidden cursor-pointer`}
+                                        onClick={() => {
+                                            if (group.admin?._id === authUser?._id) {
+                                                document.getElementById('group-avatar-input')?.click();
+                                            }
+                                        }}
+                                    >
+                                        {group.groupAvatar ? (
+                                            <img src={group.groupAvatar} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span>{group.groupName?.charAt(0) || 'G'}</span>
+                                        )}
                                     </div>
+                                    <input
+                                        type="file"
+                                        id="group-avatar-input"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) onAvatarChange?.(file);
+                                            setTimeout(() => {
+                                                fetchGroupInfo();
+                                            }, 2000);
+                                        }}
+                                    />
 
                                     {/* Group Name */}
                                     {editingName ? (
@@ -261,7 +296,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId }) => {
                                         </button>
                                     )}
 
-                                    <button onClick={() => { setShowAddMembers(true); fetchFollowingUsers(); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                    <button onClick={() => { setShowAddMembers(true); fetchContacts(); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
                                         <UserPlus className="w-4 h-4" /> Add Members
                                     </button>
 
@@ -270,12 +305,32 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId }) => {
                                         {muted ? 'Unmute Notifications' : 'Mute Notifications'}
                                     </button>
 
-                                    <button className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                    <button
+                                        className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                        onClick={() => {
+                                            handleOpenMedia();
+                                        }}
+                                    >
                                         <ImageIcon className="w-4 h-4" /> Media, Links & Docs
                                     </button>
 
-                                    <button className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
-                                        <Search className="w-4 h-4" /> Search Messages
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                const token = localStorage.getItem('access-token');
+                                                const res = await axiosInstance.post(`/chat/group/${conversationId}/invite`, {}, {
+                                                    headers: { Authorization: `Bearer ${token}` }
+                                                });
+                                                // Copy link to clipboard
+                                                await navigator.clipboard.writeText(res.data.inviteLink);
+                                                toast.success('Invite link copied to clipboard');
+                                            } catch (error) {
+                                                toast.error('Failed to generate invite link');
+                                            }
+                                        }}
+                                        className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                    >
+                                        <LinkIcon className="w-4 h-4" /> Invite via Link
                                     </button>
 
                                     <button onClick={() => setShowReportModal(true)} className="w-full px-4 py-3 hover:bg-red-50 rounded-xl flex items-center gap-3 text-sm text-red-500">
@@ -294,7 +349,11 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId }) => {
                                     </h4>
                                     <div className="space-y-1">
                                         {group.participants?.map((member) => (
-                                            <div key={member._id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
+                                            <div
+                                                key={member._id}
+                                                 onClick={() => onMemberClick(member._id)}
+                                                 className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer"
+                                            >
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
                                                         {member.avatarUrl ? (
@@ -314,10 +373,18 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId }) => {
                                                         </p>
                                                         <p className="text-xs text-gray-400">@{member.username}</p>
                                                     </div>
+                                                    {/* Online dot */}
+                                                    {onlineUsers?.includes(member._id) && (
+                                                        <div className="w-2 h-2 bg-green-500 rounded-full" />
+                                                    )}
                                                 </div>
+                                                {/* ... remove button ... */}
                                                 {isAdmin && member._id !== authUser?._id && (
                                                     <button
-                                                        onClick={() => handleRemoveMember(member._id)}
+                                                        onClick={() => {
+                                                            handleRemoveMember(member._id);
+                                                            e.stopPropagation();
+                                                        }}
                                                         className="p-1.5 hover:bg-red-50 rounded-full text-red-400 hover:text-red-500"
                                                         title="Remove member"
                                                     >
@@ -356,10 +423,10 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId }) => {
                                         </button>
                                     </div>
                                     <div className="max-h-48 overflow-y-auto mb-4">
-                                        {followingUsers.length === 0 ? (
+                                        {contacts.length === 0 ? (
                                             <p className="text-center text-gray-400 py-8">No users to add</p>
                                         ) : (
-                                            followingUsers.map(user => (
+                                            contacts.map(user => (
                                                 <div
                                                     key={user._id}
                                                     onClick={() => setSelectedUsers(prev =>
@@ -438,7 +505,132 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId }) => {
                     </AnimatePresence>
                 </motion.div>
             )}
+
+            {/* Media Modal */}
+            <AnimatePresence>
+                {
+                    showMediaModal && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowMediaModal(false)}
+                        >
+                            <motion.div
+                                ref={mediaRef}
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[500px] max-h-[80vh] overflow-y-auto shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold">
+                                        Media, Links & Docs
+                                    </h3>
+                                    <button
+                                        onClick={() => setShowMediaModal(false)}
+                                        className="p-2 hover:bg-gray-100 rounded-full"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                {mediaItems.length === 0 ?
+                                    <p className="text-center text-gray-400 py-8">
+                                        No media shared yet
+                                    </p> : (
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {mediaItems.map((item, i) => (
+                                                <div
+                                                    key={i}
+                                                    className="aspect-square rounded-lg overflow-hidden cursor-pointer bg-gray-100"
+                                                    onClick={() => {
+                                                        setShowMediaModal(false);
+                                                        setShowMediaViewer(item);
+                                                    }}
+                                                >
+                                                    {item.mime?.startsWith('image/') ?
+                                                        <img
+                                                            src={item.url}
+                                                            alt=""
+                                                            className="w-full h-full object-cover"
+                                                        /> :
+                                                        item.mime?.startsWith('video/') ?
+                                                            <video
+                                                                src={item.url}
+                                                                className="w-full h-full object-cover"
+                                                            /> :
+                                                            <div className="w-full h-full flex items-center justify-center">
+                                                                <FileText className="w-8 h-8 text-gray-400" />
+                                                            </div>
+                                                    }</div>
+                                            ))}
+                                        </div>
+                                    )
+                                }
+                            </motion.div>
+                        </motion.div>
+                    )
+                }
+            </AnimatePresence>
+
+            {/* Media Viewer Modal */}
+            <AnimatePresence>
+                {
+                    showMediaViewer && (
+                        <motion.div
+                            ref={mediaViewerRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+                            onClick={() => setShowMediaViewer(null)}
+                        >
+                            <button
+                                onClick={() => setShowMediaViewer(null)}
+                                className="absolute top-4 right-4 p-2 bg-white/20 rounded-full text-white hover:bg-white/40 z-10"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                            {showMediaViewer.mime?.startsWith('image/') ?
+                                <img
+                                    src={showMediaViewer.url}
+                                    alt=""
+                                    className="max-w-[90vw] max-h-[90vh] rounded-xl object-contain"
+                                    onClick={e => e.stopPropagation()}
+                                /> :
+                                showMediaViewer.mime?.startsWith('video/') ?
+                                    <video
+                                        src={showMediaViewer.url}
+                                        controls
+                                        className="max-w-[90vw] max-h-[90vh] rounded-xl"
+                                        onClick={e => e.stopPropagation()}
+                                    /> :
+                                    <div
+                                        className="bg-white rounded-xl p-8 text-center"
+                                        onClick={e => e.stopPropagation()}
+                                    >
+                                        <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                                        <p className="text-lg font-medium">
+                                            {showMediaViewer.filename || 'File'}
+                                        </p>
+                                        <a
+                                            href={showMediaViewer.url}
+                                            download className="text-blue-400 hover:text-blue-500 mt-2 inline-block"
+                                        >
+                                            <Download className="w-5 h-5 inline mr-1" />
+                                            Download
+                                        </a>
+                                    </div>
+                            }
+                        </motion.div>
+                    )
+                }
+            </AnimatePresence>
         </AnimatePresence>
+
+
     );
 };
 

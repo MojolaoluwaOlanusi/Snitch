@@ -30,14 +30,14 @@ const Sidebar = () => {
     };
 
     return (
-        <div className="h-screen w-full max-w-[200px] max-w-200px flex flex-col gap-2 border-r border-gray-200">
+        <div className="h-screen w-full max-w-[225px] max-w-225px flex flex-col gap-2 border-r border-gray-200">
             <div className="rounded-lg bg-white p-4 space-y-2sticky top-0 left-0 h-screen flex flex-col  w-20 md:w-full">
                 <div className=" flex flex-row space-x-2 items-center place-items-baseline py-4">
                     <SnitchLogoSmall/>
                     <h3 className="font-bold text-3xl text-blue-600">Snitch</h3>
                 </div>
                 <div className="space-y-2">
-                    <Link to={"/"} className="btn btn-primary w-full justify-start text-white hover: bg-blue-500">
+                    <Link to={"/"} className="btn btn-primary w-full justify-start text-white hover: bg-blue-500" title="home">
                         <HomeIcon className="mr-2 size-5"/>
                         <span className="hidden md:inline">Home</span>
                     </Link>
@@ -64,28 +64,29 @@ const Sidebar = () => {
                         </span>
                     </Link>
 
-                    <Link to={`/profile/${authUser?.username}`} className="btn btn-primary w-full justify-start text-white hover: bg-blue-500">
+                    <Link to={`/profile/${authUser?.username}`} className="btn btn-primary w-full justify-start text-white hover: bg-blue-500" title="profile">
                         <UserIcon className="mr-2 size-5"/>
                         <span className="hidden md:inline">Profile</span>
                     </Link>
                     <Link to={`/create-post/${authUser?.username}`}
-                          className="btn btn-primary w-full justify-start text-white hover: bg-blue-500">
+                          className="btn btn-primary w-full justify-start text-white hover: bg-blue-500"  title="create post"
+                    >
                         <PlusIcon className="mr-2 size-5"/>
                         <span className="hidden md:inline">Create Post</span>
                     </Link>
-                    <Link to={"/warp"} className="btn btn-primary w-full justify-start text-white hover: bg-blue-500">
+                    <Link to={"/warp"} className="btn btn-primary w-full justify-start text-white hover: bg-blue-500" title="warp">
                         <ZapIcon className="mr-2 size-5"/>
                         <span className="hidden md:inline">Warp</span>
                     </Link>
-                    <Link to={"/search"} className="btn btn-primary w-full justify-start text-white hover: bg-blue-500">
+                    <Link to={"/search"} className="btn btn-primary w-full justify-start text-white hover: bg-blue-500" title="search">
                         <SearchIcon className="mr-2 size-5"/>
                         <span className="hidden md:inline">Search</span>
                     </Link>
-                    <Link to={`/notifications/${authUser?.username}`} className="btn btn-primary w-full justify-start text-white hover: bg-blue-500">
+                    <Link to={`/notifications/${authUser?.username}`} className="btn btn-primary w-full justify-start text-white hover: bg-blue-500" title="notification">
                         <BellIcon className="mr-2 size-5"/>
                         <span className="hidden md:inline">Notification</span>
                     </Link>
-                    <Link to={"/ai"} className="btn btn-primary w-full justify-start text-white hover: bg-blue-500">
+                    <Link to={"/ai"} className="btn btn-primary w-full justify-start text-white hover: bg-blue-500" title="ai">
                         <GiFlowerTwirl className="mr-2 size-5"/>
                         <span className="hidden md:inline">AI</span>
                     </Link>
@@ -110,6 +111,7 @@ const Sidebar = () => {
                                 e.preventDefault();
                                 logout();
                             }}
+                            title="logout"
                         />
                     </div>
                 </Link>

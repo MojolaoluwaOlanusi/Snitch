@@ -276,8 +276,9 @@ const UserPosts = () => {
                                                     <h3 className='font-bold text-lg mb-4'>Comments</h3>
                                                     <div>
                                                         <form method='dialog' className='modal-backdrop'>
-                                                            <button className='outline-none'><IoClose
-                                                                className="text-black"/></button>
+                                                            <button className='outline-none'>
+                                                                <IoClose className="text-black"/>
+                                                            </button>
                                                         </form>
                                                     </div>
                                                 </div>

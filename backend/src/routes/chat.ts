@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 import { protectRoute } from "../middleware/protectRoute.ts";
 import { redis, getCachedMessages, updateCachedMessage } from '../utils/redisCache.ts';
 import axios from 'axios';
+import { randomUUID } from 'crypto';
 // Declare global io type so TypeScript knows it exists
 declare global {
     var io: any;
@@ -63,9 +64,12 @@ router.post("/conversation/:userId", protectRoute, async (req, res) => {
             .populate("lastMessage");
 
         if (!conversation) {
+            const inviteToken = randomUUID();
+
             conversation = await Conversation.create({
                 participants: [currentUserId, targetUserId],
                 isGroup: false,
+                inviteToken: inviteToken,
             });
             conversation = await Conversation.findById(conversation._id)
                 .populate("participants", "username displayName avatarUrl lastSeen")
@@ -367,6 +371,23 @@ router.post("/group", protectRoute, async (req, res) => {
         const { name, participantIds, avatar, description } = req.body;
         const adminId = req.user._id;
 
+        const avatarColors = [
+            'from-blue-400 to-blue-500',
+            'from-blue-500 to-blue-600',
+            'from-indigo-400 to-indigo-500',
+            'from-cyan-400 to-cyan-500',
+            'from-sky-400 to-sky-500',
+            'from-blue-600 to-indigo-500',
+            'from-blue-500 to-cyan-500',
+            'from-blue-400 to-indigo-400',
+        ];
+
+
+
+        const randomColor = avatarColors[Math.floor(Math.random() * avatarColors.length)];
+
+        const inviteToken = randomUUID();
+
         const conversation = await Conversation.create({
             participants: [adminId, ...participantIds],
             isGroup: true,
@@ -374,6 +395,8 @@ router.post("/group", protectRoute, async (req, res) => {
             groupAvatar: avatar,
             groupDescription: description,
             admin: adminId,
+            avatarColor: randomColor, // <-- store the color
+            inviteToken: inviteToken,
         });
 
         const populatedConversation = await Conversation.findById(conversation._id)
@@ -450,7 +473,7 @@ router.put("/group/:conversationId/remove", protectRoute, async (req, res) => {
 router.put("/group/:conversationId", protectRoute, async (req, res) => {
     try {
         const { conversationId } = req.params;
-        const { name, avatar, description } = req.body;
+        const { name, avatar, description, groupAvatar, adminOnlyMessages } = req.body;
         const userId = req.user._id;
 
         const conversation = await Conversation.findById(conversationId);
@@ -465,6 +488,8 @@ router.put("/group/:conversationId", protectRoute, async (req, res) => {
         if (name) conversation.groupName = name;
         if (avatar) conversation.groupAvatar = avatar;
         if (description) conversation.groupDescription = description;
+        if (groupAvatar) conversation.groupAvatar = groupAvatar;
+        conversation.adminOnlyMessages = adminOnlyMessages;
 
         await conversation.save();
 
@@ -841,9 +866,12 @@ router.get("/contact/:userId", protectRoute, async (req, res) => {
         }).populate("participants", "username displayName avatarUrl lastSeen");
 
         if (!conversation) {
+            const inviteToken = randomUUID();
+
             conversation = await Conversation.create({
                 participants: [currentUserId, targetUserId],
                 isGroup: false,
+                inviteToken: inviteToken,
             });
             conversation = await Conversation.findById(conversation._id)
                 .populate("participants", "username displayName avatarUrl lastSeen");
@@ -943,10 +971,6 @@ router.put("/conversation/:conversationId/wallpaper", protectRoute, async (req, 
         const { conversationId } = req.params;
         const { wallpaperUrl } = req.body;
 
-        if (!wallpaperUrl) {
-            return res.status(400).json({ error: "wallpaperUrl is required" });
-        }
-
         const conversation = await Conversation.findByIdAndUpdate(
             conversationId,
             { wallpaper: wallpaperUrl },
@@ -960,6 +984,99 @@ router.put("/conversation/:conversationId/wallpaper", protectRoute, async (req, 
         res.json(conversation);
     } catch (error: any) {
         console.error('Wallpaper route error:', error);
+        res.status(500).json({ error: error?.message || "Server error" });
+    }
+});
+
+// Generate group invite link
+router.post("/group/:conversationId/invite", protectRoute, async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const userId = req.user._id;
+
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation || !conversation.isGroup) {
+            return res.status(404).json({ error: "Group not found" });
+        }
+
+        // Only admin or existing participants can generate invite
+        if (!conversation.participants.some((p: any) => p.toString() === userId.toString())) {
+            return res.status(403).json({ error: "Not a participant" });
+        }
+
+        // Generate token if not exists
+        if (!conversation.inviteToken) {
+            conversation.inviteToken = randomUUID();
+            await conversation.save();
+        }
+
+        res.json({ inviteToken: conversation.inviteToken, inviteLink: `${process.env.CLIENT_URL}/chat?join=${conversation.inviteToken}` });
+    } catch (error: any) {
+        res.status(500).json({ error: error?.message || "Server error" });
+    }
+});
+
+// Join group via invite token
+router.post("/join/:token", protectRoute, async (req, res) => {
+    try {
+        const { token } = req.params;
+        const userId = req.user._id;
+
+        const conversation = await Conversation.findOne({ inviteToken: token });
+        if (!conversation) {
+            return res.status(404).json({ error: "Invalid invite link" });
+        }
+
+        // Check if already a member
+        if (conversation.participants.some((p: any) => p.toString() === userId.toString())) {
+            return res.status(400).json({ error: "Already a member" });
+        }
+
+        // Add user to group
+        conversation.participants.push(userId);
+        await conversation.save();
+
+        const populated = await Conversation.findById(conversation._id)
+            .populate("participants", "username displayName avatarUrl lastSeen")
+            .populate("admin", "username displayName avatarUrl lastSeen");
+
+        // Notify other members via socket
+        if ((globalThis as any).io) {
+            conversation.participants.forEach((pid: any) => {
+                const memberSocket = Array.from((globalThis as any).io.sockets.sockets.values())
+                    .find((s: any) => s.data?.userId === pid.toString()) as any;
+                if (memberSocket && pid.toString() !== userId) {
+                    memberSocket.emit('group:member_joined', { conversationId: conversation._id, userId });
+                }
+            });
+        }
+
+        res.json(populated);
+    } catch (error: any) {
+        res.status(500).json({ error: error?.message || "Server error" });
+    }
+});
+
+// Update group avatar
+router.put("/group/:conversationId/avatar", protectRoute, async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const { avatarUrl } = req.body;
+        const userId = req.user._id;
+
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation || !conversation.isGroup) {
+            return res.status(404).json({ error: "Group not found" });
+        }
+        if (conversation.admin?.toString() !== userId) {
+            return res.status(403).json({ error: "Only admin can change avatar" });
+        }
+
+        conversation.groupAvatar = avatarUrl;
+        await conversation.save();
+
+        res.json(conversation);
+    } catch (error: any) {
         res.status(500).json({ error: error?.message || "Server error" });
     }
 });
