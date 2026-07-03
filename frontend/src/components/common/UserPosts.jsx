@@ -2,8 +2,11 @@ import {useUserStore} from "../../store/useUserStore";
 import {useEffect, useState} from "react";
 import PostSkeleton from "../../components/skeletons/PostSkeleton";
 import {Link, useNavigate} from "react-router-dom";
+import toast from "react-hot-toast";
 import {FaRegComment, FaRegHeart, FaTrash} from "react-icons/fa";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
+import { Share2, Copy, Check, ExternalLink } from "lucide-react";
+import { FaFacebook, FaXTwitter, FaWhatsapp, FaTelegram, FaEnvelope } from "react-icons/fa6";
 import {BiRepost} from "react-icons/bi";
 import {formatPostDate} from "../../utils/date";
 import {useAuthStore} from "../../store/useAuthStore";
@@ -26,6 +29,7 @@ const UserPosts = () => {
     const navigate = useNavigate();
 
     const [commentData, setCommentData] = useState({ text: "", postId: "" });
+    const [shareModal, setShareModal] = useState({ open: false, postId: null, url: "" });
     const [reportSelectVisible, setReportSelectVisible] = useState(false);
     const [actionPostId, setActionPostId] = useState(null);
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(null);
@@ -204,7 +208,9 @@ const UserPosts = () => {
                                     className="w-full"
                                 >
                                     <div className='flex flex-col gap-3 overflow-hidden'>
-                                        <span className="w-full line-clamp-3 leading-relaxed">{post?.text}</span>
+                                        <span className={`w-full leading-relaxed whitespace-pre-wrap ${post?.url && post?.mediaType ? 'line-clamp-3' : 'line-clamp-[11]'}`}>
+                                            {post?.text}
+                                        </span>
                                         {post?.hashtags && post.hashtags.length > 0 && (
                                             <div className="flex flex-wrap gap-2 mt-2">
                                                 {post.hashtags.map((hashtag, index) => (
@@ -222,37 +228,40 @@ const UserPosts = () => {
                                                 ))}
                                             </div>
                                         )}
-                                        <div
-                                            className="w-full h-[400px] aspect-[4/5] sm:aspect-video rounded-2xl overflow-hidden items-center">
-                                            {post?.mediaType === "Image" && (
-                                                <img
-                                                    src={post?.url}
-                                                    className='w-full h-full object-cover object-center block rounded-lg'
-                                                    alt=''
-                                                    loading="lazy"
-                                                />
-                                            )}
-                                            {post?.mediaType === "Video" && (
-                                                <video
-                                                    src={post?.url}
-                                                    className='w-full h-full object-cover object-center block rounded-lg'
-                                                    controls={true}
-                                                />
-                                            )}
-                                            {post?.mediaType === "Audio" && (
-                                                <div
-                                                    className='w-full h-full object-cover object-center block rounded-lg'
-                                                >
-                                                    <img src="/Snitch_Audio_Waveform(1920 x 1080).png" alt=""
-                                                         className="w-full h-[350px] object-cover object-center block rounded-lg"/>
-                                                    <audio
+                                        {post?.url && post?.mediaType && (
+                                            <div
+                                                className="w-full h-[400px] aspect-[4/5] sm:aspect-video rounded-2xl overflow-hidden items-center"
+                                            >
+                                                {post?.mediaType === "Image" && (
+                                                    <img
                                                         src={post?.url}
-                                                        controls={true}
-                                                        className='w-full'
+                                                        className='w-full h-full object-cover object-center block rounded-lg'
+                                                        alt=''
+                                                        loading="lazy"
                                                     />
-                                                </div>
-                                            )}
-                                        </div>
+                                                )}
+                                                {post?.mediaType === "Video" && (
+                                                    <video
+                                                        src={post?.url}
+                                                        className='w-full h-full object-cover object-center block rounded-lg'
+                                                        controls={true}
+                                                    />
+                                                )}
+                                                {post?.mediaType === "Audio" && (
+                                                    <div
+                                                        className='w-full h-full object-cover object-center block rounded-lg'
+                                                    >
+                                                        <img src="/Snitch_Audio_Waveform(1920 x 1080).png" alt=""
+                                                             className="w-full h-[350px] object-cover object-center block rounded-lg"/>
+                                                        <audio
+                                                            src={post?.url}
+                                                            controls={true}
+                                                            className='w-full'
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </Link>
                                 <div className='flex justify-between mt-3'>
@@ -373,6 +382,17 @@ const UserPosts = () => {
 									                    {post?.likes?.length}
 								                    </span>
                                         </div>
+                                        {/* Share Button */}
+                                        <div
+                                            className="flex gap-1 items-center group cursor-pointer"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                const postUrl = `${window.location.origin}/post/${post?._id}`;
+                                                setShareModal({ open: true, postId: post?._id, url: postUrl });
+                                            }}
+                                        >
+                                            <Share2 className="w-4 h-4 text-slate-500 group-hover:text-blue-400" />
+                                        </div>
                                     </div>
                                     <div className="flex gap-0 items-center">
                                         <ReactionsDisplay reactions={post?.reaction}/>
@@ -418,6 +438,92 @@ const UserPosts = () => {
                             </div>
                          )
                     })}
+                </div>
+            )}
+
+            {/* Share Modal */}
+            {shareModal.open && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShareModal({ open: false, postId: null, url: "" })}>
+                    <div
+                        className="bg-white rounded-2xl p-6 w-[400px] shadow-xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-bold">Share Post</h3>
+                            <button
+                                onClick={() => setShareModal({ open: false, postId: null, url: "" })}
+                                className="p-2 hover:bg-gray-100 rounded-full"
+                            >
+                                <IoClose className="w-5 h-5 text-gray-500" />
+                            </button>
+                        </div>
+
+                        {/* Copy Link */}
+                        <button
+                            onClick={() => {
+                                navigator.clipboard.writeText(shareModal.url);
+                                toast.success("Link copied to clipboard");
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 rounded-xl mb-2 transition-colors"
+                        >
+                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                                <Copy className="w-5 h-5 text-gray-600" />
+                            </div>
+                            <div className="text-left flex-1">
+                                <p className="text-sm font-medium text-gray-800">Copy Link</p>
+                                <p className="text-xs text-gray-400">{shareModal.url}</p>
+                            </div>
+                            <Check className="w-4 h-4 text-gray-400" />
+                        </button>
+
+                        {/* Social Share Buttons */}
+                        <div className="grid grid-cols-2 gap-2 mt-4">
+                            {/* Facebook */}
+                            <button
+                                onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareModal.url)}`, '_blank')}
+                                className="flex items-center gap-2 px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+                            >
+                                <FaFacebook className="w-5 h-5 text-blue-600" />
+                                <span className="text-sm font-medium text-blue-700">Facebook</span>
+                            </button>
+
+                            {/* X / Twitter */}
+                            <button
+                                onClick={() => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareModal.url)}`, '_blank')}
+                                className="flex items-center gap-2 px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"
+                            >
+                                <FaXTwitter className="w-5 h-5 text-gray-800" />
+                                <span className="text-sm font-medium text-gray-700">X</span>
+                            </button>
+
+                            {/* WhatsApp */}
+                            <button
+                                onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareModal.url)}`, '_blank')}
+                                className="flex items-center gap-2 px-4 py-3 bg-green-50 hover:bg-green-100 rounded-xl transition-colors"
+                            >
+                                <FaWhatsapp className="w-5 h-5 text-green-600" />
+                                <span className="text-sm font-medium text-green-700">WhatsApp</span>
+                            </button>
+
+                            {/* Telegram */}
+                            <button
+                                onClick={() => window.open(`https://t.me/share/url?url=${encodeURIComponent(shareModal.url)}`, '_blank')}
+                                className="flex items-center gap-2 px-4 py-3 bg-sky-50 hover:bg-sky-100 rounded-xl transition-colors"
+                            >
+                                <FaTelegram className="w-5 h-5 text-sky-600" />
+                                <span className="text-sm font-medium text-sky-700">Telegram</span>
+                            </button>
+
+                            {/* Email */}
+                            <button
+                                onClick={() => window.open(`mailto:?subject=Check out this post on Snitch&body=${encodeURIComponent(shareModal.url)}`, '_blank')}
+                                className="flex items-center gap-2 px-4 py-3 bg-red-50 hover:bg-red-100 rounded-xl transition-colors col-span-2"
+                            >
+                                <FaEnvelope className="w-5 h-5 text-red-600" />
+                                <span className="text-sm font-medium text-red-700">Email</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </>

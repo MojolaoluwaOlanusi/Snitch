@@ -40,16 +40,13 @@ const SearchPage = () => {
     useEffect(() => {
         if (location.state?.conversationId && location.state?.messageId) {
             const { conversationId, messageId } = location.state;
-            // Find the conversation and select it
             const conv = conversations.find(c => c._id === conversationId);
             if (conv) {
                 selectConversation(conv);
-                // Wait for messages to load, then scroll
                 setTimeout(() => {
                     scrollToMessage(messageId);
                 }, 500);
             } else {
-                // If conversation not in list yet, fetch it
                 getConversation(conversationId).then(conv => {
                     if (conv) {
                         selectConversation(conv);
@@ -57,7 +54,6 @@ const SearchPage = () => {
                     }
                 });
             }
-            // Clear the state so it doesn't re-trigger
             navigate('/chat', { replace: true, state: {} });
         }
     }, [location.state]);
@@ -66,7 +62,6 @@ const SearchPage = () => {
         getTrending();
     }, [getTrending]);
 
-    // Handle navigation state from hashtag clicks
     useEffect(() => {
         if (location.state?.searchWord) {
             setCurrentSearchWord(location.state.searchWord);
@@ -142,9 +137,7 @@ const SearchPage = () => {
 
     const loadMoreUsers = () => {
         const next = userSkip + 10;
-
         setUserSkip(next);
-
         searchItem({
             searchWord: currentSearchWord,
             searchType: "user",
@@ -155,9 +148,7 @@ const SearchPage = () => {
 
     const loadMorePosts = () => {
         const next = postSkip + 10;
-
         setPostSkip(next);
-
         searchItem({
             searchWord: currentSearchWord,
             searchType: "post",
@@ -168,9 +159,7 @@ const SearchPage = () => {
 
     const loadMoreChats = () => {
         const next = chatSkip + 10;
-
         setChatSkip(next);
-
         searchItem({
             searchWord: currentSearchWord,
             searchType: "chat",
@@ -181,9 +170,7 @@ const SearchPage = () => {
 
     const loadMoreMentions = () => {
         const next = mentionSkip + 10;
-
         setMentionSkip(next);
-
         searchItem({
             searchWord: currentSearchWord,
             searchType: "mention",
@@ -194,9 +181,7 @@ const SearchPage = () => {
 
     const loadMoreHashtags = () => {
         const next = hashtagSkip + 10;
-
         setHashtagSkip(next);
-
         searchItem({
             searchWord: currentSearchWord,
             searchType: "hashtag",
@@ -249,11 +234,6 @@ const SearchPage = () => {
                             </div>
                         </div>
                         <p className="text-gray-700 line-clamp-2">{item.text}</p>
-                        {/*{item.mediaType === "Image" && item.url && (*/}
-                        {/*    <div className="mt-3 rounded-lg overflow-hidden">*/}
-                        {/*        <img src={item.url} alt="" className="w-full h-48 object-cover" />*/}
-                        {/*    </div>*/}
-                        {/*)}*/}
                     </div>
                 </Link>
             );
@@ -319,12 +299,10 @@ const SearchPage = () => {
     const hasNoResults = () => {
         if (!searchResults) return true;
 
-        // Array searches
         if (Array.isArray(searchResults)) {
             return searchResults.length === 0;
         }
 
-        // All search
         if (
             searchType === "all" &&
             typeof searchResults === "object" &&
@@ -340,7 +318,6 @@ const SearchPage = () => {
             );
         }
 
-        // Hashtag search
         if (
             searchType === "hashtag" &&
             typeof searchResults === "object"
@@ -360,9 +337,12 @@ const SearchPage = () => {
         <div className="w-full flex flex-col md:flex-row h-screen bg-gray-100">
             <Sidebar/>
             <div className="flex-1 flex flex-col h-screen overflow-hidden">
+                {/* Hamburger spacer */}
+                <div className="h-14 lg:hidden" />
+
                 <div className="sticky top-0 z-10 bg-gray-100 p-4 md:p-6 border-b border-gray-300">
                     <div className="w-full">
-                        <div className="bg-white rounded-2xl shadow-sm p-6">
+                        <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6">
                             <div className="relative mb-4">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                                 <Input
@@ -429,14 +409,14 @@ const SearchPage = () => {
                                             <button
                                                 key={tab.id}
                                                 onClick={() => setSearchType(tab.id)}
-                                                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 ${
+                                                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full transition-all duration-200 text-sm ${
                                                     searchType === tab.id
                                                         ? "bg-blue-200 text-gray-800 font-medium"
                                                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                                                 }`}
                                             >
                                                 <Icon className="w-4 h-4" />
-                                                <span>{tab.label}</span>
+                                                <span className="hidden sm:inline">{tab.label}</span>
                                             </button>
                                         );
                                     })}
@@ -458,7 +438,7 @@ const SearchPage = () => {
 
                             {!isSearching && !showSearchType && (
                                 <div className="space-y-6">
-                                    <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+                                    <div className="bg-white rounded-2xl shadow-sm p-8 sm:p-12 text-center">
                                         <Search className="w-16 h-16 mx-auto text-gray-300 mb-4" />
                                         <h2 className="text-xl font-semibold text-gray-800 mb-2">Discover what's happening</h2>
                                         <p className="text-gray-500">Search for people, posts, hashtags, and more</p>
@@ -472,7 +452,7 @@ const SearchPage = () => {
                                     ) : (
                                         <>
                                             {trendingPosts && trendingPosts.length > 0 && (
-                                                <div className="bg-white rounded-2xl shadow-sm p-6">
+                                                <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6">
                                                     <div className="flex items-center gap-2 mb-4">
                                                         <TrendingUp className="w-5 h-5 text-blue-400" />
                                                         <h3 className="text-lg font-semibold text-gray-800">Trending Posts</h3>
@@ -518,7 +498,7 @@ const SearchPage = () => {
                                             )}
 
                                             {trendingHashtags && trendingHashtags.length > 0 && (
-                                                <div className="bg-white rounded-2xl shadow-sm p-6">
+                                                <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6">
                                                     <div className="flex items-center gap-2 mb-4">
                                                         <Hash className="w-5 h-5 text-blue-400" />
                                                         <h3 className="text-lg font-semibold text-gray-800">Trending Hashtags</h3>
@@ -557,12 +537,12 @@ const SearchPage = () => {
                             {!isSearching &&
                                 showSearchType &&
                                 hasNoResults() && (
-                                <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
-                                    <Search className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                                    <h2 className="text-xl font-semibold text-gray-800 mb-2">No results found</h2>
-                                    <p className="text-gray-500">Try different keywords or search filters</p>
-                                </div>
-                            )}
+                                    <div className="bg-white rounded-2xl shadow-sm p-8 sm:p-12 text-center">
+                                        <Search className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                                        <h2 className="text-xl font-semibold text-gray-800 mb-2">No results found</h2>
+                                        <p className="text-gray-500">Try different keywords or search filters</p>
+                                    </div>
+                                )}
 
                             {!isSearching && searchResults && (
                                 <div className="space-y-3">
@@ -690,8 +670,8 @@ const SearchPage = () => {
                                             {searchResults.map((item, index) => renderSearchResult(item, index, searchType))}
                                         </>
                                     ) : searchType === "user" &&
-                                        searchResults.users &&
-                                        searchResults.users.length > 0 ? (
+                                    searchResults.users &&
+                                    searchResults.users.length > 0 ? (
                                         <>
                                             {searchResults.users.map((item, index) =>
                                                 renderSearchResult(item, index, "user")
@@ -712,42 +692,42 @@ const SearchPage = () => {
                                             )}
                                         </>
                                     ) : searchType === "post" && searchResults.posts && searchResults.posts.length > 0 ? (
-                                                <>
-                                                    {searchResults.posts.map((item, index) => renderSearchResult(item, index, 'post'))}
-                                                    {searchHasMore.posts && (
-                                                        <button onClick={loadMorePosts} disabled={isSearching}
-                                                            className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                                                isSearching ? "bg-gray-200 cursor-not-allowed" : "bg-blue-100 hover:bg-blue-200 text-blue-700"
-                                                            }`}>
-                                                            Load More
-                                                        </button>
-                                                    )}
-                                                </>
-                                            ) : searchType === "chat" && searchResults.chats && searchResults.chats.length > 0 ? (
-                                                <>
-                                                    {searchResults.chats.map((item, index) => renderSearchResult(item, index, 'chat'))}
-                                                    {searchHasMore.chats && (
-                                                        <button onClick={loadMoreChats} disabled={isSearching}
-                                                            className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                                                isSearching ? "bg-gray-200 cursor-not-allowed" : "bg-blue-100 hover:bg-blue-200 text-blue-700"
-                                                            }`}>
-                                                            Load More
-                                                        </button>
-                                                    )}
-                                                </>
-                                            ) : searchType === "mention" && searchResults.mentions && searchResults.mentions.length > 0 ? (
-                                                <>
-                                                    {searchResults.mentions.map((item, index) => renderSearchResult(item, index, 'mention'))}
-                                                    {searchHasMore.mentions && (
-                                                        <button onClick={loadMoreMentions} disabled={isSearching}
-                                                            className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                                                isSearching ? "bg-gray-200 cursor-not-allowed" : "bg-blue-100 hover:bg-blue-200 text-blue-700"
-                                                            }`}>
-                                                            Load More
-                                                        </button>
-                                                    )}
-                                                </>
-                                            ) : null}
+                                        <>
+                                            {searchResults.posts.map((item, index) => renderSearchResult(item, index, 'post'))}
+                                            {searchHasMore.posts && (
+                                                <button onClick={loadMorePosts} disabled={isSearching}
+                                                        className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                            isSearching ? "bg-gray-200 cursor-not-allowed" : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                        }`}>
+                                                    Load More
+                                                </button>
+                                            )}
+                                        </>
+                                    ) : searchType === "chat" && searchResults.chats && searchResults.chats.length > 0 ? (
+                                        <>
+                                            {searchResults.chats.map((item, index) => renderSearchResult(item, index, 'chat'))}
+                                            {searchHasMore.chats && (
+                                                <button onClick={loadMoreChats} disabled={isSearching}
+                                                        className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                            isSearching ? "bg-gray-200 cursor-not-allowed" : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                        }`}>
+                                                    Load More
+                                                </button>
+                                            )}
+                                        </>
+                                    ) : searchType === "mention" && searchResults.mentions && searchResults.mentions.length > 0 ? (
+                                        <>
+                                            {searchResults.mentions.map((item, index) => renderSearchResult(item, index, 'mention'))}
+                                            {searchHasMore.mentions && (
+                                                <button onClick={loadMoreMentions} disabled={isSearching}
+                                                        className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                                            isSearching ? "bg-gray-200 cursor-not-allowed" : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                                                        }`}>
+                                                    Load More
+                                                </button>
+                                            )}
+                                        </>
+                                    ) : null}
                                 </div>
                             )}
                         </div>

@@ -1,4 +1,5 @@
 import { Redis } from 'ioredis';
+import Message from "../models/Message.ts";
 
 export const redis = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', {
     maxRetriesPerRequest: null,
@@ -22,7 +23,10 @@ redis.on('error', (err: Error) => {
     console.error('Redis cache client error:', err.message);
 });
 redis.on('connect', () => console.log('Redis cache client connected'));
-redis.on('ready', () => console.log('Redis cache client ready'));
+redis.on('ready', () => {
+    console.log('Redis cache client ready');
+    warmCacheForActiveConversations().catch(err => console.error('Warm cache error:', err));
+});
 redis.on('reconnecting', () => console.log('Redis cache client reconnecting...'));
 redis.on('close', () => console.log('Redis cache client connection closed'));
 
@@ -108,5 +112,36 @@ export const getOnlineUsers = async (): Promise<string[]> => {
     } catch (error: any) {
         console.error('Redis getOnlineUsers error:', error?.message || error);
         return [];
+    }
+};
+
+// Run this after Redis (re)connects
+export const warmCacheForActiveConversations = async () => {
+    try {
+        // Get list of conversation IDs that have been active recently
+        // (you could track this manually, or just use a set of keys in Redis)
+        const keys = await redis.keys('chat:*:messages');
+        for (const key of keys) {
+            const conversationId = key.split(':')[1];
+            // Fetch latest 50 messages from MongoDB
+            const messages = await Message.find({ conversationId })
+                .sort({ createdAt: -1 })
+                .limit(50)
+                .populate('senderId', 'username displayName avatarUrl')
+                .lean();
+            // Clear the existing cache and repopulate
+            await redis.del(key);
+            if (messages.length > 0) {
+                // Push in reverse order so oldest is at the end of the list
+                for (const msg of messages.reverse()) {
+                    await redis.lpush(key, JSON.stringify(msg));
+                }
+                await redis.ltrim(key, 0, 199);
+                await redis.expire(key, 86400);
+            }
+        }
+        console.log('Redis cache warmed for active conversations');
+    } catch (err) {
+        console.error('Cache warming failed:', err);
     }
 };

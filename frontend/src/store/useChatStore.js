@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { useAuthStore } from "./useAuthStore";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
+import axios from "../lib/axios";
 
 export const useChatStore = create((set, get) => ({
     conversations: [],
@@ -147,16 +148,19 @@ export const useChatStore = create((set, get) => ({
 
     // ==================== Poll Voting ====================
 
-    votePoll: async ({ messageId, optionIndex }) => {
+    votePoll: async ({ messageId, optionIndex, isMultiple }) => {
         const socket = useAuthStore.getState().socket;
         if (!socket?.connected) { toast.error("Not connected"); return; }
         return new Promise((resolve, reject) => {
-            socket.emit('poll:vote', { messageId, optionIndex }, (ack) => {
+            socket.emit('poll:vote', { messageId, optionIndex, isMultiple }, (ack) => {
                 if (!ack?.ok) { toast.error("Failed to vote"); reject(new Error(ack?.error)); return; }
                 const { updateMessage, messages } = get();
                 const msg = messages.find(m => m._id === messageId);
                 if (msg) {
-                    updateMessage(messageId, { poll: { ...msg.poll, votes: ack.votes } });
+                    // ack.votes is a plain object like { userId: [0] }
+                    updateMessage(messageId, {
+                        poll: { ...msg.poll, votes: ack.votes }
+                    });
                 }
                 resolve(ack);
             });
@@ -186,20 +190,30 @@ export const useChatStore = create((set, get) => ({
             const token = localStorage.getItem('access-token');
             const presignRes = await axiosInstance.post('/media/chat-presign', {
                 conversationId,
-                fileName: file.name,
-                contentType: file.type,
-                mediaType,
+                fileName: file.name || 'sticker.png',
+                contentType: file.type || 'image/png',
+                mediaType: mediaType || 'stickers',   // 👈 use 'stickers' folder
             }, { headers: { Authorization: `Bearer ${token}` } });
 
             if (!presignRes.data.ok) throw new Error('Failed to get upload URL');
 
             await fetch(presignRes.data.uploadUrl, {
                 method: 'PUT',
-                headers: { 'Content-Type': file.type },
+                headers: { 'Content-Type': file.type || 'image/png' },
                 body: file,
             });
 
             return { url: presignRes.data.publicUrl, key: presignRes.data.key };
+        } catch (error) {
+            console.error('uploadChatMedia error:', error);
+            throw error;
+        }
+    },
+
+    updateLinkPreview: async (data) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.put(`/chat/message/${data.messageId}/linkPreview-update`, data.linkPreview, { headers: { Authorization: `Bearer ${token}` } });
         } catch (error) {
             console.error('uploadChatMedia error:', error);
             throw error;
@@ -376,6 +390,18 @@ export const useChatStore = create((set, get) => ({
         }
     },
 
+    bookmarkMessage: async (messageId) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.put(`/chat/message/${messageId}/bookmark`, {}, { headers: { Authorization: `Bearer ${token}` } });
+            const { authUser } = useAuthStore.getState();
+            get().updateMessage(messageId, { bookmarkedBy: res.data.bookmarked ? [authUser?._id] : [] });
+            return res.data;
+        } catch (error) {
+            if (error?.response?.status !== 404) toast.error('Failed to bookmark message');
+        }
+    },
+
     getStarredMessages: async (conversationId) => {
         try {
             const token = localStorage.getItem('access-token');
@@ -461,6 +487,21 @@ export const useChatStore = create((set, get) => ({
             await axiosInstance.delete(`/chat/contact/${contactId}`, { headers: { Authorization: `Bearer ${token}` } });
             toast.success('Contact deleted');
         } catch (error) { console.error('Error deleting contact:', error); toast.error('Failed to delete contact'); }
+    },
+
+    downloadChat: async (data) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            await axios.get(`/chat/conversation/${data}/export`, { headers: { Authorization: `Bearer ${token}` } });
+        } catch (error) { console.error('Error downloading chat:', error); toast.error('Failed to download chat'); }
+    },
+
+    changeThemeColor: async (data, conversationId) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            await axios.put(`/chat/conversation/${conversationId}/theme`, {"themeColor": data}, { headers: { Authorization: `Bearer ${token}` } });
+            toast.success(`Chat theme color changed to ${data}`)
+        } catch (error) { console.error('Error changing theme color:', error); toast.error('Failed to change theme color'); }
     },
 
     // ==================== Socket Event State Updaters ====================

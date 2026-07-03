@@ -2,12 +2,16 @@ import express from "express";
 import {User} from "../models/User.ts";
 import Message from "../models/Message.ts";
 import Conversation from "../models/Conversation.ts";
+import { Sticker } from '../models/Sticker.ts';
 import Contact from "../models/Contact.ts";
+import { Wallpaper } from '../models/UserWallpaper.ts';
 import bcrypt from 'bcryptjs';
-import { protectRoute } from "../middleware/protectRoute.ts";
-import { redis, getCachedMessages, updateCachedMessage } from '../utils/redisCache.ts';
+import {protectRoute} from "../middleware/protectRoute.ts";
+import {getCachedMessages, redis, updateCachedMessage} from '../utils/redisCache.ts';
+import { ThemeColor } from '../models/ThemeColor.ts';
 import axios from 'axios';
-import { randomUUID } from 'crypto';
+import {randomUUID} from 'crypto';
+import * as cheerio from 'cheerio';
 // Declare global io type so TypeScript knows it exists
 declare global {
     var io: any;
@@ -178,6 +182,21 @@ router.put("/message/:messageId/star", protectRoute, async (req, res) => {
         }
 
         await message.save();
+
+        // Fetch the fully populated message for Redis caching
+        const populated = await Message.findById(messageId)
+            .populate('senderId', 'username displayName avatarUrl')
+            .populate('replyTo')
+            .populate('mentions', 'username displayName avatarUrl');
+
+        // Update Redis cache with the populated message
+        if (message.conversationId) {
+            await updateCachedMessage(
+                message.conversationId.toString(),
+                messageId,
+                populated
+            ).catch(err => console.error('Redis update (star message) error:', err));
+        }
         res.json({ starred: !isStarred });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -193,6 +212,26 @@ router.get("/starred/:conversationId", protectRoute, async (req, res) => {
         const messages = await Message.find({
             conversationId,
             starredBy: userId,
+            deletedAt: null,
+        })
+            .populate("senderId", "username displayName avatarUrl lastSeen")
+            .sort({ createdAt: -1 });
+
+        res.json(messages);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get bookmarked messages
+router.get("/bookmarked/:conversationId", protectRoute, async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const userId = req.user._id;
+
+        const messages = await Message.find({
+            conversationId,
+            bookmarkedBy: userId,
             deletedAt: null,
         })
             .populate("senderId", "username displayName avatarUrl lastSeen")
@@ -608,11 +647,11 @@ router.post("/message/:messageId/report", protectRoute, async (req, res) => {
     }
 });
 
-// Poll vote
+// Poll vote – plain object, no Map
 router.put("/message/:messageId/vote", protectRoute, async (req, res) => {
     try {
         const { messageId } = req.params;
-        const { optionIndex } = req.body;
+        const { optionIndex, isMultiple } = req.body;
         const userId = req.user._id;
 
         const message = await Message.findById(messageId);
@@ -620,28 +659,50 @@ router.put("/message/:messageId/vote", protectRoute, async (req, res) => {
             return res.status(404).json({ error: "Poll not found" });
         }
 
-        if (!message.poll.votes) {
-            (message.poll as any).votes = new Map();
+        // Ensure votes is a plain object
+        if (!message.poll.votes || typeof message.poll.votes !== 'object') {
+            (message.poll as any).votes = {};
+        }
+        const votes: Record<string, number[]> = (message.poll as any).votes;
+
+        // Get current votes for this user (always an array now)
+        let userVotes: number[] = votes[userId] || [];
+
+        if (isMultiple && message.poll.allowMultiple) {
+            // Toggle the option
+            if (userVotes.includes(optionIndex)) {
+                userVotes = userVotes.filter(v => v !== optionIndex);
+            } else {
+                userVotes.push(optionIndex);
+            }
+        } else {
+            // Single vote – replace
+            userVotes = [optionIndex];
         }
 
-        (message.poll.votes as Map<string, number>).set(userId.toString(), optionIndex);
+        // Update or remove the user's vote entry
+        if (userVotes.length === 0) {
+            delete votes[userId];
+        } else {
+            votes[userId] = userVotes;
+        }
+
+        // Mark field as modified so Mongoose saves it
         message.markModified('poll.votes');
         await message.save();
 
-        const votesObj: Record<string, number> = {};
-        (message.poll.votes as Map<string, number>).forEach((value: number, key: string) => {
-            votesObj[key] = value;
-        });
-
-        if ((globalThis as any).io) {
+        // Notify participants via socket
+        const io = (globalThis as any).io;
+        if (io) {
             const targets = [message.senderId.toString(), message.receiverId?.toString()].filter(Boolean);
-            const sockets = Array.from((globalThis as any).io.sockets.sockets.values()).filter((s: any) => targets.includes(s.data?.userId));
-            sockets.forEach((s: any) => s.emit('poll:updated', { messageId, votes: votesObj }));
+            const sockets = Array.from(io.sockets.sockets.values())
+                .filter((s: any) => targets.includes(s.data?.userId));
+            sockets.forEach((s: any) => s.emit('poll:updated', { messageId, votes }));
         }
 
-        res.json({ ok: true, votes: votesObj });
+        res.json({ ok: true, votes });
     } catch (error: any) {
-        res.status(500).json({ error: error?.message || "Server error" });
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -697,8 +758,7 @@ router.put("/conversation/:conversationId/lock", protectRoute, async (req, res) 
         if (!conversation) return res.status(404).json({ error: "Conversation not found" });
 
         const salt = bcrypt.genSaltSync(10);
-        const hashedPassword = bcrypt.hashSync(password, salt);
-        (conversation as any).lockPassword = hashedPassword;   // cast to any
+        (conversation as any).lockPassword = bcrypt.hashSync(password, salt);   // cast to any
 
         if (!conversation.lockedBy) conversation.lockedBy = [];
         if (!conversation.lockedBy.some((id: any) => id.toString() === userId.toString())) {
@@ -719,22 +779,25 @@ router.put("/conversation/:conversationId/unlock", protectRoute, async (req, res
         const { password } = req.body;
         const userId = req.user._id;
 
+        // Verify this is the user's actual login password
+        const user = await User.findById(userId).select('+passwordHash');
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        const isPasswordValid = bcrypt.compareSync(password, user.passwordHash);
+        if (!isPasswordValid) {
+            return res.status(400).json({ error: "Incorrect password. Enter your login password." });
+        }
+
         const conversation = await Conversation.findById(conversationId);
         if (!conversation) return res.status(404).json({ error: "Conversation not found" });
 
-        const storedHash = (conversation as any).lockPassword;   // cast to any
-        const isPasswordValid = storedHash && bcrypt.compareSync(password, storedHash);
-        if (!isPasswordValid) {
-            return res.status(400).json({ error: "Incorrect password." });
-        }
-
-        conversation.lockedBy = (conversation.lockedBy || []).filter((id: any) => id.toString() !== userId.toString());
-        if (conversation.lockedBy.length === 0) {
-            (conversation as any).lockPassword = undefined;
-        }
+        // Remove user from lockedBy
+        conversation.lockedBy = (conversation.lockedBy || []).filter(
+            (id: any) => id.toString() !== userId.toString()
+        );
         await conversation.save();
 
-        res.json({ success: true, message: "Chat unlocked successfully" });
+        res.json({ success: true, message: "Chat unlocked" });
     } catch (error: any) {
         res.status(500).json({ error: error?.message || "Server error" });
     }
@@ -804,7 +867,6 @@ router.put("/conversation/:conversationId/favorite", protectRoute, async (req, r
 router.post("/group/:conversationId/report", protectRoute, async (req, res) => {
     try {
         const { conversationId } = req.params;
-        const { reason } = req.body;
         const userId = req.user._id;
 
         const conversation = await Conversation.findById(conversationId);
@@ -919,7 +981,9 @@ router.put("/message/:messageId/view-once", protectRoute, async (req, res) => {
         message.viewedBy.push(userId);
         // Clear media so it can't be viewed again
         message.media = [];
-        message.text = message.text || 'View‑once media';
+        if (message.viewOnce) {
+            message.text = '';
+        }
         await message.save();
 
         // Update Redis cache so the change persists across navigations
@@ -961,29 +1025,6 @@ router.put("/conversation/:conversationId/disappearing", protectRoute, async (re
 
         res.json(conversation);
     } catch (error: any) {
-        res.status(500).json({ error: error?.message || "Server error" });
-    }
-});
-
-// Set wallpaper for a conversation
-router.put("/conversation/:conversationId/wallpaper", protectRoute, async (req, res) => {
-    try {
-        const { conversationId } = req.params;
-        const { wallpaperUrl } = req.body;
-
-        const conversation = await Conversation.findByIdAndUpdate(
-            conversationId,
-            { wallpaper: wallpaperUrl },
-            { new: true }   // return updated document
-        );
-
-        if (!conversation) {
-            return res.status(404).json({ error: "Conversation not found" });
-        }
-
-        res.json(conversation);
-    } catch (error: any) {
-        console.error('Wallpaper route error:', error);
         res.status(500).json({ error: error?.message || "Server error" });
     }
 });
@@ -1078,6 +1119,431 @@ router.put("/group/:conversationId/avatar", protectRoute, async (req, res) => {
         res.json(conversation);
     } catch (error: any) {
         res.status(500).json({ error: error?.message || "Server error" });
+    }
+});
+
+// Get link preview metadata
+router.post("/link-preview", protectRoute, async (req, res) => {
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: "URL required" });
+
+    // Only try to fetch http/https URLs
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        return res.json({ url, title: url, domain: url, image: '', description: '' });
+    }
+
+    try {
+        const cacheKey = `linkpreview:${url}`;
+        const cached = await redis.get(cacheKey);
+        if (cached) return res.json(JSON.parse(cached));
+
+        // Fetch with a realistic user agent and follow redirects
+        const response = await axios.get(url, {
+            timeout: 15000,
+            maxRedirects: 5,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+            }
+        });
+
+        const html = response.data;
+        const $ = cheerio.load(html);
+
+        const preview = {
+            url,
+            title: $('meta[property="og:title"]').attr('content') ||
+                $('meta[name="twitter:title"]').attr('content') ||
+                $('title').text() ||
+                url,
+            description: $('meta[property="og:description"]').attr('content') ||
+                $('meta[name="twitter:description"]').attr('content') ||
+                $('meta[name="description"]').attr('content') ||
+                '',
+            image: $('meta[property="og:image"]').attr('content') ||
+                $('meta[name="twitter:image"]').attr('content') ||
+                '',
+            domain: new URL(url).hostname.replace('www.', ''),
+        };
+
+        await redis.setex(cacheKey, 86400, JSON.stringify(preview));
+        res.json(preview);
+    } catch (error: any) {
+        console.warn('Link preview fetch failed, returning basic info:', error.message);
+        res.json({
+            url,
+            title: url,
+            description: '',
+            image: '',
+            domain: (() => { try { return new URL(url).hostname.replace('www.', ''); } catch { return url; } })(),
+        });
+    }
+});
+
+router.get("/giphy/trending", protectRoute, async (req, res) => {
+    try {
+        const { limit = 20, offset = 0 } = req.query;
+        const apiKey = process.env.GIPHY_API_KEY;
+
+        if (!apiKey) {
+            // Fallback static GIFs with pagination
+            const staticGifs = [
+                { id: '1', url: '...', preview: '...' },
+                // ... more
+            ];
+            const page = Number(offset) || 0;
+            const pageSize = Number(limit) || 20;
+            const paginated = staticGifs.slice(page, page + pageSize);
+            return res.json({ gifs: paginated, total: staticGifs.length });
+        }
+
+        const response = await axios.get('https://api.giphy.com/v1/gifs/trending', {
+            params: {
+                api_key: apiKey,
+                limit: Number(limit) || 20,
+                offset: Number(offset) || 0,
+                rating: 'pg-13'
+            }
+        });
+
+        const gifs = response.data.data.map((gif: any) => ({
+            id: gif.id,
+            url: gif.images.fixed_height.url,
+            preview: gif.images.fixed_height_small.url,
+        }));
+
+        res.json({
+            gifs,
+            total: response.data.pagination.total_count
+        });
+    } catch (error: any) {
+        console.error('GIPHY error:', error.message);
+        res.status(500).json({ error: 'GIFs unavailable' });
+    }
+});
+
+router.get("/giphy/search", protectRoute, async (req, res) => {
+    try {
+        const { q, limit = 20, offset = 0 } = req.query;
+        const apiKey = process.env.GIPHY_API_KEY;
+
+        if (!apiKey) {
+            // Fallback search - just return empty
+            return res.json({ gifs: [], total: 0 });
+        }
+
+        const response = await axios.get('https://api.giphy.com/v1/gifs/search', {
+            params: {
+                api_key: apiKey,
+                q,
+                limit: Number(limit) || 20,
+                offset: Number(offset) || 0,
+                rating: 'pg-13'
+            }
+        });
+
+        const gifs = response.data.data.map((gif: any) => ({
+            id: gif.id,
+            url: gif.images.fixed_height.url,
+            preview: gif.images.fixed_height_small.url,
+        }));
+
+        res.json({
+            gifs,
+            total: response.data.pagination.total_count
+        });
+    } catch (error: any) {
+        console.error('GIPHY error:', error.message);
+        res.status(500).json({ error: 'GIFs unavailable' });
+    }
+});
+
+// Get available sticker packs
+router.get("/stickers", protectRoute, async (req, res) => {
+    try {
+        const { limit = 20, skip = 0 } = req.query;
+        const pageSize = Number(limit) || 20;
+        const skipVal = Number(skip) || 0;
+
+        // Default packs (static – return all, but could also paginate if needed)
+        const defaultPacks = [
+            {
+                id: 'snitch-default',
+                name: 'Snitch Default',
+                thumbnail: `${process.env.S3_BASE}/stickers/default/thumb.png`,
+                stickers: Array.from({ length: 20 }, (_, i) => ({
+                    id: `default-${i + 1}`,
+                    url: `${process.env.S3_BASE}/stickers/default/${i + 1}.png`,
+                })),
+            },
+            {
+                id: 'snitch-emoji',
+                name: 'Emoji Mix',
+                thumbnail: `${process.env.S3_BASE}/stickers/emoji/thumb.png`,
+                stickers: Array.from({ length: 15 }, (_, i) => ({
+                    id: `emoji-${i + 1}`,
+                    url: `${process.env.S3_BASE}/stickers/emoji/${i + 1}.png`,
+                })),
+            },
+        ];
+
+        // Fetch custom public stickers with pagination
+        const [customStickers, totalCustom] = await Promise.all([
+            Sticker.find({ isPublic: true })
+                .sort({ createdAt: -1 })
+                .skip(skipVal)
+                .limit(pageSize),
+            Sticker.countDocuments({ isPublic: true })
+        ]);
+
+        const customPack = {
+            id: 'custom',
+            name: 'Community Stickers',
+            thumbnail: customStickers[0]?.url || '/sticker-placeholder.png',
+            stickers: customStickers.map(s => ({
+                id: s._id.toString(),
+                url: s.url,
+            })),
+        };
+
+        // Send default packs fully, plus custom pack with pagination metadata
+        res.json({
+            packs: defaultPacks,
+            customPack,
+            customPagination: {
+                total: totalCustom,
+                hasMore: skipVal + pageSize < totalCustom,
+                skip: skipVal,
+            }
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update link preview for a message (and sync Redis)
+router.put("/message/:messageId/linkPreview-update", protectRoute, async (req, res) => {
+    try {
+        const { messageId } = req.params;
+
+        // Find the existing message
+        const message = await Message.findById(messageId);
+        if (!message) {
+            return res.status(404).json({ error: "Message not found" });
+        }
+
+        // Update the link preview field directly
+        message.linkPreview = req.body;
+        await message.save();
+
+        // Fetch the fully populated message for Redis caching
+        const populated = await Message.findById(messageId)
+            .populate('senderId', 'username displayName avatarUrl')
+            .populate('replyTo')
+            .populate('mentions', 'username displayName avatarUrl');
+
+        // Update Redis cache with the populated message
+        if (message.conversationId) {
+            await updateCachedMessage(
+                message.conversationId.toString(),
+                messageId,
+                populated
+            ).catch(err => console.error('Redis update (linkPreview) error:', err));
+        }
+
+        res.json({ updated: true, message: populated });
+    } catch (error: any) {
+        console.error('linkPreview-update error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get("/conversation/:conversationId/export", protectRoute, async (req, res) => {
+    try {
+        const conversationId = req.params.conversationId;
+
+        const messages = await Message.find({ conversationId: req.params.conversationId })
+            .populate("senderId", "username displayName")
+            .sort({ createdAt: 1 });
+
+        let text = `Snitch Chat Export\nConversation: ${conversationId}\n\n`;
+        messages.forEach(msg => {
+            // @ts-ignore
+            const sender = msg?.senderId?.displayName || msg?.senderId?.username || 'Unknown';
+            text += `[${msg.createdAt.toISOString()}] ${sender}: ${msg.text || '[media]'}\n`;
+        });
+
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Disposition', `attachment; filename=chat_${conversationId}.txt`);
+        res.send(text);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.put("/message/:messageId/bookmark", protectRoute, async (req, res) => {
+    const { messageId } = req.params;
+    const userId = req.user._id;
+
+    const message = await Message.findById(messageId);
+    if (!message) return res.status(404).json({ error: "Message not found" });
+
+    const index = message.bookmarkedBy.indexOf(userId);
+    if (index > -1) message.bookmarkedBy.splice(index, 1);
+    else message.bookmarkedBy.push(userId);
+
+    await message.save();
+
+    // Fetch the fully populated message for Redis caching
+    const populated = await Message.findById(messageId)
+        .populate('senderId', 'username displayName avatarUrl')
+        .populate('replyTo')
+        .populate('mentions', 'username displayName avatarUrl');
+
+    // Update Redis cache with the populated message
+    if (message.conversationId) {
+        await updateCachedMessage(
+            message.conversationId.toString(),
+            messageId,
+            populated
+        ).catch(err => console.error('Redis update (bookmark message) error:', err));
+    }
+    res.json({ bookmarked: index === -1 });
+});
+
+router.post("/stickers", protectRoute, async (req, res) => {
+    try {
+        const { url, pack } = req.body;
+        const sticker = await Sticker.create({
+            userId: req.user._id,
+            url,
+            pack: pack || 'custom',
+            isPublic: true,
+        });
+        res.json(sticker);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get all custom theme colors
+router.get("/theme-colors", protectRoute, async (req, res) => {
+    try {
+        const colors = await ThemeColor.find().sort({ createdAt: -1 });
+        res.json(colors);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Add a custom theme color
+router.post("/theme-colors", protectRoute, async (req, res) => {
+    try {
+        const { hex } = req.body;
+        if (!hex || !/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+            return res.status(400).json({ error: "Invalid hex color" });
+        }
+
+        // Check if already exists
+        const existing = await ThemeColor.findOne({ hex: hex.toUpperCase() });
+        if (existing) {
+            return res.json(existing); // already saved
+        }
+
+        // Fetch color name from The Color API (free, no key needed)
+        let name = '';
+        try {
+            const colorRes = await axios.get(`https://www.thecolorapi.com/id?hex=${hex.replace('#', '')}`);
+            name = colorRes.data.name.value || hex;
+        } catch {
+            name = hex; // fallback
+        }
+
+        const newColor = await ThemeColor.create({
+            hex: hex.toUpperCase(),
+            name,
+            createdBy: req.user._id,
+        });
+
+        res.json(newColor);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get user's wallpapers
+router.get("/wallpapers", protectRoute, async (req, res) => {
+    try {
+        const wallpapers = await Wallpaper.find({ userId: req.user._id }).sort({ createdAt: -1 });
+        res.json(wallpapers);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Save a wallpaper
+router.post("/wallpapers", protectRoute, async (req, res) => {
+    try {
+        const { url, thumb, source } = req.body;
+        const wallpaper = await Wallpaper.create({
+            userId: req.user._id,
+            url,
+            thumb,
+            source: source || "upload",
+        });
+        res.json(wallpaper);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Delete a wallpaper
+router.delete("/wallpapers/:id", protectRoute, async (req, res) => {
+    try {
+        await Wallpaper.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get("/wallpapers/search", protectRoute, async (req, res) => {
+    try {
+        const { query = "nature", page = 1, per_page = 20 } = req.query;
+        const accessKey = process.env.UNSPLASH_ACCESS_KEY;
+
+        if (!accessKey) {
+            return res.status(500).json({ error: "Unsplash API key not configured" });
+        }
+
+        const response = await axios.get("https://api.unsplash.com/search/photos", {
+            params: {
+                query,
+                page: Number(page),
+                per_page: Number(per_page),
+                orientation: "portrait",
+            },
+            headers: {
+                Authorization: `Client-ID ${accessKey}`,
+            },
+        });
+
+        const images = response.data.results.map((img: any) => ({
+            id: img.id,
+            url: img.urls.regular,
+            thumb: img.urls.thumb,
+            download_url: img.links.download_location,
+        }));
+
+        res.json({
+            images,
+            total: response.data.total,
+            total_pages: response.data.total_pages,
+        });
+    } catch (error: any) {
+        console.error("Unsplash error:", error.message);
+        res.status(500).json({ error: "Failed to fetch wallpapers" });
     }
 });
 

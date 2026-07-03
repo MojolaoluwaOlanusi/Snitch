@@ -3,22 +3,23 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const LazyPicker = lazy(() => import("@emoji-mart/react"));
 import data from "@emoji-mart/data";
-import {PlusCircle} from "lucide-react";
+import { PlusCircle } from "lucide-react";
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"];
 
-const SmileIcon = () => (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-        <line x1="9" y1="9" x2="9.01" y2="9" />
-        <line x1="15" y1="9" x2="15.01" y2="9" />
-    </svg>
-);
-
-const MessageReactionEmojiPicker = ({ postId, onReact, onClose, isOpen, position, currentUserReaction }) => {
+const MessageReactionEmojiPicker = ({ postId, onReact, onClose, isOpen, position, currentUserReaction, isOwn }) => {
     const pickerRef = useRef(null);
     const [showFullPicker, setShowFullPicker] = useState(false);
+    const [screenWidth, setScreenWidth] = useState(window.innerWidth);
+
+    useEffect(() => {
+        const handleResize = () => setScreenWidth(window.innerWidth);
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+    // No longer needed – overlay click will handle close
+    // useEffect for outside click removed
 
     const handleSelect = (emoji) => {
         onReact(emoji.native);
@@ -30,76 +31,126 @@ const MessageReactionEmojiPicker = ({ postId, onReact, onClose, isOpen, position
         onClose();
     };
 
-    useEffect(() => {
-        const handleClickOutside = (e) => {
-            if (pickerRef.current && !pickerRef.current.contains(e.target)) {
-                onClose();
-            }
-        };
-        if (isOpen) {
-            document.addEventListener("mousedown", handleClickOutside);
-            return () => document.removeEventListener("mousedown", handleClickOutside);
+    const isMobile = screenWidth < 768;
+
+    const getDesktopStyle = () => {
+        if (!position) return {};
+        const top = Math.min(position.top, window.innerHeight - 300);
+        if (isOwn) {
+            const left = Math.max(10, position.left - 280);
+            return { top: `${top}px`, left: `${left}px` };
+        } else {
+            const left = Math.min(position.left + 40, window.innerWidth - 290);
+            return { top: `${top}px`, left: `${left}px` };
         }
-    }, [isOpen, onClose]);
+    };
 
     if (!isOpen) return null;
 
+    // Quick picker content
+    const quickPickerContent = (
+        <motion.div
+            ref={pickerRef}
+            initial={{ opacity: 0, y: 10, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.9 }}
+            transition={{ duration: 0.15 }}
+            className="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-100"
+            style={
+                isMobile
+                    ? {
+                        top: `${(position?.top || 0) - 70}px`,
+                        left: `${Math.max(10, (position?.left || 0) + 20 - 140)}px`,
+                    }
+                    : getDesktopStyle()
+            }
+            onClick={(e) => e.stopPropagation()}
+        >
+            <div className="flex items-center gap-1 p-1.5 flex-wrap">
+                {QUICK_REACTIONS.map((emoji, idx) => (
+                    <button
+                        key={idx}
+                        onClick={() => handleQuickReact(emoji)}
+                        className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-lg sm:text-xl hover:bg-gray-100 rounded-lg transition-colors hover:scale-125 transform ${
+                            currentUserReaction === emoji ? "bg-blue-100 ring-2 ring-blue-400" : ""
+                        }`}
+                    >
+                        {emoji}
+                    </button>
+                ))}
+                <button
+                    onClick={() => setShowFullPicker(true)}
+                    className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-lg sm:text-xl hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                    <PlusCircle className="w-5 h-5 sm:w-auto sm:h-auto" />
+                </button>
+            </div>
+        </motion.div>
+    );
+
+    // Full picker content
+    const fullPickerContent = (
+        <motion.div
+            ref={pickerRef}
+            initial={{ scale: 0.9 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0.9 }}
+            transition={{ duration: 0.15 }}
+            className="bg-white rounded-xl shadow-xl border border-gray-100 w-[90vw] max-w-xs sm:max-w-sm md:w-72 max-h-80 overflow-auto"
+            onClick={e => e.stopPropagation()}
+        >
+            <div className="p-2">
+                <div className="flex items-center justify-between mb-2 px-2">
+                    <button
+                        onClick={() => setShowFullPicker(false)}
+                        className="text-xs text-blue-400 hover:text-blue-500 shrink-0"
+                    >
+                        ← Quick
+                    </button>
+                    <span className="text-[10px] sm:text-xs text-gray-400 truncate ml-2">
+                        Choose a reaction
+                    </span>
+                </div>
+                <Suspense fallback={<div className="text-center p-4 text-gray-400 text-sm">Loading...</div>}>
+                    <LazyPicker
+                        data={data}
+                        onEmojiSelect={handleSelect}
+                        perLine={isMobile ? 7 : 7}
+                        theme="light"
+                        previewPosition="none"
+                        skinTonePosition="none"
+                        maxFrequentRows={0}
+                    />
+                </Suspense>
+            </div>
+        </motion.div>
+    );
+
     return (
         <AnimatePresence>
-            <motion.div
-                ref={pickerRef}
-                initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                transition={{ duration: 0.15 }}
-                className="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-100"
-                style={{
-                    top: position?.top || 0,
-                    left: position?.left || 0,
-                }}
-            >
-                {!showFullPicker ? (
-                    <div className="flex items-center gap-1 p-1.5">
-                        {QUICK_REACTIONS.map((emoji, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => handleQuickReact(emoji)}
-                                className={`w-9 h-9 flex items-center justify-center text-xl hover:bg-gray-100 rounded-lg transition-colors hover:scale-125 transform ${
-                                    currentUserReaction === emoji ? 'bg-blue-100 ring-2 ring-blue-400' : ''
-                                }`}
-                            >
-                                {emoji}
-                            </button>
-                        ))}
-                        <button
-                            onClick={() => setShowFullPicker(true)}
-                            className="w-9 h-9 flex items-center justify-center text-lg hover:bg-gray-100 rounded-lg transition-colors"
-                        >
-                            <PlusCircle />
-                        </button>
-                    </div>
-                ) : (
-                    <div className="w-72 max-h-80 overflow-auto p-2">
-                        <div className="flex items-center justify-between mb-2 px-2">
-                            <button onClick={() => setShowFullPicker(false)} className="text-xs text-blue-400 hover:text-blue-500">
-                                ← Quick
-                            </button>
-                            <span className="text-xs text-gray-400">Choose a reaction</span>
-                        </div>
-                        <Suspense fallback={<div className="text-center p-4 text-gray-400 text-sm">Loading...</div>}>
-                            <LazyPicker
-                                data={data}
-                                onEmojiSelect={handleSelect}
-                                perLine={7}
-                                theme="light"
-                                previewPosition="none"
-                                skinTonePosition="none"
-                                maxFrequentRows={0}
-                            />
-                        </Suspense>
-                    </div>
-                )}
-            </motion.div>
+            {!showFullPicker ? (
+                // Quick picker with transparent overlay
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-50"
+                    onClick={onClose}
+                >
+                    {quickPickerContent}
+                </motion.div>
+            ) : (
+                // Full picker overlay with background
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+                    onClick={() => setShowFullPicker(false)}
+                >
+                    {fullPickerContent}
+                </motion.div>
+            )}
         </AnimatePresence>
     );
 };

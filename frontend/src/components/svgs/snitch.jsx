@@ -1,6 +1,16 @@
-import { useId } from 'react';
+import { useRef } from 'react';
+
+// Helper to generate a stable unique ID per component instance
+function useStableId() {
+    const ref = useRef(null);
+    if (!ref.current) {
+        ref.current = 'id-' + Math.random().toString(36).slice(2, 11);
+    }
+    return ref.current;
+}
+
 export function SnitchLogo({ className = "w-32 h-32" }) {
-    const uid = useId().replace(/:/g, '');
+    const uid = useStableId();
     return (
         <div className={`${className} relative flex items-center justify-center`}>
             <svg viewBox="0 0 200 200" className="w-full h-full">
@@ -20,23 +30,18 @@ export function SnitchLogo({ className = "w-32 h-32" }) {
                     </linearGradient>
                 </defs>
 
-                {/* Hexagon Background */}
                 <path
                     d="M100 20 L170 60 L170 140 L100 180 L30 140 L30 60 Z"
                     fill={`url(#hexGradient-${uid})`}
                     filter={`url(#shadow-${uid})`}
                     className="transition-all duration-300"
                 />
-
-                {/* Inner Hexagon Border */}
                 <path
                     d="M100 30 L160 65 L160 135 L100 170 L40 135 L40 65 Z"
                     fill="none"
                     stroke="rgba(255,255,255,0.2)"
                     strokeWidth="2"
                 />
-
-                {/* 3D Text "SNITCH" */}
                 <text
                     x="100"
                     y="110"
@@ -48,7 +53,6 @@ export function SnitchLogo({ className = "w-32 h-32" }) {
                         letterSpacing: '-0.05em',
                     }}
                 >
-                    {/* 3D Shadow layers */}
                     <tspan fill="#0f172a" dy="0" dx="2">SNITCH</tspan>
                 </text>
                 <text
@@ -75,7 +79,6 @@ export function SnitchLogo({ className = "w-32 h-32" }) {
                         letterSpacing: '-0.05em',
                     }}
                 >
-                    {/* Front layer with gradient */}
                     <tspan fill={`url(#textGradient-${uid})`}>SNITCH</tspan>
                 </text>
             </svg>
@@ -84,7 +87,7 @@ export function SnitchLogo({ className = "w-32 h-32" }) {
 }
 
 export function SnitchLogoSmall({ className = "w-10 h-10" }) {
-    const uid = useId().replace(/:/g, '');
+    const uid = useStableId();
     return (
         <div className={`${className} relative flex items-center justify-center`}>
             <svg viewBox="0 0 100 100" className="w-full h-full">
@@ -95,14 +98,10 @@ export function SnitchLogoSmall({ className = "w-10 h-10" }) {
                         <stop offset="100%" stopColor="#60a5fa" />
                     </linearGradient>
                 </defs>
-
-                {/* Hexagon */}
                 <path
                     d="M50 10 L85 30 L85 70 L50 90 L15 70 L15 30 Z"
                     fill={`url(#hexGradientSmall-${uid})`}
                 />
-
-                {/* Letter S */}
                 <text
                     x="50"
                     y="65"

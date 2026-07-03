@@ -1,10 +1,9 @@
-import { useState } from "react";
+import {useEffect, useState} from "react";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { X } from "lucide-react";
 
-// Fix default marker icon
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
     iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -13,7 +12,7 @@ L.Icon.Default.mergeOptions({
 });
 
 const LocationPicker = ({ onClose, onSelect }) => {
-    const [position, setPosition] = useState([9.0765, 7.3986]); // Default: Abuja, Nigeria
+    const [position, setPosition] = useState([9.0765, 7.3986]); // Default: Abuja
 
     const LocationMarker = () => {
         useMapEvents({
@@ -23,6 +22,12 @@ const LocationPicker = ({ onClose, onSelect }) => {
         });
         return position ? <Marker position={position} /> : null;
     };
+
+    useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((pos) => setPosition([pos.coords.latitude, pos.coords.longitude]));
+        }
+    }, []);
 
     return (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">

@@ -119,6 +119,12 @@ const messageSchema = new mongoose.Schema(
                 ref: "User",
             },
         ],
+        bookmarkedBy: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User",
+            },
+        ],
         // message status
         status: {
             type: String,
@@ -147,7 +153,8 @@ const messageSchema = new mongoose.Schema(
         poll: {
             question: String,
             options: [String],
-            votes: { type: Map, of: Number, default: new Map() }
+            allowMultiple: { type: Boolean, default: false },
+            votes: { type: mongoose.Schema.Types.Mixed, default: {} },
         },
         event: {
             name: String,
@@ -161,7 +168,15 @@ const messageSchema = new mongoose.Schema(
             duration: Number,
             status: { type: String, enum: ['missed', 'ended', 'no_answer'] },
             callerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-        }
+        },
+        deliveredAt: { type: Date },
+        linkPreview: {
+            url: String,
+            title: String,
+            description: String,
+            image: String,
+            domain: String,
+        },
     },
     { timestamps: true }
 );

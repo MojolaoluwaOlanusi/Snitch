@@ -41,7 +41,7 @@ const CreatePostRightPanel = () => {
                                 key={posts?._id}
                             >
                                 <Link
-                                    to={`/post/:${posts?._id}`}
+                                    to={`/post/${posts?._id}`}
                                 >
                                     <div className='flex gap-2 items-center'>
                                         <div className='avatar hidden md:inline-flex'>

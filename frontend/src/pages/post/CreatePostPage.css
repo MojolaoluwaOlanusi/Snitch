@@ -1,21 +1,35 @@
+.mentions-input-wrapper {
+    background: white;
+}
+
 .mentions-input {
-    min-height: 11rem;
+    min-height: 9rem;
+    outline: none !important;
+    box-shadow: none !important;
+    font-size: 1.125rem;          /* matches text-lg */
+    line-height: 1.75rem;         /* matches text-lg */
 }
 
-.mention-highlight {
-    background-color: #dbeafe;
-    color: #1d4ed8;
-    border-radius: 4px;
-    padding: 0 2px;
+/* Remove any custom highlighter positioning – let the library handle it */
+.mentions-input__highlighter {
+    /* no custom rules – library default works correctly */
 }
 
-.hashtag-highlight {
-    background-color: #dbeafe;
-    color: #1d4ed8;
-    border-radius: 4px;
-    padding: 0 2px;
+/* Tokens – only change the text colour, no background */
+.mentions-input__highlighter strong {
+    color: #1d4ed8 !important;
+    background: transparent !important;
+    font-weight: normal;
 }
 
+/* Ensure the input has the same font size as the highlighter */
+.mentions-input__input {
+    font-size: 1.125rem !important;
+    line-height: 1.75rem !important;
+    font-family: inherit !important;
+}
+
+/* Suggestion Dropdown */
 .mentions-input__suggestions {
     background: white;
     border: 1px solid #e5e7eb;
@@ -36,4 +50,19 @@
 
 .mentions-input__suggestions__item:hover {
     background-color: #f3f4f6;
+}
+
+.mentions-input,
+.mentions-input__control,
+.mentions-input__input,
+.mentions-input__suggestions {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.mentions-input:focus,
+.mentions-input:focus-within,
+.mentions-input__input:focus {
+    outline: none !important;
+    box-shadow: none !important;
 }

@@ -6,6 +6,7 @@ import Conversation from '../models/Conversation.ts';
 import {User} from '../models/User.ts';
 import { registerSignaling } from './signaling.ts';
 import { cacheMessage, cacheOnlineStatus, getOnlineUsers, removeCachedMessage, updateCachedMessage } from '../utils/redisCache.ts';
+import {randomUUID} from "crypto";
 
 export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: RoomStore) => {
     const userId = socket.data.userId as string;
@@ -120,6 +121,20 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
                 viewOnce: payload.viewOnce || false,
                 viewedBy: [],
             });
+
+            // If receiver is online, mark as delivered immediately
+            if (receiverId) {
+                const receiverSocket = Array.from(io.sockets.sockets.values())
+                    .find((s: any) => s.data?.userId === receiverId);
+                if (receiverSocket) {
+                    message.deliveredAt = new Date();
+                    message.status = 'delivered';
+                    await message.save();
+
+                    // Notify sender that message was delivered
+                    socket.emit('message:delivered', { messageId: message._id, timestamp: message.deliveredAt });
+                }
+            }
 
             const populatedMessage = await Message.findById(message._id)
                 .populate('senderId', 'username displayName avatarUrl')
@@ -407,10 +422,13 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
                     isGroup: false,
                 });
 
+                const inviteToken = randomUUID();
+
                 if (!conv) {
                     conv = await Conversation.create({
                         participants: [userId, targetId],
                         isGroup: false,
+                        inviteToken: inviteToken,
                     });
                 }
 
@@ -460,6 +478,12 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
             const msg = await Message.findById(payload.messageId);
             if (!msg) return ack?.({ ok: false, error: 'Message not found' });
 
+            // Set deliveredAt if not already set
+            if (!msg.deliveredAt) {
+                msg.deliveredAt = new Date();
+            }
+
+            // Set read info
             msg.readAt = msg.readAt || {};
             msg.readAt[userId] = new Date();
             msg.status = 'read';
@@ -468,6 +492,7 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
             const populated = await Message.findById(msg._id)
                 .populate('senderId', 'username displayName avatarUrl');
 
+            // Update Redis cache
             if (msg.conversationId) {
                 await updateCachedMessage(
                     msg.conversationId.toString(),
@@ -477,9 +502,9 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
             }
 
             const senderSocket = Array.from(io.sockets.sockets.values())
-                .find(s => s.data?.userId === msg.senderId.toString());
+                .find((s: any) => s.data?.userId === msg.senderId.toString());
             if (senderSocket) {
-                senderSocket.emit('message:read', { messageId: msg._id, userId });
+                senderSocket.emit('message:read', { messageId: msg._id, userId, timestamp: new Date() });
             }
 
             ack?.({ ok: true });
@@ -530,6 +555,49 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
             ack?.({ ok: true, starred: !isStarred });
         } catch (err: any) {
             console.error('message:star error:', err);
+            ack?.({ ok: false, error: err.message });
+        }
+    });
+
+    socket.on('message:bookmark', async (payload: { messageId: string }, ack?: Function) => {
+        try {
+            const msg = await Message.findById(payload.messageId);
+            if (!msg) return ack?.({ ok: false, error: 'Message not found' });
+
+            msg.bookmarkedBy = msg.bookmarkedBy || [];
+            const isBookmarked = msg.bookmarkedBy.some((id: any) => id.toString() === userId);
+
+            if (isBookmarked) {
+                msg.bookmarkedBy = msg.bookmarkedBy.filter((id: any) => id.toString() !== userId);
+            } else {
+                (msg.bookmarkedBy as any[]).push(userId as any);
+            }
+
+            await msg.save();
+
+            const populated = await Message.findById(msg._id)
+                .populate('senderId', 'username displayName avatarUrl');
+
+            if (msg.conversationId) {
+                await updateCachedMessage(
+                    msg.conversationId.toString(),
+                    payload.messageId,
+                    populated
+                ).catch(err => console.error('Redis update (star) error:', err?.message));
+            }
+
+            const targets = [msg.senderId.toString(), msg.receiverId?.toString()].filter(Boolean);
+            const receivers = Array.from(io.sockets.sockets.values())
+                .filter((s) => targets.includes(s.data?.userId));
+            receivers.forEach((r) => r.emit('message:bookmarked', {
+                messageId: msg._id,
+                bookmarked: !isBookmarked,
+                userId
+            }));
+
+            ack?.({ ok: true, bookmarked: !isBookmarked });
+        } catch (err: any) {
+            console.error('message:bookmark error:', err);
             ack?.({ ok: false, error: err.message });
         }
     });
@@ -609,50 +677,50 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
 
     // ==================== Poll Vote ====================
 
-    socket.on('poll:vote', async (payload: { messageId: string; optionIndex: number }, ack?: Function) => {
+    socket.on('poll:vote', async (payload: { messageId: string; optionIndex: number; isMultiple?: boolean }, ack?: Function) => {
         try {
             const msg = await Message.findById(payload.messageId);
             if (!msg || !msg.poll) return ack?.({ ok: false, error: 'Poll not found' });
 
-            if (!(msg.poll as any).votes) {
-                (msg.poll as any).votes = new Map();
+            // Initialize votes
+            if (!msg.poll.votes || typeof msg.poll.votes !== 'object') {
+                (msg.poll as any).votes = {};
             }
+            const votes: Record<string, number[]> = (msg.poll as any).votes;
+            let userVotes: number[] = votes[userId] || [];
 
-            const votes = (msg.poll as any).votes as Map<string, number>;
-
-            if (votes.get(userId) === payload.optionIndex) {
-                votes.delete(userId);
+            if (payload.isMultiple && msg.poll.allowMultiple) {
+                // Toggle the option
+                if (userVotes.includes(payload.optionIndex)) {
+                    userVotes = userVotes.filter(v => v !== payload.optionIndex);
+                } else {
+                    userVotes.push(payload.optionIndex);
+                }
             } else {
-                votes.set(userId, payload.optionIndex);
+                // Single vote – replace
+                userVotes = [payload.optionIndex];
             }
 
+            if (userVotes.length === 0) delete votes[userId];
+            else votes[userId] = userVotes;
             msg.markModified('poll.votes');
             await msg.save();
 
-            const populated = await Message.findById(msg._id)
-                .populate('senderId', 'username displayName avatarUrl');
+            const populated = await Message.findById(msg._id).populate('senderId', 'username displayName avatarUrl');
 
             if (msg.conversationId) {
-                await updateCachedMessage(
-                    msg.conversationId.toString(),
-                    payload.messageId,
-                    populated
-                ).catch(err => console.error('Redis update (poll vote) error:', err?.message));
+                await updateCachedMessage(msg.conversationId.toString(), msg._id.toString(), populated)
+                    .catch(err => console.error('Redis update (poll) error:', err));
             }
 
-            const votesObj: Record<string, number> = {};
-            votes.forEach((value: number, key: string) => {
-                votesObj[key] = value;
-            });
+            const votesObj = { ...votes };
 
             const targets = [msg.senderId.toString(), msg.receiverId?.toString()].filter(Boolean);
-            const receivers = Array.from(io.sockets.sockets.values())
-                .filter((s) => targets.includes(s.data?.userId));
+            const receivers = Array.from(io.sockets.sockets.values()).filter(s => targets.includes(s.data?.userId));
             receivers.forEach((r) => r.emit('poll:updated', { messageId: msg._id, votes: votesObj }));
 
             ack?.({ ok: true, votes: votesObj });
         } catch (err: any) {
-            console.error('poll:vote error:', err);
             ack?.({ ok: false, error: err.message });
         }
     });

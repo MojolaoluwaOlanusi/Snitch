@@ -61,20 +61,24 @@ export const registerSignaling = (io: Server, socket: Socket, roomStore: RoomSto
     });
 
     // Initiate a call to one or many users
-    socket.on('webrtc:call:initiate', (payload: { targets: string[]; isVideo?: boolean; metadata?: any; callId?: string }, ack?: Function) => {
+    socket.on('webrtc:call:initiate', (payload: { targets: string[]; isVideo?: boolean; isGroupCall?: boolean; metadata?: any; callId?: string }, ack?: Function) => {
         try {
             const callId = payload.callId || makeId('call');
             const roomId = `call_${callId}`;
-            // create room
-            roomStore.createRoom(roomId, { owner: userId, isVideo: !!payload.isVideo, metadata: payload.metadata });
-            // add initiator as participant
+            roomStore.createRoom(roomId, { owner: userId, isVideo: !!payload.isVideo, isGroupCall: !!payload.isGroupCall, metadata: payload.metadata });
             roomStore.addParticipant(roomId, { userId, socketId: socket.id, joinedAt: Date.now(), muted: false, videoOn: !!payload.isVideo, role: 'owner' });
             socket.join(roomId);
 
-            // notify targets
             payload.targets.forEach((t) => {
                 const targets = socketsByUser(t);
-                targets.forEach((s) => s.emit('webrtc:call:incoming', { callId, from: userId, roomId, isVideo: !!payload.isVideo, metadata: payload.metadata }));
+                targets.forEach((s) => s.emit('webrtc:call:incoming', {
+                    callId,
+                    from: userId,
+                    roomId,
+                    isVideo: !!payload.isVideo,
+                    isGroupCall: !!payload.isGroupCall,
+                    metadata: payload.metadata,
+                }));
             });
 
             ack?.({ ok: true, callId, roomId });

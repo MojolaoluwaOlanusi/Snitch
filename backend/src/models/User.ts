@@ -43,6 +43,13 @@ export interface UserDocument extends Document {
             default: [],
         }
     ];
+    pushSubscriptions: {
+        endpoint: string;
+        keys: {
+            p256dh: string;
+            auth: string
+        }
+    }[];
     bio: string;
     avatarUrl: string;
     coverImg: string;
@@ -127,6 +134,16 @@ const UserSchema = new Schema<UserDocument>({
             default: [],
         }
     ],
+    pushSubscriptions: {
+        type: [{
+            endpoint: { type: String },
+            keys: {
+                p256dh: { type: String },
+                auth: { type: String },
+            },
+        }],
+        default: [],
+    },
     coverImg: String,
     link: String,
     location: String,

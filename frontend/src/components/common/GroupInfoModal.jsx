@@ -2,9 +2,10 @@
 import {useState, useEffect, useRef} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    X, Users, UserPlus, UserX, Shield, Settings, LogOut, Flag,
-    MessageSquare, Image as ImageIcon, Bell, BellOff, Trash2,
-    Edit3, Check, Crown, LinkIcon, FileText, Download
+    X, UserPlus, UserX, Shield, LogOut, Flag,
+    Image as ImageIcon, Bell, BellOff, Trash,
+    Edit3, Check, Crown, LinkIcon, FileText, Download, Star, Bookmark, Clock, Upload, Unlock, Lock,
+    Heart, Palette
 } from "lucide-react";
 import axiosInstance from "../../lib/axios";
 import toast from "react-hot-toast";
@@ -14,6 +15,13 @@ import { useAuthStore } from "../../store/useAuthStore";
 const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMemberClick, onAvatarChange }) => {
     const [group, setGroup] = useState(null);
     const [mediaItems, setMediaItems] = useState([]);
+    const [showThemeModal, setShowThemeModal] = useState(false);
+    const [showStarredModal, setShowStarredModal] = useState(false);
+    const [showBookmarkedModal, setShowBookmarkedModal] = useState(false);
+    const [showWallpaperModal, setShowWallpaperModal] = useState(false);
+    const [showDisappearingModal, setShowDisappearingModal] = useState(false);
+    const [bookmarkedMessages, setBookmarkedMessages] = useState([]);
+    const [starredMessages, setStarredMessages] = useState([]);
     const [showMediaModal, setShowMediaModal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [showMediaViewer, setShowMediaViewer] = useState(null);
@@ -22,18 +30,29 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
     const [selectedUsers, setSelectedUsers] = useState([]);
     const [editingName, setEditingName] = useState(false);
     const [groupName, setGroupName] = useState("");
+    const [unlockPassword, setUnlockPassword] = useState('');
+    const [showUnlockModal, setShowUnlockModal] = useState(false);
+    const [showLockedSection, setShowLockedSection] = useState(false);
     const [editingDescription, setEditingDescription] = useState(false);
+    const [wallpaperUploading, setWallpaperUploading] = useState(false);
+    const [customWallpapers, setCustomWallpapers] = useState([]);
+    const [lockPassword, setLockPassword] = useState('');
+    const [showLockChatModal, setShowLockChatModal] = useState(false);
     const [groupDescription, setGroupDescription] = useState("");
     const [adminOnlyMessages, setAdminOnlyMessages] = useState(false);
     const [muted, setMuted] = useState(false);
     const [showReportModal, setShowReportModal] = useState(false);
 
     const mediaRef = useRef(null);
+    const starredRef = useRef(null);
+    const bookmarkedRef = useRef(null);
+    const unlockRef = useRef(null);
+    const lockRef = useRef(null);
     const mediaViewerRef = useRef(null);
 
     const { authUser } = useAuthStore();
     const {
-        getConversations, updateGroupInfo, addGroupParticipant, getMessages,
+        getConversations, updateGroupInfo, addGroupParticipant, getMessages, conversations,
         removeGroupParticipant, muteConversation, selectConversation, messages
     } = useChatStore();
 
@@ -65,13 +84,61 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
         }
     };
 
+    const handleUnlockChat = async () => {
+        if (!unlockPassword.trim()) {
+            toast.error('Enter password');
+            return;
+        }
+        try {
+            const token = localStorage.getItem('access-token');
+            await axiosInstance.post('/chat/unlock-all',
+                { password: unlockPassword },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success('Chats unlocked');
+            setShowUnlockModal(false);
+            setUnlockPassword('');
+            setShowLockedSection(true);
+            await getConversations();
+        } catch (error) {
+            toast.error('Wrong password');
+        }
+    };
+    const handleAddToFavorites = async () => {
+        const convId = group?._id;
+        if (!convId) return;
+
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.put(
+                `/chat/conversation/${convId}/favorite`,
+                {},
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            toast.success(
+                res.data.favorited
+                    ? 'Added to favorites'
+                    : 'Removed from favorites'
+            );
+
+            await getConversations();
+        } catch (error) {
+            console.error('Favorite error:', error);
+            toast.error('Failed to update favorites');
+        }
+    };
+    const handleLockChatOpen = () => {
+        setLockPassword('');
+        setShowLockChatModal(true);
+    };
+
     const fetchContacts = async () => {
         try {
             const token = localStorage.getItem('access-token');
             const res = await axiosInstance.get('/chat/contacts', {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            // res.data is array of Contact objects with populated contactId
             const users = res.data.map(c => c.contactId).filter(Boolean);
             setContacts(users);
         } catch (error) {
@@ -90,11 +157,94 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
         await fetchGroupInfo();
     };
 
+    const handleUploadWallpaper = async (file) => {
+        if (!group) return;
+        setWallpaperUploading(true);
+        try {
+            const token = localStorage.getItem('access-token');
+            const presignRes = await axiosInstance.post('/media/wallpaper-presign', {
+                conversationId: group._id,
+                fileName: file.name,
+                contentType: file.type,
+            }, { headers: { Authorization: `Bearer ${token}` } });
+
+            await fetch(presignRes.data.uploadUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': file.type },
+                body: file,
+            });
+
+            const publicUrl = presignRes.data.publicUrl;
+
+            await handleSetWallpaper(publicUrl);
+
+            setCustomWallpapers(prev => [publicUrl, ...prev]);
+        } catch (error) {
+            toast.error('Failed to upload wallpaper');
+        } finally {
+            setWallpaperUploading(false);
+        }
+    };
+
+    const handleSetWallpaper = async (url) => {
+        if (!group) return;
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.put(
+                `/chat/conversation/${group._id}/wallpaper`,
+                { wallpaperUrl: url },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            console.log('Wallpaper response:', res.data);
+
+            const updatedConv = { ...group, wallpaper: url };
+            const updatedConversations = conversations.map(c =>
+                c._id === group._id ? updatedConv : c
+            );
+            useChatStore.setState({
+                conversations: updatedConversations,
+                selectedConversation: updatedConv,
+            });
+
+            toast.success('Wallpaper updated');
+        } catch (error) {
+            console.error('Failed to set wallpaper:', error);
+            toast.error('Failed to set wallpaper');
+        }
+    };
+
     const handleSaveDescription = async () => {
         await updateGroupInfo(conversationId, { description: groupDescription });
         setEditingDescription(false);
         toast.success('Group description updated');
         await fetchGroupInfo();
+    };
+
+    const scrollToMessage = (messageId) => {
+        const el = document.getElementById(`msg-${messageId}`);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('bg-yellow-50');
+            setTimeout(() => el.classList.remove('bg-yellow-50'), 2000);
+        }
+    };
+
+    const formatTime = (date) => new Date(date).toLocaleTimeString(
+        [],
+        {
+            hour: '2-digit',
+            minute: '2-digit'
+        }
+    );
+
+    const formatMessageTime = (date) => {
+        const now = new Date();
+        const d = new Date(date);
+        const diff = now - d;
+        if (diff < 86400000) return formatTime(date);
+        if (diff < 172800000) return 'Yesterday';
+        if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
+        return d.toLocaleDateString();
     };
 
     const handleToggleAdminOnly = async () => {
@@ -118,6 +268,26 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
         await removeGroupParticipant(conversationId, userId);
         toast.success('Member removed');
         await fetchGroupInfo();
+    };
+
+    const handleLockChatConfirm = async () => {
+        if (!lockPassword.trim()) {
+            toast.error('Enter password');
+            return;
+        }
+        try {
+            const token = localStorage.getItem('access-token');
+            await axiosInstance.put(`/chat/conversation/${group?._id}/lock`, {
+                password: lockPassword
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success('Chat locked');
+            setShowLockChatModal(false);
+            await getConversations();
+        } catch (error) {
+            toast.error('Failed to lock');
+        }
     };
 
     const handleLeaveGroup = async () => {
@@ -159,6 +329,31 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
         setShowMediaModal(true);
     };
 
+    const handleOpenStarred = async () => {
+        if (!group) return;
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.get(`/chat/starred/${group._id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setStarredMessages(res.data || []); setShowStarredModal(true);
+        } catch (error) {
+            toast.error('Failed to load starred');
+        }
+    };
+    const handleOpenBookmarked = async () => {
+        if (!group) return;
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.get(`/chat/bookmarked/${group._id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setBookmarkedMessages(res.data || []); setShowBookmarkedModal(true);
+        } catch (error) {
+            toast.error('Failed to load bookmarked');
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -175,7 +370,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                         initial={{ scale: 0.95, y: 20 }}
                         animate={{ scale: 1, y: 0 }}
                         exit={{ scale: 0.95, y: 20 }}
-                        className="bg-white rounded-2xl w-[420px] max-h-[85vh] overflow-y-auto shadow-xl"
+                        className="bg-white rounded-2xl w-[90%] max-w-md md:w-[420px] max-h-[85vh] overflow-y-auto shadow-xl"
                         onClick={e => e.stopPropagation()}
                     >
                         {loading ? (
@@ -195,7 +390,9 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
 
                                     {/* Group Avatar */}
                                     <div
-                                        className={`w-20 h-20 rounded-full ${!group.groupAvatar && `bg-gradient-to-br ${group.avatarColor}`} } flex items-center justify-center text-white text-2xl font-bold mx-auto mb-3 overflow-hidden cursor-pointer`}
+                                        className={`w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-3 overflow-hidden cursor-pointer ${
+                                            !group.groupAvatar ? `bg-gradient-to-br ${group.avatarColor}` : ''
+                                        }`}
                                         onClick={() => {
                                             if (group.admin?._id === authUser?._id) {
                                                 document.getElementById('group-avatar-input')?.click();
@@ -296,7 +493,10 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                         </button>
                                     )}
 
-                                    <button onClick={() => { setShowAddMembers(true); fetchContacts(); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                    <button onClick={() => {
+                                        setShowAddMembers(true);
+                                        fetchContacts();
+                                    }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
                                         <UserPlus className="w-4 h-4" /> Add Members
                                     </button>
 
@@ -315,13 +515,92 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                     </button>
 
                                     <button
+                                        onClick={() => {
+                                            handleOpenStarred();
+                                        }}
+                                        className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                    >
+                                        <Star className="w-4 h-4" />
+                                        Starred Messages
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            handleOpenBookmarked();
+                                        }}
+                                        className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                    >
+                                        <Bookmark className="w-4 h-4" />
+                                        Bookmarked Messages
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setShowWallpaperModal(true);
+                                        }}
+                                        className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                    >
+                                        <ImageIcon className="w-4 h-4" />
+                                        Wallpaper
+                                    </button>
+                                    <button
+                                        onClick={() => setShowThemeModal(true)}
+                                        className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                    >
+                                        <Palette className="w-4 h-4" />
+                                        Chat Theme
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            setShowDisappearingModal(true);
+                                        }}
+                                        className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                    >
+                                        <Clock className="w-4 h-4" />
+                                        Disappearing Messages
+                                    </button>
+                                    {/* Lock/Unlock */}
+                                    {group?.lockedBy?.includes(authUser?._id) ? (
+                                        <button
+                                            onClick={() => {
+                                                handleUnlockChat();
+                                            }}
+                                            className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                        >
+                                            <Unlock className="w-4 h-4" />
+                                            Unlock Chat
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => {
+                                                handleLockChatOpen();
+                                            }}
+                                            className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                        >
+                                            <Lock className="w-4 h-4" />
+                                            Lock Chat
+                                        </button>
+                                    )}
+                                    {/* Favorites */}
+                                    <button
+                                        onClick={() => {
+                                            handleAddToFavorites();
+                                            toast.success(group?.favoritedBy?.includes(authUser?._id));
+                                        }}
+                                        className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                    >
+                                        <Heart
+                                            className={`w-4 h-4 ${group?.favoritedBy?.includes(authUser?._id) ? 'fill-red-400 text-red-400' : ''}`}
+                                        />
+                                        {group?.favoritedBy?.includes(authUser?._id) ? 'Remove from Favorites' : 'Add to Favorites'}
+                                    </button>
+
+                                    <button
                                         onClick={async () => {
                                             try {
                                                 const token = localStorage.getItem('access-token');
                                                 const res = await axiosInstance.post(`/chat/group/${conversationId}/invite`, {}, {
                                                     headers: { Authorization: `Bearer ${token}` }
                                                 });
-                                                // Copy link to clipboard
                                                 await navigator.clipboard.writeText(res.data.inviteLink);
                                                 toast.success('Invite link copied to clipboard');
                                             } catch (error) {
@@ -351,8 +630,8 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                         {group.participants?.map((member) => (
                                             <div
                                                 key={member._id}
-                                                 onClick={() => onMemberClick(member._id)}
-                                                 className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer"
+                                                onClick={() => onMemberClick(member._id)}
+                                                className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer"
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
@@ -373,17 +652,15 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                                         </p>
                                                         <p className="text-xs text-gray-400">@{member.username}</p>
                                                     </div>
-                                                    {/* Online dot */}
                                                     {onlineUsers?.includes(member._id) && (
                                                         <div className="w-2 h-2 bg-green-500 rounded-full" />
                                                     )}
                                                 </div>
-                                                {/* ... remove button ... */}
                                                 {isAdmin && member._id !== authUser?._id && (
                                                     <button
-                                                        onClick={() => {
-                                                            handleRemoveMember(member._id);
+                                                        onClick={(e) => {
                                                             e.stopPropagation();
+                                                            handleRemoveMember(member._id);
                                                         }}
                                                         className="p-1.5 hover:bg-red-50 rounded-full text-red-400 hover:text-red-500"
                                                         title="Remove member"
@@ -413,7 +690,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                     initial={{ scale: 0.95 }}
                                     animate={{ scale: 1 }}
                                     exit={{ scale: 0.95 }}
-                                    className="bg-white rounded-2xl p-6 w-96 max-h-[70vh] overflow-y-auto shadow-xl"
+                                    className="bg-white rounded-2xl p-6 w-[90%] max-w-md md:w-96 max-h-[70vh] overflow-y-auto shadow-xl"
                                     onClick={e => e.stopPropagation()}
                                 >
                                     <div className="flex items-center justify-between mb-4">
@@ -481,7 +758,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                     initial={{ scale: 0.95 }}
                                     animate={{ scale: 1 }}
                                     exit={{ scale: 0.95 }}
-                                    className="bg-white rounded-2xl p-6 w-80 text-center shadow-xl"
+                                    className="bg-white rounded-2xl p-6 w-[90%] max-w-xs text-center shadow-xl"
                                     onClick={e => e.stopPropagation()}
                                 >
                                     <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -522,7 +799,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-white rounded-2xl p-6 w-[500px] max-h-[80vh] overflow-y-auto shadow-xl"
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-xl md:w-[500px] max-h-[80vh] overflow-y-auto shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between mb-4">
@@ -628,8 +905,483 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                     )
                 }
             </AnimatePresence>
-        </AnimatePresence>
 
+            {/* Starred Messages Modal */}
+            <AnimatePresence>
+                {
+                    showStarredModal && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowStarredModal(false)}
+                        >
+                            <motion.div
+                                ref={starredRef}
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-xl md:w-[500px] max-h-[80vh] overflow-y-auto shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold">
+                                        Starred Messages
+                                    </h3>
+                                    <button
+                                        onClick={() => setShowStarredModal(false)}
+                                        className="p-2 hover:bg-gray-100 rounded-full"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                {starredMessages.length === 0 ?
+                                    <p className="text-center text-gray-400 py-8">
+                                        No starred messages
+                                    </p> :
+                                    starredMessages.map(msg => (
+                                        <div
+                                            key={msg._id}
+                                            className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer"
+                                            onClick={() => {
+                                                setShowStarredModal(false);
+                                                onClose();
+                                                setTimeout(() => scrollToMessage(msg._id), 300);
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                                                <span className="text-xs text-gray-400">
+                                                    {formatMessageTime(msg.createdAt)}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-gray-600">
+                                                {msg.text?.substring(0, 100)}
+                                            </p>
+                                        </div>
+                                    ))
+                                }
+                            </motion.div>
+                        </motion.div>
+                    )
+                }
+            </AnimatePresence>
+
+            {/* Bookmarked Messages Modal */}
+            <AnimatePresence>
+                {
+                    showBookmarkedModal && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowBookmarkedModal(false)}
+                        >
+                            <motion.div
+                                ref={bookmarkedRef}
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-xl md:w-[500px] max-h-[80vh] overflow-y-auto shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold">
+                                        Bookmarked Messages
+                                    </h3>
+                                    <button
+                                        onClick={() => setShowBookmarkedModal(false)}
+                                        className="p-2 hover:bg-gray-100 rounded-full"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                {bookmarkedMessages.length === 0 ?
+                                    <p className="text-center text-gray-400 py-8">
+                                        No bookmarked messages
+                                    </p> :
+                                    bookmarkedMessages.map(msg => (
+                                        <div
+                                            key={msg._id}
+                                            className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer"
+                                            onClick={() => {
+                                                setShowBookmarkedModal(false);
+                                                onClose();
+                                                setTimeout(() => scrollToMessage(msg._id), 300);
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Bookmark className="w-3 h-3 text-blue-400 fill-blue-400" />
+                                                <span className="text-xs text-gray-400">
+                                                    {formatMessageTime(msg.createdAt)}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-gray-600">
+                                                {msg.text?.substring(0, 100)}
+                                            </p>
+                                        </div>
+                                    ))
+                                }
+                            </motion.div>
+                        </motion.div>
+                    )
+                }
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {showWallpaperModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                        onClick={() => setShowWallpaperModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                            className="bg-white rounded-2xl p-6 w-[90%] max-w-md md:w-[420px] max-h-[80vh] overflow-y-auto shadow-xl"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-bold">Chat Wallpaper</h3>
+                                <button onClick={() => setShowWallpaperModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <p className="text-sm text-gray-500 mb-4">Choose a preset or upload your own image.</p>
+
+                            <div className="grid grid-cols-3 gap-3 mb-4">
+                                {[
+                                    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=200&h=200&fit=crop',
+                                    'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=200&h=200&fit=crop',
+                                    'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=200&h=200&fit=crop',
+                                    'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=200&h=200&fit=crop',
+                                    'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&h=200&fit=crop',
+                                    'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=200&h=200&fit=crop',
+                                    'https://images.unsplash.com/photo-1505144808419-1957a94ca61e?w=200&h=200&fit=crop',
+                                    'https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=200&h=200&fit=crop',
+                                    'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=200&h=200&fit=crop',
+                                    ...customWallpapers,
+                                ].map((url, idx) => (
+                                    <div
+                                        key={idx}
+                                        onClick={() => {
+                                            handleSetWallpaper(url);
+                                            setShowWallpaperModal(false);
+                                        }}
+                                        className="aspect-square rounded-lg cursor-pointer border-2 hover:border-blue-400 transition-colors overflow-hidden"
+                                    >
+                                        <img src={url} alt="" className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="border-t border-gray-100 pt-4">
+                                <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-3 rounded-xl">
+                                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                        {wallpaperUploading ? (
+                                            <Clock className="w-5 h-5 text-gray-500 animate-spin" />
+                                        ) : (
+                                            <Upload className="w-5 h-5 text-gray-500" />
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-700">
+                                            {wallpaperUploading ? 'Uploading...' : 'Upload from device'}
+                                        </p>
+                                        <p className="text-xs text-gray-400">JPEG, PNG, or GIF</p>
+                                    </div>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+                                            await handleUploadWallpaper(file);
+                                        }}
+                                        disabled={wallpaperUploading}
+                                    />
+                                </label>
+                            </div>
+                            <div className="border-t border-gray-100 group pt-4">
+                                <label className="flex items-center gap-3 cursor-pointer group-hover:bg-red-100 p-3 rounded-xl"
+                                       onClick={() => {
+                                           handleSetWallpaper("");
+                                           setShowWallpaperModal(false);
+                                       }}
+                                >
+                                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                        <Trash className="w-5 h-5 group-hover:text-red-500 text-gray-400"/>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-700 group-hover:text-red-500">
+                                            Remove Wallpaper
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {showDisappearingModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                        onClick={() => setShowDisappearingModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                            className="bg-white rounded-2xl p-6 w-[90%] max-w-xs shadow-xl"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <h3 className="text-lg font-bold mb-4">Disappearing Messages</h3>
+                            <p className="text-sm text-gray-500 mb-4">
+                                Messages will be automatically deleted after the selected time.
+                            </p>
+                            <div className="space-y-2">
+                                {[
+                                    { label: '24 hours', value: 86400 },
+                                    { label: '7 days', value: 604800 },
+                                    { label: '90 days', value: 7776000 },
+                                    { label: 'Off', value: null },
+                                ].map(option => (
+                                    <button
+                                        key={option.value}
+                                        onClick={async () => {
+                                            try {
+                                                const token = localStorage.getItem('access-token');
+                                                await axiosInstance.put(
+                                                    `/chat/conversation/${group._id}/disappearing`,
+                                                    { timer: option.value },
+                                                    { headers: { Authorization: `Bearer ${token}` } }
+                                                );
+                                                const updatedConv = { ...group, disappearingTimer: option.value };
+                                                selectConversation(updatedConv);
+                                                toast.success(
+                                                    option.value ? `Disappearing after ${option.label}` : 'Disappearing messages off'
+                                                );
+                                            } catch (error) {
+                                                toast.error('Failed to update');
+                                            }
+                                            setShowDisappearingModal(false);
+                                        }}
+                                        className={`w-full py-2.5 rounded-xl text-sm font-medium ${
+                                            group?.disappearingTimer === option.value
+                                                ? 'bg-blue-50 text-blue-500'
+                                                : 'hover:bg-gray-50 text-gray-600'
+                                        }`}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <button
+                                onClick={() => setShowDisappearingModal(false)}
+                                className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200"
+                            >
+                                Cancel
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Unlock Modal */}
+            <AnimatePresence>
+                {
+                    showUnlockModal && (
+                        <motion.div
+                            ref={unlockRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowUnlockModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-xs shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold">
+                                        Unlock Chats
+                                    </h3>
+                                    <button
+                                        onClick={() => setShowUnlockModal(false)}
+                                        className="p-2 hover:bg-gray-100 rounded-full"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                <p className="text-sm text-gray-500 mb-4">
+                                    Enter your login password to access locked chats.
+                                </p>
+                                <input
+                                    type="password"
+                                    placeholder="Enter password"
+                                    className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-4"
+                                    value={unlockPassword}
+                                    onChange={(e) => setUnlockPassword(e.target.value)}
+                                    autoFocus
+                                />
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleUnlockChat}
+                                        className="flex-1 py-2.5 bg-blue-400 text-white rounded-xl font-medium hover:bg-blue-500"
+                                    >
+                                        Unlock
+                                    </button>
+                                    <button
+                                        onClick={() => setShowUnlockModal(false)}
+                                        className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )
+                }
+            </AnimatePresence>
+
+            {/* Lock Chat Modal */}
+            <AnimatePresence>
+                {
+                    showLockChatModal && (
+                        <motion.div
+                            ref={lockRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowLockChatModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-xs shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold">
+                                        Lock Chat
+                                    </h3>
+                                    <button
+                                        onClick={() => setShowLockChatModal(false)}
+                                        className="p-2 hover:bg-gray-100 rounded-full"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                <p className="text-sm text-gray-500 mb-4">
+                                    Enter your login password to lock this chat.
+                                </p>
+                                <input
+                                    type="password"
+                                    placeholder="Enter password"
+                                    className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-4"
+                                    value={lockPassword}
+                                    onChange={(e) => setLockPassword(e.target.value)}
+                                    autoFocus
+                                />
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleLockChatConfirm}
+                                        className="flex-1 py-2.5 bg-blue-400 text-white rounded-xl font-medium hover:bg-blue-500"
+                                    >
+                                        Lock Chat
+                                    </button>
+                                    <button
+                                        onClick={() => setShowLockChatModal(false)}
+                                        className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )
+                }
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {showThemeModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                        onClick={() => setShowThemeModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                            className="bg-white rounded-2xl p-6 w-[90%] max-w-xs shadow-xl"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <h3 className="text-lg font-bold mb-4">Chat Theme</h3>
+                            <div className="grid grid-cols-4 gap-3">
+                                {[
+                                    { name: 'Emerald', color: '#10b981', key: 'emerald' },
+                                    { name: 'Blue', color: '#3b82f6', key: 'blue' },
+                                    { name: 'Purple', color: '#8b5cf6', key: 'purple' },
+                                    { name: 'Rose', color: '#f43f5e', key: 'rose' },
+                                    { name: 'Orange', color: '#f97316', key: 'orange' },
+                                    { name: 'Teal', color: '#14b8a6', key: 'teal' },
+                                    { name: 'Slate', color: '#64748b', key: 'slate' },
+                                    { name: 'Indigo', color: '#6366f1', key: 'indigo' },
+                                ].map(theme => (
+                                    <button
+                                        key={theme.key}
+                                        onClick={async () => {
+                                            try {
+                                                const token = localStorage.getItem('access-token');
+                                                await axiosInstance.put(
+                                                    `/chat/conversation/${group._id}/theme`,
+                                                    { themeColor: theme.key },
+                                                    { headers: { Authorization: `Bearer ${token}` } }
+                                                );
+                                                const updatedConv = { ...group, themeColor: theme.key };
+                                                const updatedConversations = conversations.map(c =>
+                                                    c._id === group._id ? updatedConv : c
+                                                );
+                                                useChatStore.setState({
+                                                    conversations: updatedConversations,
+                                                    selectedConversation: updatedConv,
+                                                });
+                                                setShowThemeModal(false);
+                                                toast.success('Theme updated');
+                                            } catch (error) {
+                                                toast.error('Failed');
+                                            }
+                                        }}
+                                        className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-gray-100 transition-colors"
+                                    >
+                                        <div
+                                            className={`w-10 h-10 rounded-full border-2 ${
+                                                (group?.themeColor || 'emerald') === theme.key
+                                                    ? 'border-blue-400'
+                                                    : 'border-transparent'
+                                            }`}
+                                            style={{ backgroundColor: theme.color }}
+                                        />
+                                        <span className="text-xs font-medium">{theme.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+                            <button onClick={() => setShowThemeModal(false)} className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+        </AnimatePresence>
 
     );
 };

@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, Suspense, lazy } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Lazy load emoji picker
 const LazyPicker = lazy(async () => {
     const mod = await import("@emoji-mart/react");
     return { default: mod.default };
@@ -40,7 +39,6 @@ const EmojiPicker = ({ inputRef, value, setValue }) => {
             const newValue = value.slice(0, start) + emoji.native + value.slice(end);
             setValue(newValue);
 
-            // Restore cursor position after state update
             setTimeout(() => {
                 el.focus();
                 const newPos = start + emoji.native.length;
@@ -52,7 +50,10 @@ const EmojiPicker = ({ inputRef, value, setValue }) => {
     };
 
     return (
-        <div ref={pickerRef} className="bg-white rounded-xl shadow-xl border border-gray-100 w-80 max-h-96 overflow-hidden flex flex-col">
+        <div
+            ref={pickerRef}
+            className="bg-white rounded-xl shadow-xl border border-gray-100 w-[calc(100vw-2rem)] max-w-xs sm:max-w-sm md:w-80 max-h-96 overflow-hidden flex flex-col"
+        >
             {/* Recent emojis */}
             {recent.length > 0 && (
                 <div className="p-2 border-b border-gray-100">
@@ -71,7 +72,7 @@ const EmojiPicker = ({ inputRef, value, setValue }) => {
                 </div>
             )}
 
-            {/* Full emoji picker */}
+            {/* Full emoji picker – always 7 per row, emoji size 24 */}
             <div className="flex-1 overflow-y-auto">
                 <Suspense fallback={
                     <div className="flex items-center justify-center p-8 text-gray-400 text-sm">
@@ -82,6 +83,7 @@ const EmojiPicker = ({ inputRef, value, setValue }) => {
                         data={data}
                         onEmojiSelect={handleSelect}
                         perLine={7}
+                        emojiSize={24}
                         theme="light"
                         previewPosition="none"
                         skinTonePosition="none"

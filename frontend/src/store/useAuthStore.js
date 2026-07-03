@@ -40,6 +40,8 @@ export const useAuthStore = create((set, get) => ({
             if (!socket?.connected) {
                 await get().connectSocket();
             }
+            // Register push notifications after auth
+            await get().registerPushNotifications();
         } catch (error) {
             console.log("Auth check error:", error);
             set({ authUserId: null });
@@ -60,6 +62,7 @@ export const useAuthStore = create((set, get) => ({
             await get().checkAuthentication();
             await get().connectSocket();
             toast.success("Account created successfully!");
+            await get().registerPushNotifications();
         } catch (error) {
             toast.error(error.response?.data?.message || "Signup failed");
         } finally {
@@ -77,6 +80,7 @@ export const useAuthStore = create((set, get) => ({
             await get().checkAuthentication();
             await get().connectSocket();
             toast.success("Logged in successfully");
+            await get().registerPushNotifications();
         } catch (error) {
             toast.error(error.response?.data?.message || "Login failed");
         } finally {
@@ -249,6 +253,28 @@ export const useAuthStore = create((set, get) => ({
         }
     },
 
+    registerPushNotifications: async () => {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+        try {
+            const registration = await navigator.serviceWorker.register('/service-worker.js');
+
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(
+                    import.meta.env.VITE_VAPID_PUBLIC_KEY
+                ),
+            });
+
+            const token = localStorage.getItem('access-token');
+            await axiosInstance.post('/auth/push-subscription', { subscription }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+        } catch (error) {
+            console.error('Push subscription failed:', error);
+        }
+    },
+
     // ==================== Socket Connection ====================
 
     connectSocket: async () => {
@@ -328,3 +354,10 @@ export const useAuthStore = create((set, get) => ({
         }
     },
 }));
+
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    return new Uint8Array([...rawData].map(char => char.charCodeAt(0)));
+}

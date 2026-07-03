@@ -1,3 +1,5 @@
+/* global self, clients, registration */
+
 self.addEventListener('push', (event) => {
     const data = event.data?.json() || {};
     const options = {

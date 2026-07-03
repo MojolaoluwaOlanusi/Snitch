@@ -1,5 +1,6 @@
 import express from 'express';
 import Post from '../models/Post.ts';
+import { sendPushNotification } from '../utils/pushNotifications.ts';
 import Notification from '../models/Notification.ts'
 import {User} from '../models/User.ts';
 import jwt from 'jsonwebtoken';
@@ -211,6 +212,11 @@ router.post('/like/:id', async (req, res) => {
                 fromAvatarUrl: currentUser.avatarUrl,
             });
             await notification.save();
+            sendPushNotification(post.author.toString(), {
+                title: 'New Like',
+                body: `${currentUser.displayName} liked your post`,
+                url: `${process.env.CLIENT_URL}/post/${post._id}`,
+            }).catch(err => console.error('Push like error:', err));
             const updatedLikes = post.likes;
             res.status(200).json({ updatedLikes, message: 'Successfully Liked Post' });
         }
@@ -344,6 +350,11 @@ router.post('/react', async (req, res) => {
             fromAvatarUrl: currentUser.avatarUrl,
         });
         await notification.save();
+        sendPushNotification(post.author.toString(), {
+            title: 'New Reaction',
+            body: `${currentUser.displayName} reacted to your post`,
+            url: `${process.env.CLIENT_URL}/post/${post._id}`,
+        }).catch(err => console.error('Push react error:', err));
         res.status(200).json({success: true,message: `You have successfully reacted to the post: ${id}`});
     } catch (err: any) {
         console.error('Error in reaction:', err.message);

@@ -66,7 +66,6 @@ const conversationSchema = new mongoose.Schema(
         reportedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
         lockPassword: String,
         disappearingTimer: { type: Number, default: null }, // in seconds, null = off
-        wallpaper: { type: String, default: null },
         avatarColor: { type: String, default: null },
         inviteToken: { type: String, unique: true, sparse: true, default: null },
     },

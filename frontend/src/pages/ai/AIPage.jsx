@@ -3,16 +3,22 @@ import Sidebar from "../../components/common/Sidebar";
 const AIPage = () => {
     return (
         <div className="w-full flex flex-col md:flex-row h-screen">
-            <Sidebar/>
-            <div className="flex-col items-center w-full h-screen">
-                <div className="h-screen w-full bg-blue-100 rounded-lg ">
-                    <div className="justify-items-center justify-center items-center flex flex-col px-6 py-60 space-y-5">
-                        <span className="text-6xl text-slate-400 font-bold animate-pulse skeleton">Page in progress.</span>
-                        <span className="text-slate-300 font-bold text-4xl">Coming soon...</span>
-                    </div>
+            <Sidebar />
+            <div className="flex-1 bg-blue-100 overflow-y-auto">
+                {/* Spacer for hamburger on mobile */}
+                <div className="h-14 lg:hidden" />
+
+                <div className="flex flex-col items-center justify-center h-full px-4 text-center space-y-4">
+                    <span className="text-3xl sm:text-5xl md:text-6xl text-slate-400 font-bold animate-pulse">
+                        Page in progress.
+                    </span>
+                    <span className="text-xl sm:text-3xl md:text-4xl text-slate-300 font-bold">
+                        Coming soon...
+                    </span>
                 </div>
             </div>
         </div>
-    )
-}
-export default AIPage
+    );
+};
+
+export default AIPage;

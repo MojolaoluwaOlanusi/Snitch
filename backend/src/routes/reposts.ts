@@ -2,6 +2,7 @@ import express from 'express';
 import Post from '../models/Post.ts';
 import jwt from 'jsonwebtoken';
 import {User} from'../models/User.ts';
+import { sendPushNotification } from '../utils/pushNotifications.ts';
 import Notification from '../models/Notification.ts'
 const router = express.Router();
 async function auth(req:any,res:any,next:any){ const h=req.headers.authorization; if(!h) return res.status(401).json({ error:'unauth' }); try{ const token = h.split(' ')[1]; const decoded:any = jwt.verify(token, process.env.JWT_SECRET || 'devsecret'); req.userId = decoded.id; next(); }catch(e){ return res.status(401).json({ error:'invalid' }); } }
@@ -34,6 +35,11 @@ router.post('/:postId', auth, async (req,res)=>{
     );
 
     await newNotification.save();
+    sendPushNotification(post.author.toString(), {
+        title: 'New Repost',
+        body: `${currentUser.displayName} reposted your post`,
+        url: `${process.env.CLIENT_URL}/post/${post._id}`,
+    }).catch(err => console.error('Push repost error:', err));
   try{ const io = (globalThis as any).io; if(io) io.emit('post:repost', { repost }); }catch(e){}
   res.status(201).json(repost);
 });

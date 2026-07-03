@@ -21,10 +21,10 @@ import { formatMemberSinceDate } from "../../utils/date";
 import {useAuthStore} from "../../store/useAuthStore";
 import {useUserStore} from "../../store/useUserStore";
 import {useMediaStore} from "../../store/useMediaStore";
-import {useChatStore} from "../../store/useChatStore";   // <-- new
+import {useChatStore} from "../../store/useChatStore";
 import ThemeSelector from "../../components/common/ThemeSelector";
 import axiosInstance from "../../lib/axios";
-import toast from "react-hot-toast";                        // <-- new (for error feedback)
+import toast from "react-hot-toast";
 
 
 const ProfilePage = () => {
@@ -33,8 +33,8 @@ const ProfilePage = () => {
     const { userPosts, followUser, isFollowingUser, goIncognito, isIncognito } = useUserStore();
     const { uploadMedia } = useMediaStore();
     const { username } = useParams();
-    const navigate = useNavigate();                                    // <-- new
-    const { getConversation, selectConversation } = useChatStore();    // <-- new
+    const navigate = useNavigate();
+    const { getConversation, selectConversation } = useChatStore();
 
     localStorage.setItem('username', username);
 
@@ -50,7 +50,6 @@ const ProfilePage = () => {
         getUserProfile(username);
     }, [getUserProfile]);
 
-    // ---------- Chat with this user ----------
     const handleChatWithUser = async () => {
         if (!user?._id) return;
         try {
@@ -63,7 +62,6 @@ const ProfilePage = () => {
             toast.error('Could not open conversation');
         }
     };
-    // ---------------------------------------
 
     async function uploadCoverImg(data) {
         const token = localStorage.getItem('access-token');
@@ -126,22 +124,25 @@ const ProfilePage = () => {
     return (
         <div className="w-full flex flex-col md:flex-row h-screen">
             <Sidebar/>
-            <div className='flex-col items-center bg-white blue-200 rounded-lg w-full h-screen'>
+            <div className='flex-1 flex flex-col items-center bg-white blue-200 rounded-lg h-full overflow-y-auto'>
+                {/* Hamburger spacer */}
+                <div className="h-14 lg:hidden" />
+
                 {/* HEADER */}
                 {(isGettingUserProfile || isUpdatingProfile) && <ProfileHeaderSkeleton />}
                 {!isGettingUserProfile && !isUpdatingProfile && !user && <p className='text-center text-lg mt-4'>User not found ❌</p>}
                 {!isGettingUserProfile && !isUpdatingProfile && user?.accountVisibility === "Private" && !isMyProfile && <p className='text-center text-lg mt-4'>Sorry this is a private account 🔏</p>}
-                {!isGettingUserProfile && !isUpdatingProfile && user?.accountVisibility === "Friends" && !isMyProfile && <p className='text-center text-lg mt-4'>Sorry this is a friends only account 🫂</p>}
-                <div className='flex flex-col max-h-screen'>
+                {!isGettingUserProfile && !isUpdatingProfile && user?.accountVisibility === "Friends" && !isMyProfile && !amIFollowing && <p className='text-center text-lg mt-4'>Sorry this is a friends only account 🫂</p>}
+                <div className='flex flex-col max-h-screen w-full'>
                     {!isGettingUserProfile && !isUpdatingProfile && user && (isMyProfile || (!isMyProfile && user?.accountVisibility === "Public") || (!isMyProfile && user?.accountVisibility === "Friends" && amIFollowing)) && (
-                        <div className="h-screen overflow-y-auto">
-                            <div className='flex gap-10 px-4 py-2 items-center'>
+                        <div className="h-screen overflow-y-auto w-full">
+                            <div className='flex gap-4 sm:gap-10 px-4 py-2 items-center'>
                                 <Link to='/'>
                                     <FaArrowLeft className='w-4 h-4' />
                                 </Link>
                                 <div className='flex flex-col'>
-                                    <div className="flex flex-row justify-between w-[1000px]">
-                                        <div className="flex flex-row gap-4">
+                                    <div className="flex flex-col sm:flex-row sm:justify-between w-full">
+                                        <div className="flex flex-row gap-2 sm:gap-4 flex-wrap items-center">
                                             <p className='font-bold text-lg text-gray-800'>{user?.displayName}</p>
                                             {user?.isAdmin === true && (
                                                 <Badge variant="outline" className={'flex items-center gap-1 bg-gold text-stone-400 border-yellow-200'}>
@@ -200,7 +201,7 @@ const ProfilePage = () => {
                                     </div>
                                 </div>
                             </div>
-                            <div className='flex justify-end px-4 mt-5 gap-2'>
+                            <div className='flex justify-end px-4 mt-5 gap-2 flex-wrap'>
                                 {isMyProfile && <EditProfileModal authUser={authUser} />}
                                 {!isMyProfile && (
                                     <>
@@ -216,7 +217,6 @@ const ProfilePage = () => {
                                             {!isFollowingUser && amIFollowing && "Unfollow"}
                                             {!isFollowingUser && !amIFollowing && "Follow"}
                                         </button>
-                                        {/* ---------- NEW CHAT BUTTON ---------- */}
                                         <button
                                             onClick={handleChatWithUser}
                                             className="btn btn-outline bg-white hover:bg-blue-500 hover:text-white rounded-full btn-sm flex items-center gap-2"
@@ -224,7 +224,6 @@ const ProfilePage = () => {
                                             <MessageCircle className="w-4 h-4" />
                                             Chat
                                         </button>
-                                        {/* --------------------------------- */}
                                     </>
                                 )}
                             </div>

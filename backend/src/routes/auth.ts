@@ -5,6 +5,7 @@ import Notification from '../models/Notification.ts'
 import {User} from '../models/User.ts';
 import transport from '../middleware/sendMail.ts';
 import {doHash, doHashValidation, hmacProcess} from '../utils/hashing.ts';
+import { sendPushNotification } from '../utils/pushNotifications.ts';
 import Post from "../models/Post.ts";
 import Report from "../models/Report.ts";
 
@@ -428,21 +429,23 @@ router.patch('/change-password', authMiddleware, async (req, res) => {
     }
 });
 
-router.post('/follow',authMiddleware, async (req, res) => {
+router.post('/follow', authMiddleware, async (req, res) => {
     try {
         const { id: userToModifyId } = req.body;
         const userToModify = await User.findById(userToModifyId);
         const currentUser = await User.findById(req.userId);
 
-        if (!userToModifyId){
-            return res.status(400).json({ error: "UserId is required", message: "UserId is required!"});
+        if (!userToModifyId) {
+            return res.status(400).json({ error: "UserId is required", message: "UserId is required!" });
         }
 
         if (userToModifyId === req.userId) {
             return res.status(400).json({ error: "You can't follow/unfollow yourself", message: "You can't follow/unfollow yourself" });
         }
 
-        if (!userToModify || !currentUser) return res.status(400).json({ error: "User not found", message: "User not found!" });
+        if (!userToModify || !currentUser) {
+            return res.status(400).json({ error: "User not found", message: "User not found!" });
+        }
 
         // @ts-ignore
         const isFollowing = currentUser.following.includes(userToModifyId);
@@ -450,31 +453,39 @@ router.post('/follow',authMiddleware, async (req, res) => {
         if (isFollowing) {
             // Unfollow the user
             await User.findByIdAndUpdate(userToModifyId, { $pull: { followers: req.userId } });
-            await User.findByIdAndUpdate(req.userId, { $pull: { following: userToModifyId} });
-            await User.findByIdAndUpdate(currentUser, { $inc: { followingCount: -1 } }).catch(()=>{});
-            await User.findByIdAndUpdate(userToModifyId, { $inc: { followerCount: -1 } }).catch(()=>{});
-            res.status(200).json({ message: "User unfollowed successfully",  id: userToModifyId });
+            await User.findByIdAndUpdate(req.userId, { $pull: { following: userToModifyId } });
+            await User.findByIdAndUpdate(currentUser, { $inc: { followingCount: -1 } }).catch(() => {});
+            await User.findByIdAndUpdate(userToModifyId, { $inc: { followerCount: -1 } }).catch(() => {});
+            res.status(200).json({ message: "User unfollowed successfully", id: userToModifyId });
         } else {
             // Follow the user
             await User.findByIdAndUpdate(userToModifyId, { $push: { followers: req.userId } });
             await User.findByIdAndUpdate(req.userId, { $push: { following: userToModifyId } });
-            // Send notification to the user
+
+            // Create notification
             const newNotification = new Notification({
                 type: "follow",
                 from: req.userId,
                 to: userToModifyId,
                 fromAvatarUrl: currentUser.avatarUrl,
             });
-
             await newNotification.save();
-            await User.findByIdAndUpdate(currentUser, { $inc: { followingCount: 1 } }).catch(()=>{});
-            await User.findByIdAndUpdate(userToModifyId, { $inc: { followerCount: 1 } }).catch(()=>{});
+
+            // 🔔 Send push notification
+            sendPushNotification(userToModifyId, {
+                title: 'New Follower',
+                body: `${currentUser.displayName || currentUser.username} followed you`,
+                url: `${process.env.CLIENT_URL}/profile/${currentUser.username}`,
+            }).catch(err => console.error('Push follow notification error:', err));
+
+            await User.findByIdAndUpdate(currentUser, { $inc: { followingCount: 1 } }).catch(() => {});
+            await User.findByIdAndUpdate(userToModifyId, { $inc: { followerCount: 1 } }).catch(() => {});
 
             res.status(200).json({ message: "User followed successfully", id: userToModifyId });
         }
     } catch (err: any) {
         console.log("Error in followUnfollowUser: ", err.message);
-        res.status(500).json({ error: err.message , message: err});
+        res.status(500).json({ error: err.message, message: err });
     }
 });
 
@@ -666,6 +677,49 @@ router.post('/report-user/:id', authMiddleware, async (req, res) => {
     } catch (error: any) {
         console.error("Error reporting user:", error);
         res.status(500).json({ error: error?.message || "Server error" });
+    }
+});
+
+// Save push subscription
+router.post('/push-subscription', authMiddleware, async (req: any, res: any) => {
+    try {
+        const userId = req.userId;
+        const { subscription } = req.body;
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Avoid duplicates
+        const exists = user.pushSubscriptions?.some(
+            (s: any) => s.endpoint === subscription.endpoint
+        );
+        if (!exists) {
+            user.pushSubscriptions = user.pushSubscriptions || [];
+            (user.pushSubscriptions as any[]).push(subscription);
+            await user.save();
+        }
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Remove push subscription
+router.delete('/push-subscription', authMiddleware, async (req: any, res: any) => {
+    try {
+        const userId = req.userId;
+        const { endpoint } = req.body;
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        (user.pushSubscriptions as any[]).filter(
+            (s: any) => s.endpoint !== endpoint
+        );
+        await user.save();
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
     }
 });
 
