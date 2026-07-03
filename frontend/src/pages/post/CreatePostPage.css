@@ -1,0 +1,39 @@
+.mentions-input {
+    min-height: 11rem;
+}
+
+.mention-highlight {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+    border-radius: 4px;
+    padding: 0 2px;
+}
+
+.hashtag-highlight {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+    border-radius: 4px;
+    padding: 0 2px;
+}
+
+.mentions-input__suggestions {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    overflow: hidden;
+    z-index: 50;
+}
+
+.mentions-input__suggestions__item {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.mentions-input__suggestions__item--focused {
+    background-color: #eff6ff;
+}
+
+.mentions-input__suggestions__item:hover {
+    background-color: #f3f4f6;
+}
