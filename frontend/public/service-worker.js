@@ -4,8 +4,8 @@ self.addEventListener('push', (event) => {
     const data = event.data?.json() || {};
     const options = {
         body: data.body || 'You have a new message',
-        icon: '/icon-192.png',
-        badge: '/icon-72.png',
+        icon: '/favicon.svg',    // ← use your SVG logo
+        badge: '/favicon.svg',   // ← same icon for badge
         data: { url: data.url || '/' },
     };
     event.waitUntil(self.registration.showNotification(data.title || 'Snitch', options));

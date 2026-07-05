@@ -53,7 +53,7 @@ const NotificationPage = () => {
         <div className="w-full flex flex-col md:flex-row h-screen bg-gray-50">
             <Sidebar />
 
-            <div className="flex-1 border-l border-r border-gray-200 bg-white w-full min-h-screen overflow-y-auto">
+            <main className="flex-1 border-l border-r border-gray-200 bg-white w-full min-h-screen overflow-y-auto">
                 {/* Spacer for hamburger on mobile */}
                 <div className="h-14 lg:hidden" />
 
@@ -197,7 +197,7 @@ const NotificationPage = () => {
                             )}
                         </div>
                     ))}
-            </div>
+            </main>
 
             {/* Right panel – hidden on mobile/tablet */}
             <div className="hidden lg:block">

@@ -5,6 +5,11 @@ import App from "./App.jsx";
 import {BrowserRouter} from "react-router-dom";
 import {DevSupport} from "@react-buddy/ide-toolbox";
 import {ComponentPreviews, useInitial} from "./dev";
+import { onLCP, onINP, onCLS } from "web-vitals";
+
+onLCP(console.log);
+onINP(console.log);
+onCLS(console.log);
 
 ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>

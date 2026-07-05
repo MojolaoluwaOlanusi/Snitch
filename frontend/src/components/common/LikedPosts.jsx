@@ -9,7 +9,7 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 import {BiRepost} from "react-icons/bi";
 import {formatPostDate} from "../../utils/date";
 import {useAuthStore} from "../../store/useAuthStore";
-import toast from "react-hot-toast";
+import { toast } from 'sonner'
 import {MdAddReaction, MdReportProblem} from "react-icons/md";
 import {IoClose} from "react-icons/io5";
 import {Hash, MoreHorizontal} from "lucide-react";

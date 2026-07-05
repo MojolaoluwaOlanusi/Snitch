@@ -14,7 +14,7 @@ function ForgotPasswordPage() {
     };
 
     return (
-        <div className="min-h-screen bg-blue-200 flex items-center justify-center px-4 py-8 sm:py-16">
+        <main className="min-h-screen bg-blue-200 flex items-center justify-center px-4 py-8 sm:py-16">
             <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-6 sm:p-10 md:p-20">
                 {/* Back button */}
                 <Link
@@ -30,7 +30,7 @@ function ForgotPasswordPage() {
                     <h2 className="text-2xl font-bold text-blue-600 mb-2">
                         Verify Account
                     </h2>
-                    <p className="text-blue-400 text-sm sm:text-base">
+                    <p className="text-blue-600 text-sm sm:text-base">
                         Enter Your Email To Request A Code
                     </p>
                 </div>
@@ -48,7 +48,7 @@ function ForgotPasswordPage() {
                                 onChange={(e) =>
                                     setFormData({ ...formData, email: e.target.value })
                                 }
-                                className="input"
+                                className="input border-gray-400"
                                 placeholder="youremail@gmail.com"
                             />
                         </div>
@@ -77,7 +77,7 @@ function ForgotPasswordPage() {
                     </Link>
                 </div>
             </div>
-        </div>
+        </main>
     );
 }
 

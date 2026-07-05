@@ -4,7 +4,7 @@ const WarpPage = () => {
     return (
         <div className="w-full flex flex-col md:flex-row h-screen">
             <Sidebar />
-            <div className="flex-1 bg-blue-100 overflow-y-auto">
+            <main className="flex-1 bg-blue-100 overflow-y-auto">
                 {/* Spacer for hamburger on mobile */}
                 <div className="h-14 lg:hidden" />
 
@@ -16,7 +16,7 @@ const WarpPage = () => {
                         Coming soon...
                     </span>
                 </div>
-            </div>
+            </main>
         </div>
     );
 };

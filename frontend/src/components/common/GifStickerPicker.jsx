@@ -3,7 +3,7 @@ import { Search, X } from "lucide-react";
 import { motion } from "framer-motion";
 import axiosInstance from "../../lib/axios";
 import { Camera } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from 'sonner'
 
 const PAGE_SIZE = 20;
 

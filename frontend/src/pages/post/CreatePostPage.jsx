@@ -113,7 +113,7 @@ function CreatePostPage() {
             });
             const users = response.data.users.map((u) => ({
                 id: u.username,
-                display: '@' + (u.displayName || u.username),
+                display: u.displayName || u.username,
                 avatar: u.avatarUrl,
             }));
             callback(users);
@@ -131,10 +131,10 @@ function CreatePostPage() {
             });
             const hashtags = (response.data.suggestedHashtags || []).map((h) => ({
                 id: h._id,
-                display: '#' + h._id,
+                display: h._id,
             }));
             if (!hashtags.find((h) => h.id === query)) {
-                hashtags.push({ id: query, display: '#' + query });
+                hashtags.push({ id: query, display: query });
             }
             callback(hashtags);
         } catch (error) {
@@ -149,7 +149,7 @@ function CreatePostPage() {
     return (
         <div className="w-full flex flex-col md:flex-row h-screen">
             <Sidebar />
-            <div className="flex-1 flex flex-col items-center bg-gradient-to-br from-blue-50 to-white rounded-lg w-full h-full overflow-y-auto">
+            <main className="flex-1 flex flex-col items-center bg-gradient-to-br from-blue-50 to-white rounded-lg w-full h-full overflow-y-auto">
                 {/* Hamburger spacer */}
                 <div className="h-14 lg:hidden" />
                 <div className="w-full max-w-3xl space-y-6 p-4 sm:p-6">
@@ -172,7 +172,7 @@ function CreatePostPage() {
                                     <Mention
                                         trigger="@"
                                         data={fetchUsers}
-                                        markup="@[@__display__](user://__id__)"
+                                        markup="@[__display__](user://__id__)"
                                         renderSuggestion={(suggestion) => (
                                             <div className="flex items-center gap-2 p-2">
                                                 <img src={suggestion.avatar || "/avatar-placeholder.png"} className="w-8 h-8 rounded-full" alt="" />
@@ -236,7 +236,7 @@ function CreatePostPage() {
                         </button>
                     </form>
                 </div>
-            </div>
+            </main>
             {/* Right panel – hidden on mobile/tablet */}
             <div className="hidden lg:block">
                 <CreatePostRightPanel />

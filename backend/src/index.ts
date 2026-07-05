@@ -42,6 +42,11 @@ app.use('/api/search', searchRoutes);
 app.use('/api/incognito', incognitoRoutes);
 app.use('/api/chat', chatRoutes);
 
+app.use("/assets", express.static("dist/assets", {
+    maxAge: "1y",
+    immutable: true
+}));
+
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 app.get('/api/config', (_req, res) => {
     res.json(

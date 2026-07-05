@@ -160,7 +160,7 @@ const PostPage = () => {
     return (
         <div className="w-full flex flex-col md:flex-row h-screen">
             <Sidebar />
-            <div className="flex-1 flex flex-col bg-gradient-to-br from-blue-50 to-white overflow-auto">
+            <main className="flex-1 flex flex-col bg-gradient-to-br from-blue-50 to-white overflow-auto">
                 {/* Hamburger spacer */}
                 <div className="h-14 lg:hidden" />
 
@@ -620,7 +620,7 @@ const PostPage = () => {
                         </div>
                     </div>
                 </div>
-            </div>
+            </main>
         </div>
     );
 };

@@ -6,8 +6,7 @@ import { useAuthStore } from "../../store/useAuthStore";
 import { useEffect, useState } from "react";
 import { BiLogOut } from "react-icons/bi";
 import axiosInstance from "../../lib/axios";
-import toast from "react-hot-toast";
-import { motion, AnimatePresence } from "framer-motion";
+import { toast } from 'sonner'
 import { useChatStore } from "../../store/useChatStore";
 
 const Sidebar = () => {
@@ -15,12 +14,18 @@ const Sidebar = () => {
     const { selectedConversation } = useChatStore();
     const [isChatRestricted, setIsChatRestricted] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [framerModule, setFramerModule] = useState(null);
 
     useEffect(() => {
         getProfile();
         checkChatRestriction();
     }, [getProfile]);
 
+    useEffect(() => {
+        if (mobileMenuOpen && !framerModule) {
+            import("framer-motion").then((mod) => setFramerModule(mod));
+        }
+    }, [mobileMenuOpen, framerModule]);
     const checkChatRestriction = async () => {
         try {
             const token = localStorage.getItem('access-token');
@@ -88,58 +93,63 @@ const Sidebar = () => {
                 </button>
             )}
 
-            {/* Mobile Drawer */}
-            <AnimatePresence>
-                {mobileMenuOpen && (
-                    <motion.div
-                        className="fixed inset-0 z-40 md:hidden"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                    >
-                        {/* Backdrop */}
-                        <div
-                            className="absolute inset-0 bg-black/50"
-                            onClick={() => setMobileMenuOpen(false)}
-                        />
-                        {/* Drawer panel */}
-                        <motion.div
-                            className="absolute top-0 left-0 h-full w-64 bg-white shadow-xl p-6 flex flex-col"
-                            initial={{ x: -300 }}
-                            animate={{ x: 0 }}
-                            exit={{ x: -300 }}
-                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                        >
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-2">
-                                    <SnitchLogoSmall />
-                                    <h3 className="font-bold text-2xl text-blue-600">Snitch</h3>
-                                </div>
-                                <button
-                                    onClick={() => setMobileMenuOpen(false)}
-                                    className="p-2 hover:bg-gray-100 rounded-full"
-                                >
-                                    <X className="w-5 h-5 text-gray-500" />
-                                </button>
-                            </div>
-                            <div className="flex-1 overflow-y-auto">
-                                {renderLinks(true)}
-                            </div>
-                            <button
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    logout();
-                                    setMobileMenuOpen(false);
-                                }}
-                                className="btn btn-ghost w-full justify-start text-red-500 mt-4"
+            {/* Mobile Drawer – dynamic framer-motion */}
+            {framerModule && (() => {
+                const { motion: Motion, AnimatePresence } = framerModule;   // alias to uppercase
+                return (
+                    <AnimatePresence>
+                        {mobileMenuOpen && (
+                            <Motion.div
+                                className="fixed inset-0 z-40 md:hidden"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
                             >
-                                <BiLogOut className="w-5 h-5 mr-2" />
-                                <span>Logout</span>
-                            </button>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                                {/* Backdrop */}
+                                <div
+                                    className="absolute inset-0 bg-black/50"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                />
+                                {/* Drawer panel */}
+                                <Motion.div
+                                    className="absolute top-0 left-0 h-full w-64 bg-white shadow-xl p-6 flex flex-col"
+                                    initial={{ x: -300 }}
+                                    animate={{ x: 0 }}
+                                    exit={{ x: -300 }}
+                                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                                >
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div className="flex items-center gap-2">
+                                            <SnitchLogoSmall />
+                                            <h3 className="font-bold text-2xl text-blue-600">Snitch</h3>
+                                        </div>
+                                        <button
+                                            onClick={() => setMobileMenuOpen(false)}
+                                            className="p-2 hover:bg-gray-100 rounded-full"
+                                        >
+                                            <X className="w-5 h-5 text-gray-500" />
+                                        </button>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto">
+                                        {renderLinks(true)}
+                                    </div>
+                                    <button
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            logout();
+                                            setMobileMenuOpen(false);
+                                        }}
+                                        className="btn btn-ghost w-full justify-start text-red-500 mt-4"
+                                    >
+                                        <BiLogOut className="w-5 h-5 mr-2" />
+                                        <span>Logout</span>
+                                    </button>
+                                </Motion.div>
+                            </Motion.div>
+                        )}
+                    </AnimatePresence>
+                );
+            })()}
 
             {/* Desktop Sidebar (visible on md and above) */}
             <div className="hidden md:flex h-screen w-full max-w-[80px] lg:max-w-[225px] flex-col gap-2 border-r border-gray-200 bg-white">

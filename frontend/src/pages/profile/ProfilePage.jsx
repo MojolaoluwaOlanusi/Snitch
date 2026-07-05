@@ -24,7 +24,7 @@ import {useMediaStore} from "../../store/useMediaStore";
 import {useChatStore} from "../../store/useChatStore";
 import ThemeSelector from "../../components/common/ThemeSelector";
 import axiosInstance from "../../lib/axios";
-import toast from "react-hot-toast";
+import { toast } from 'sonner'
 
 
 const ProfilePage = () => {
@@ -124,7 +124,7 @@ const ProfilePage = () => {
     return (
         <div className="w-full flex flex-col md:flex-row h-screen">
             <Sidebar/>
-            <div className='flex-1 flex flex-col items-center bg-white blue-200 rounded-lg h-full overflow-y-auto'>
+            <main className='flex-1 flex flex-col items-center bg-white blue-200 rounded-lg h-full overflow-y-auto'>
                 {/* Hamburger spacer */}
                 <div className="h-14 lg:hidden" />
 
@@ -373,7 +373,7 @@ const ProfilePage = () => {
                         </div>
                     )}
                 </div>
-            </div>
+            </main>
         </div>
     );
 };

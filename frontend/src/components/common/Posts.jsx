@@ -4,7 +4,7 @@ import PostSkeleton from "../../components/skeletons/PostSkeleton";
 import {Link, useNavigate} from "react-router-dom";
 import { FaFacebook, FaXTwitter, FaWhatsapp, FaTelegram, FaEnvelope } from "react-icons/fa6";
 import { FaRegComment, FaRegHeart, FaTrash} from "react-icons/fa";
-import toast from "react-hot-toast";
+import { toast } from 'sonner'
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import {BiRepost} from "react-icons/bi";
 import {formatPostDate} from "../../utils/date";

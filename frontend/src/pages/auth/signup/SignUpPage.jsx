@@ -13,7 +13,7 @@ function SignUpPage() {
     };
 
     return (
-        <div className="min-h-screen bg-blue-200 flex items-center justify-center px-4 py-8 sm:py-16">
+        <main className="min-h-screen bg-blue-200 flex items-center justify-center px-4 py-8 sm:py-16">
             <div className="w-full max-w-4xl bg-white rounded-2xl shadow-lg overflow-hidden">
                 <div className="flex flex-col md:flex-row">
                     {/* FORM COLUMN – LEFT SIDE */}
@@ -23,7 +23,7 @@ function SignUpPage() {
                             <div className="text-center mb-8">
                                 <MessageCircleIcon className="w-12 h-12 mx-auto text-blue-400 mb-4" />
                                 <h2 className="text-2xl font-bold text-blue-600 mb-2">Create Account</h2>
-                                <p className="text-blue-400">Sign up for a new account</p>
+                                <p className="text-blue-600">Sign up for a new account</p>
                             </div>
 
                             {/* FORM */}
@@ -37,7 +37,7 @@ function SignUpPage() {
                                             type="text"
                                             value={formData.username}
                                             onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                            className="input"
+                                            className="input border-gray-400"
                                             placeholder="Your Username"
                                         />
                                     </div>
@@ -52,7 +52,7 @@ function SignUpPage() {
                                             type="text"
                                             value={formData.displayName}
                                             onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                                            className="input"
+                                            className="input border-gray-400"
                                             placeholder="Your Display Name"
                                         />
                                     </div>
@@ -67,7 +67,7 @@ function SignUpPage() {
                                             type="email"
                                             value={formData.email}
                                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                            className="input"
+                                            className="input border-gray-400"
                                             placeholder="youremail@gmail.com"
                                         />
                                     </div>
@@ -82,7 +82,7 @@ function SignUpPage() {
                                             type="password"
                                             value={formData.password}
                                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            className="input"
+                                            className="input border-gray-400"
                                             placeholder="Enter your password"
                                         />
                                     </div>
@@ -94,7 +94,7 @@ function SignUpPage() {
                                     <div className="relative">
                                         <Briefcase className="auth-input-icon" />
                                         <select
-                                            className="input select"
+                                            className="input border-gray-400 select"
                                             value={formData.accountType}
                                             onChange={(e) => setFormData({ ...formData, accountType: e.target.value })}
                                         >
@@ -135,9 +135,11 @@ function SignUpPage() {
                     <div className="hidden md:flex md:w-1/2 items-center justify-center p-6 bg-gradient-to-bl from-blue-800/20 to-transparent">
                         <div>
                             <img
-                                src="/signup.png"
+                                src="/signup.webp"
                                 alt="People using mobile devices"
                                 className="w-full h-auto object-contain"
+                                loading="lazy"
+                                decoding="async"
                             />
                             <div className="mt-6 text-center">
                                 <h3 className="text-xl font-medium text-blue-400">Start Your Journey Today</h3>
@@ -151,7 +153,7 @@ function SignUpPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </main>
     );
 }
 export default SignUpPage;

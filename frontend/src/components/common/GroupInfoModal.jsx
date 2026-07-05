@@ -8,7 +8,7 @@ import {
     Heart, Palette
 } from "lucide-react";
 import axiosInstance from "../../lib/axios";
-import toast from "react-hot-toast";
+import { toast } from 'sonner'
 import { useChatStore } from "../../store/useChatStore";
 import { useAuthStore } from "../../store/useAuthStore";
 

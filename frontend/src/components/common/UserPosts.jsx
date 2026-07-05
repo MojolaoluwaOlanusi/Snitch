@@ -2,7 +2,7 @@ import {useUserStore} from "../../store/useUserStore";
 import {useEffect, useState} from "react";
 import PostSkeleton from "../../components/skeletons/PostSkeleton";
 import {Link, useNavigate} from "react-router-dom";
-import toast from "react-hot-toast";
+import { toast } from 'sonner'
 import {FaRegComment, FaRegHeart, FaTrash} from "react-icons/fa";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import { Share2, Copy, Check, ExternalLink } from "lucide-react";

@@ -15,7 +15,7 @@ function HomePage() {
             <Sidebar />
 
             {/* Main feed */}
-            <div className="flex-1 bg-white rounded-lg w-full h-screen overflow-y-auto">
+            <main className="flex-1 bg-white rounded-lg w-full h-screen overflow-y-auto">
 
                 <div className="items-center justify-items-center">
                     <header className="items-center justify-center w-full">
@@ -43,7 +43,7 @@ function HomePage() {
                 </div>
                 {feedType === "forYou" && <Posts />}
                 {feedType === "following" && <FollowingPosts />}
-            </div>
+            </main>
 
             {/* Right panel – hidden on mobile/tablet, visible on desktop */}
             <div className="hidden lg:block">

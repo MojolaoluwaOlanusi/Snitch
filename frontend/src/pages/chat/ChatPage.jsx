@@ -1,9 +1,9 @@
 // @ts-nocheck
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useRef, useState, Suspense} from "react";
+import React from "react";
 import {useChatStore} from "../../store/useChatStore";
 import {useAuthStore} from "../../store/useAuthStore";
 import Sidebar from "../../components/common/Sidebar";
-import GroupInfoModal from "../../components/common/GroupInfoModal";
 import {SnitchLogo} from "../../components/svgs/snitch";
 import {
     Archive,
@@ -68,17 +68,19 @@ import {
     X,
 } from "lucide-react";
 import { useConversationSettings } from '../../hooks/useConversationSettings';
-import EmojiPicker from "../../components/common/EmojiPicker";
-import MessageReactionEmojiPicker from "../../components/common/MessageReactionEmojiPicker";
-import LocationPicker from "../../components/common/LocationPicker";
 import {AnimatePresence, motion} from "framer-motion";
 import axiosInstance from "../../lib/axios";
-import toast from "react-hot-toast";
+import { toast } from 'sonner'
 import {useLocation, useNavigate} from "react-router-dom";
 import {getLinkPreview} from 'link-preview-js';
-import GifStickerPicker from "../../components/common/GifStickerPicker";
-import StickerEditor from "../../components/common/StickerEditor";
 import {TbBookmarkOff} from "react-icons/tb";
+import { Virtuoso } from "react-virtuoso";
+const StickerEditor = React.lazy(() => import("../../components/common/StickerEditor"));
+const GifStickerPicker = React.lazy(() => import("../../components/common/GifStickerPicker"));
+const LocationPicker = React.lazy(() => import("../../components/common/LocationPicker"));
+const GroupInfoModal = React.lazy(() => import("../../components/common/GroupInfoModal"));
+const EmojiPicker = React.lazy(() => import("../../components/common/EmojiPicker"));
+const MessageReactionEmojiPicker = React.lazy(() => import("../../components/common/MessageReactionEmojiPicker"));
 
 // ==================== Sub-Components ====================
 
@@ -338,6 +340,7 @@ const ChatPage = () => {
     const [isVideoMode, setIsVideoMode] = useState(true);
 
     // --- Refs ---
+    const virtuosoRef = useRef(null);
     const expressionMenuRef = useRef(null);
     const sendContactRef = useRef(null);
     const hexagonVideoRef = useRef(null);
@@ -605,6 +608,18 @@ const ChatPage = () => {
         ].forEach(e => socket.off(e));
     }, [socket]);
 
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            getConversations();
+            fetchContacts();
+            if (socket?.connected) {
+                setupSocketListeners();
+                socket.emit('get_online_users');
+            }
+        }, 0);
+        return () => clearTimeout(timer);
+    }, [socket?.id]);
+
     // Outside click for Contact List Modal
     useEffect(() => {
         const h = (e) => {
@@ -806,7 +821,18 @@ const ChatPage = () => {
         }
     }, [selectedConversation?._id]);
     useEffect(() => {
-        scrollToBottom();
+        if (messages.length > 0) {
+            const timer = setTimeout(() => {
+                if (virtuosoRef.current) {
+                    virtuosoRef.current.scrollToIndex({
+                        index: messages.length - 1,
+                        align: 'end',
+                        behavior: 'smooth',
+                    });
+                }
+            }, 100);
+            return () => clearTimeout(timer);
+        }
     }, [messages]);
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -1003,7 +1029,13 @@ const ChatPage = () => {
         setMessageText(prev => prev + `📍 ${latitude}, ${longitude}`), () => toast.error('Location unavailable');
     };
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (virtuosoRef.current && messages.length > 0) {
+            virtuosoRef.current.scrollToIndex({
+                index: messages.length - 1,
+                align: 'end',
+                behavior: 'smooth',
+            });
+        }
     };
     const getOnlineCount = (conversation) => {
         if (!conversation?.participants) return 0;
@@ -1325,11 +1357,12 @@ const ChatPage = () => {
     };
 
     const scrollToMessage = (messageId) => {
-        const el = document.getElementById(`msg-${messageId}`);
-        if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            el.classList.add('bg-yellow-50');
-            setTimeout(() => el.classList.remove('bg-yellow-50'), 2000);
+        const index = messages.findIndex(m => m._id === messageId);
+        if (index >= 0 && virtuosoRef.current) {
+            // small delay to ensure Virtuoso is fully ready
+            setTimeout(() => {
+                virtuosoRef.current?.scrollToIndex({ index, align: 'center', behavior: 'smooth' });
+            }, 100);
         }
     };
 
@@ -2788,6 +2821,7 @@ const ChatPage = () => {
                 <div className="flex items-center gap-2" onClick={(e) => {e.stopPropagation()}}>
                     <button
                         className="p-1.5 rounded-full hover:bg-white/20 flex-shrink-0"
+                        aria-label="play/pause"
                         onClick={(e) => {
                             handleVoicePlay(message._id, mediaItem.url);
                             e.stopPropagation();
@@ -2844,6 +2878,10 @@ const ChatPage = () => {
     };
 
     const renderMessage = (message) => {
+    };
+
+    const MessageBubble = React.memo(({ message }) => {
+
         if (!message) return null;
         const isOwn = getIsOwn(message);
         const isDeleted = message.deletedAt || message.deletedForEveryone;
@@ -2947,8 +2985,8 @@ const ChatPage = () => {
                 <div className={`flex items-end mb-3 px-4 group ${isOwn ? 'justify-end' : 'justify-start'}`}
                      onContextMenu={(e) => handleContextMenu(e, message._id)}>
                     <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${isOwn ? 'order-1 mr-1' : 'order-2 ml-1'}`}>
-                        <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setReactionPickerPos({ top: rect.top - 60, left: rect.left }); setShowReactionPicker(message._id); }} className="p-1 hover:bg-gray-100 rounded-full" title="React"><Smile className="w-4 h-4 text-gray-400" /></button>
-                        <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setMenuPosition({ x: rect.left, y: rect.bottom + 4 }); setShowMenu(message._id); }} className="p-1 hover:bg-gray-100 rounded-full" title="More"><MoreHorizontal className="w-4 h-4 text-gray-400" /></button>
+                        <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setReactionPickerPos({ top: rect.top - 60, left: rect.left }); setShowReactionPicker(message._id); }} className="p-1 hover:bg-gray-100 rounded-full" aria-label="react" title="React"><Smile className="w-4 h-4 text-gray-400" /></button>
+                        <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setMenuPosition({ x: rect.left, y: rect.bottom + 4 }); setShowMenu(message._id); }} className="p-1 hover:bg-gray-100 rounded-full"  aria-label="actions" title="More"><MoreHorizontal className="w-4 h-4 text-gray-400" /></button>
                     </div>
                     <div className={`relative ${isOwn ? 'order-2' : 'order-1'}`}>
                         {message.pinned && <div className="absolute -top-5 left-0 flex items-center gap-1 z-10"><Pin className="w-3 h-3 text-blue-400" /><span className="text-[10px] text-blue-400">Pinned</span></div>}
@@ -3004,15 +3042,17 @@ const ChatPage = () => {
                     </div>
                     {showReactionPicker === message._id && (
                         <div className="fixed z-50" style={{ top: Math.min(reactionPickerPos.top, window.innerHeight - 300), left: Math.min(reactionPickerPos.left, window.innerWidth - 320) }}>
-                            <MessageReactionEmojiPicker
-                                postId={message._id}
-                                onReact={(emoji) => handleReaction(message._id, emoji)}
-                                onClose={() => setShowReactionPicker(null)}
-                                isOpen={true}
-                                position={{ top: Math.min(reactionPickerPos.top, window.innerHeight - 300), left: Math.min(reactionPickerPos.left, window.innerWidth - 320) }}
-                                currentUserReaction={message.reactions?.[authUser?._id] || null}
-                                isOwn={isOwn}   // <-- add this
-                            />
+                            <Suspense fallback={null}>
+                                <MessageReactionEmojiPicker
+                                    postId={message._id}
+                                    onReact={(emoji) => handleReaction(message._id, emoji)}
+                                    onClose={() => setShowReactionPicker(null)}
+                                    isOpen={true}
+                                    position={{ top: Math.min(reactionPickerPos.top, window.innerHeight - 300), left: Math.min(reactionPickerPos.left, window.innerWidth - 320) }}
+                                    currentUserReaction={message.reactions?.[authUser?._id] || null}
+                                    isOwn={isOwn}   // <-- add this
+                                />
+                            </Suspense>
                         </div>
                     )}
                 </div>
@@ -3116,8 +3156,8 @@ const ChatPage = () => {
             <div className={`flex items-end mb-1 px-4 group ${isOwn ? 'justify-end' : 'justify-start'}`}
                  onContextMenu={(e) => handleContextMenu(e, message._id)}>
                 <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${isOwn ? 'order-1 mr-1' : 'order-2 ml-1'}`}>
-                    <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setReactionPickerPos({ top: rect.top - 60, left: rect.left }); setShowReactionPicker(message._id); }} className="p-1 hover:bg-gray-100 rounded-full" title="React"><Smile className="w-4 h-4 text-gray-400" /></button>
-                    <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setMenuPosition({ x: rect.left, y: rect.bottom + 4 }); setShowMenu(message._id); }} className="p-1 hover:bg-gray-100 rounded-full" title="More"><MoreHorizontal className="w-4 h-4 text-gray-400" /></button>
+                    <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setReactionPickerPos({ top: rect.top - 60, left: rect.left }); setShowReactionPicker(message._id); }} className="p-1 hover:bg-gray-100 rounded-full" aria-label="react" title="React"><Smile className="w-4 h-4 text-gray-400" /></button>
+                    <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setMenuPosition({ x: rect.left, y: rect.bottom + 4 }); setShowMenu(message._id); }} className="p-1 hover:bg-gray-100 rounded-full" aria-label="actions" title="More"><MoreHorizontal className="w-4 h-4 text-gray-400" /></button>
                 </div>
 
                 <div className={`relative ${isOwn ? 'order-2' : 'order-1'} ${
@@ -3236,6 +3276,7 @@ const ChatPage = () => {
                             <div className="py-1.5" style={{ width: '100%', minWidth: '250px' }}>
                                 <div className="flex items-center gap-2">
                                     <button
+                                        aria-label="play/pause"
                                         className="p-1.5 rounded-full hover:bg-white/20 flex-shrink-0"
                                         onClick={() => handleVoicePlay(message._id, message.media[0].url)}
                                     >
@@ -3281,6 +3322,7 @@ const ChatPage = () => {
                                         )}
                                     </div>
                                     <button
+                                        aria-label="download"
                                         className={`p-1 hover:bg-white/20 rounded-full flex-shrink-0 ${isOwn ? 'text-white' : 'text-gray-600'}`}
                                         onClick={(e) => { e.stopPropagation(); handleVoiceDownload(message.media[0].url); }}
                                     >
@@ -3423,628 +3465,651 @@ const ChatPage = () => {
 
                 {showReactionPicker === message._id && (
                     <div className="fixed z-50" style={{ top: Math.min(reactionPickerPos.top, window.innerHeight - 300), left: Math.min(reactionPickerPos.left, window.innerWidth - 320) }}>
-                        <MessageReactionEmojiPicker
-                            postId={message._id}
-                            onReact={(emoji) => handleReaction(message._id, emoji)}
-                            onClose={() => setShowReactionPicker(null)}
-                            isOpen={true}
-                            position={{ top: Math.min(reactionPickerPos.top, window.innerHeight - 300), left: Math.min(reactionPickerPos.left, window.innerWidth - 320) }}
-                            currentUserReaction={message.reactions?.[authUser?._id] || null}
-                            isOwn={isOwn}   // <-- add this
-                        />
+                        <Suspense fallback={null}>
+                            <MessageReactionEmojiPicker
+                                postId={message._id}
+                                onReact={(emoji) => handleReaction(message._id, emoji)}
+                                onClose={() => setShowReactionPicker(null)}
+                                isOpen={true}
+                                position={{ top: Math.min(reactionPickerPos.top, window.innerHeight - 300), left: Math.min(reactionPickerPos.left, window.innerWidth - 320) }}
+                                currentUserReaction={message.reactions?.[authUser?._id] || null}
+                                isOwn={isOwn}   // <-- add this
+                            />
+                        </Suspense>
                     </div>
                 )}
             </div>
         );
-    };
+    });
 
-    // ==================== RENDER ====================
+        return (
+            <div className="w-full flex h-screen bg-white overflow-hidden">
+                <Sidebar />
 
-    return (
-        <div className="w-full flex h-screen bg-white overflow-hidden">
-            <Sidebar />
-
-            {/* ========== Conversation List ========== */}
-            <div
-                className={`w-full lg:w-[380px] xl:w-[420px] border-r border-gray-100 flex flex-col bg-white ${
-                    selectedConversation && mobileChatVisible ? 'hidden lg:flex' : 'flex'
-                }`}
-            >
-                <div className="p-4 border-b border-gray-100">
-                    <div className="flex items-center justify-between mb-3 pl-12 sm:pl-0">
-                        <h2 className="text-xl font-bold text-gray-800">
-                            {showArchiveSection ? 'Archived' : showLockedSection ? 'Locked' : showFavoritesSection ? 'Favorites' : 'Chats'}
-                        </h2>
-                        <div className="flex gap-1">
-                            <button
-                                onClick={() => {
-                                    setShowArchiveSection(false);
-                                    setShowLockedSection(false);
-                                    selectConversation(null);
-                                    setShowFavoritesSection(false);
-                                    setMobileChatVisible(false);
-                                }}
-                                className={`p-2 rounded-full transition-colors ${!showArchiveSection&&!showLockedSection&&!showFavoritesSection?'bg-blue-50 text-blue-400':'hover:bg-gray-100 text-gray-500'}`}
-                                title="All Chats"
-                            >
-                                <MessageCircle className="w-5 h-5" />
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowArchiveSection(true);
-                                    setShowLockedSection(false);
-                                    setShowFavoritesSection(false);
-                                }}
-                                className={`p-2 rounded-full transition-colors ${showArchiveSection?'bg-blue-50 text-blue-400':'hover:bg-gray-100 text-gray-500'}`}
-                                title="Archived"
-                            >
-                                <Archive className="w-5 h-5" />
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setUnlockContext('section');
-                                    setShowUnlockModal(true);
-                                }}
-                                className={`p-2 rounded-full transition-colors ${showLockedSection?'bg-blue-50 text-blue-400':'hover:bg-gray-100 text-gray-500'}`}
-                                title="Locked Chats"
-                            >
-                                <Lock className="w-5 h-5" />
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowFavoritesSection(true);
-                                    setShowArchiveSection(false);
-                                    setShowLockedSection(false);
-                                }}
-                                className={`p-2 rounded-full transition-colors ${showFavoritesSection?'bg-blue-50 text-blue-400':'hover:bg-gray-100 text-gray-500'}`}
-                                title="Favorites"
-                            >
-                                <Heart className="w-5 h-5" />
-                            </button>
-                            <button
-                                onClick={() => setShowNewGroupModal(true)}
-                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                                title="New Group"
-                            >
-                                <Users className="w-5 h-5 text-gray-500" />
-                            </button>
+                <main className="flex-1 flex overflow-hidden">
+                    {/* ========== Conversation List ========== */}
+                    <div
+                        className={`w-full lg:w-[380px] xl:w-[420px] border-r border-gray-100 flex flex-col bg-white ${
+                            selectedConversation && mobileChatVisible ? 'hidden lg:flex' : 'flex'
+                        }`}
+                    >
+                        <div className="p-4 border-b border-gray-100">
+                            <div className="flex items-center justify-between mb-3 pl-12 sm:pl-0">
+                                <h2 className="text-xl font-bold text-gray-800">
+                                    {showArchiveSection ? 'Archived' : showLockedSection ? 'Locked' : showFavoritesSection ? 'Favorites' : 'Chats'}
+                                </h2>
+                                <div className="flex gap-1">
+                                    <button
+                                        onClick={() => {
+                                            setShowArchiveSection(false);
+                                            setShowLockedSection(false);
+                                            selectConversation(null);
+                                            setShowFavoritesSection(false);
+                                            setMobileChatVisible(false);
+                                        }}
+                                        className={`p-2 rounded-full transition-colors ${!showArchiveSection&&!showLockedSection&&!showFavoritesSection?'bg-blue-50 text-blue-400':'hover:bg-gray-100 text-gray-500'}`}
+                                        aria-label="all chats"
+                                        title="All Chats"
+                                    >
+                                        <MessageCircle className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setShowArchiveSection(true);
+                                            setShowLockedSection(false);
+                                            setShowFavoritesSection(false);
+                                        }}
+                                        className={`p-2 rounded-full transition-colors ${showArchiveSection?'bg-blue-50 text-blue-400':'hover:bg-gray-100 text-gray-500'}`}
+                                        aria-label="archived"
+                                        title="Archived"
+                                    >
+                                        <Archive className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setUnlockContext('section');
+                                            setShowUnlockModal(true);
+                                        }}
+                                        className={`p-2 rounded-full transition-colors ${showLockedSection?'bg-blue-50 text-blue-400':'hover:bg-gray-100 text-gray-500'}`}
+                                        aria-label="locked chats"
+                                        title="Locked Chats"
+                                    >
+                                        <Lock className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setShowFavoritesSection(true);
+                                            setShowArchiveSection(false);
+                                            setShowLockedSection(false);
+                                        }}
+                                        className={`p-2 rounded-full transition-colors ${showFavoritesSection?'bg-blue-50 text-blue-400':'hover:bg-gray-100 text-gray-500'}`}
+                                        aria-label="favorites"
+                                        title="Favorites"
+                                    >
+                                        <Heart className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        onClick={() => setShowNewGroupModal(true)}
+                                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                        aria-label="new group"
+                                        title="New Group"
+                                    >
+                                        <Users className="w-5 h-5 text-gray-500" />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                <input
+                                    type="text"
+                                    placeholder="Search conversations..."
+                                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:bg-white transition-all"
+                                    value={conversationSearchQuery}
+                                    onChange={(e) => setConversationSearchQuery(e.target.value)}
+                                />
+                            </div>
                         </div>
-                    </div>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <input
-                            type="text"
-                            placeholder="Search conversations..."
-                            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:bg-white transition-all"
-                            value={conversationSearchQuery}
-                            onChange={(e) => setConversationSearchQuery(e.target.value)}
-                        />
-                    </div>
-                </div>
-                {!showArchiveSection && !showLockedSection && !showFavoritesSection && (
-                    <div className="flex gap-2 px-4 py-2 border-b border-gray-50 overflow-x-auto">
-                        <button
-                            onClick={() => setQuickFilter('all')}
-                            className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${quickFilter === 'all' ? 'bg-blue-50 text-blue-500' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
-                        >
-                            All
-                        </button>
-                        <button
-                            onClick={() => setQuickFilter('unread')}
-                            className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${quickFilter === 'unread' ? 'bg-blue-50 text-blue-500' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
-                        >
-                            Unread {unreadCount > 0 && `(${unreadCount})`}
-                        </button>
-                        <button
-                            onClick={() => setQuickFilter('favorites')}
-                            className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${quickFilter === 'favorites' ? 'bg-blue-50 text-blue-500' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
-                        >
-                            Favorites {favoritesCount > 0 && `(${favoritesCount})`}
-                        </button>
-                        <button
-                            onClick={() => setQuickFilter('groups')}
-                            className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${quickFilter === 'groups' ? 'bg-blue-50 text-blue-500' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
-                        >
-                            Groups {groupsCount > 0 && `(${groupsCount})`}
-                        </button>
-                    </div>
-                )}
-                <div className="flex-1 overflow-y-auto">
-                    {isConversationsLoading ? (
-                        <div className="p-8 text-center text-gray-400">Loading...</div>
-                    ) : sortedConversations.length === 0 ? (
-                        <div className="p-8 text-center text-gray-400 text-sm">No conversations</div>
-                    ) : (
-                        sortedConversations.map((conv) => {
-                            const other = getOtherUser(conv);
-                            const unread = conv.unreadCount instanceof Map ? conv.unreadCount.get(authUser?._id) || 0 : (conv.unreadCount?.[authUser?._id] || 0);
-                            const isPinned = Array.isArray(conv.pinnedBy) && conv.pinnedBy.includes(authUser?._id);
-                            const isSelected = selectedConversation?._id === conv._id;
-                            const isMuted = conv.mutedBy?.find(m => m.user === authUser?._id);
-                            return (
-                                <div
-                                    key={conv._id}
-                                    onClick={() => handleSelectConversation(conv)}
-                                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all hover:bg-gray-50 ${isSelected ? 'bg-blue-50 border-r-2 border-blue-400' : ''}`}
+                        {!showArchiveSection && !showLockedSection && !showFavoritesSection && (
+                            <div className="flex gap-2 px-4 py-2 border-b border-gray-50 overflow-x-auto">
+                                <button
+                                    onClick={() => setQuickFilter('all')}
+                                    className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${quickFilter === 'all' ? 'bg-blue-50 text-blue-500' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
                                 >
-                                    <div className="relative flex-shrink-0">
-                                        <div className={`w-12 h-12 rounded-full overflow-hidden flex items-center justify-center text-white text-lg font-bold ${
-                                            conv.isGroup
-                                                ? (!conv.groupAvatar ? `bg-gradient-to-br ${getGroupAvatarColor(conv)}` : '')
-                                                : (other?.avatarUrl ? '' : 'bg-gradient-to-br from-blue-400 to-blue-500')
-                                        }`}>
-                                            {conv.isGroup ? (
-                                                conv.groupAvatar ? (
-                                                    <img src={conv.groupAvatar} alt="" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <span>{conv.groupName?.charAt(0) || 'G'}</span>
-                                                )
-                                            ) : (
-                                                <img src={other?.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
-                                            )}
-                                        </div>
-                                        {isOnline(other?._id) && (
-                                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between">
-                                            <h3 className="font-semibold text-gray-800 truncate text-sm">
-                                                {conv.isGroup ? conv.groupName : other?.displayName || 'Unknown'}
-                                            </h3>
-                                            {conv.lastMessage && (
-                                                <span className="text-[10px] text-gray-400 flex-shrink-0 ml-2">
+                                    All
+                                </button>
+                                <button
+                                    onClick={() => setQuickFilter('unread')}
+                                    className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${quickFilter === 'unread' ? 'bg-blue-50 text-blue-500' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+                                >
+                                    Unread {unreadCount > 0 && `(${unreadCount})`}
+                                </button>
+                                <button
+                                    onClick={() => setQuickFilter('favorites')}
+                                    className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${quickFilter === 'favorites' ? 'bg-blue-50 text-blue-500' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+                                >
+                                    Favorites {favoritesCount > 0 && `(${favoritesCount})`}
+                                </button>
+                                <button
+                                    onClick={() => setQuickFilter('groups')}
+                                    className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${quickFilter === 'groups' ? 'bg-blue-50 text-blue-500' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+                                >
+                                    Groups {groupsCount > 0 && `(${groupsCount})`}
+                                </button>
+                            </div>
+                        )}
+                        <div className="flex-1 overflow-y-auto">
+                            {isConversationsLoading ? (
+                                <div className="p-8 text-center text-gray-400">Loading...</div>
+                            ) : sortedConversations.length === 0 ? (
+                                <div className="p-8 text-center text-gray-400 text-sm">No conversations</div>
+                            ) : (
+                                sortedConversations.map((conv) => {
+                                    const other = getOtherUser(conv);
+                                    const unread = conv.unreadCount instanceof Map ? conv.unreadCount.get(authUser?._id) || 0 : (conv.unreadCount?.[authUser?._id] || 0);
+                                    const isPinned = Array.isArray(conv.pinnedBy) && conv.pinnedBy.includes(authUser?._id);
+                                    const isSelected = selectedConversation?._id === conv._id;
+                                    const isMuted = conv.mutedBy?.find(m => m.user === authUser?._id);
+                                    return (
+                                        <div
+                                            key={conv._id}
+                                            onClick={() => handleSelectConversation(conv)}
+                                            className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all hover:bg-gray-50 ${isSelected ? 'bg-blue-50 border-r-2 border-blue-400' : ''}`}
+                                        >
+                                            <div className="relative flex-shrink-0">
+                                                <div className={`w-12 h-12 rounded-full overflow-hidden flex items-center justify-center text-white text-lg font-bold ${
+                                                    conv.isGroup
+                                                        ? (!conv.groupAvatar ? `bg-gradient-to-br ${getGroupAvatarColor(conv)}` : '')
+                                                        : (other?.avatarUrl ? '' : 'bg-gradient-to-br from-blue-400 to-blue-500')
+                                                }`}>
+                                                    {conv.isGroup ? (
+                                                        conv.groupAvatar ? (
+                                                            <img src={conv.groupAvatar} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <span>{conv.groupName?.charAt(0) || 'G'}</span>
+                                                        )
+                                                    ) : (
+                                                        <img src={other?.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
+                                                    )}
+                                                </div>
+                                                {isOnline(other?._id) && (
+                                                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between">
+                                                    <h3 className="font-semibold text-gray-800 truncate text-sm">
+                                                        {conv.isGroup ? conv.groupName : other?.displayName || 'Unknown'}
+                                                    </h3>
+                                                    {conv.lastMessage && (
+                                                        <span className="text-[10px] text-gray-400 flex-shrink-0 ml-2">
                                                     {formatMessageTime(conv.lastMessage.createdAt)}
                                                 </span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center justify-between mt-0.5">
-                                            <p className="text-xs text-gray-500 truncate">
-                                                {isTyping(other?._id) ? (
-                                                    <span className="text-blue-400 italic">typing...</span>
-                                                ) : isMuted ? (
-                                                    <span className="flex items-center gap-1">
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center justify-between mt-0.5">
+                                                    <p className="text-xs text-gray-500 truncate">
+                                                        {isTyping(other?._id) ? (
+                                                            <span className="text-blue-400 italic">typing...</span>
+                                                        ) : isMuted ? (
+                                                            <span className="flex items-center gap-1">
                                                         <VolumeX className="w-3 h-3" />
-                                                        {conv.lastMessage?.text || 'No messages'}
+                                                                {conv.lastMessage?.text || 'No messages'}
                                                     </span>
-                                                ) : (
-                                                    conv.lastMessage?.text || 'No messages'
-                                                )}
-                                            </p>
-                                            <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                                                {isPinned && <Pin className="w-3 h-3 text-blue-400" />}
-                                                {unread > 0 && (
-                                                    <span className="bg-blue-400 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                                                        ) : (
+                                                            conv.lastMessage?.text || 'No messages'
+                                                        )}
+                                                    </p>
+                                                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                                                        {isPinned && <Pin className="w-3 h-3 text-blue-400" />}
+                                                        {unread > 0 && (
+                                                            <span className="bg-blue-400 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                                                         {unread > 99 ? '99+' : unread}
                                                     </span>
-                                                )}
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            );
-                        })
-                    )}
-                </div>
-            </div>
-
-            {/* ========== Chat Area ========== */}
-            <div
-                className={`flex-1 flex-col min-w-0 ${
-                    selectedConversation && (!mobileChatVisible ? 'hidden lg:flex' : 'flex')
-                } ${!selectedConversation ? 'hidden lg:flex' : ''}`}
-                style={selectedConversation && convoSettings.wallpaper ? (
-                    convoSettings.wallpaper.startsWith('#') || convoSettings.wallpaper.startsWith('rgb') || themeColorMap[convoSettings.wallpaper]
-                        ? { backgroundColor: convoSettings.wallpaper.startsWith('#') ? convoSettings.wallpaper : (themeColorMap[convoSettings.wallpaper] || convoSettings.wallpaper) }
-                        : {
-                            backgroundImage: `url(${convoSettings.wallpaper})`,
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
-                            backgroundAttachment: 'fixed',
-                        }
-                ) : { backgroundColor: '#f9fafb' }}
-            >
-                {isChatRestricted ? (
-                    <div className="flex-1 flex items-center justify-center bg-gray-50">
-                        <div className="text-center p-8">
-                            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Shield className="w-10 h-10 text-red-400" />
-                            </div>
-                            <h3 className="text-lg font-bold text-gray-800 mb-2">Chat Access Restricted</h3>
-                            <p className="text-gray-500 text-sm">You have been reported multiple times and cannot access chats at this time.</p>
+                                    );
+                                })
+                            )}
                         </div>
                     </div>
-                ) : selectedConversation ? (
-                    <>
-                        {/* Header */}
-                        <div
-                            className="px-4 py-3 border-b border-gray-100 bg-white flex items-center justify-between shadow-sm cursor-pointer hover:bg-gray-50 transition-colors"
-                            onClick={() => {
-                                if (selectedConversation?.isGroup) {
-                                    setShowGroupInfo(true);
-                                } else {
-                                    setShowContactInfo(true);
+
+                    {/* ========== Chat Area ========== */}
+                    <div
+                        className={`flex-1 flex-col min-w-0 ${
+                            selectedConversation && (!mobileChatVisible ? 'hidden lg:flex' : 'flex')
+                        } ${!selectedConversation ? 'hidden lg:flex' : ''}`}
+                        style={selectedConversation && convoSettings.wallpaper ? (
+                            convoSettings.wallpaper.startsWith('#') || convoSettings.wallpaper.startsWith('rgb') || themeColorMap[convoSettings.wallpaper]
+                                ? { backgroundColor: convoSettings.wallpaper.startsWith('#') ? convoSettings.wallpaper : (themeColorMap[convoSettings.wallpaper] || convoSettings.wallpaper) }
+                                : {
+                                    backgroundImage: `url(${convoSettings.wallpaper})`,
+                                    backgroundSize: 'cover',
+                                    backgroundPosition: 'center',
+                                    backgroundAttachment: 'fixed',
                                 }
-                            }}
-                        >
-                            <div className="flex items-center gap-3">
-                                {/* Mobile back button */}
-                                <button
-                                    className="lg:hidden p-1 mr-1 hover:bg-gray-100 rounded-full"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleBackToList();
+                        ) : { backgroundColor: '#f9fafb' }}
+                    >
+                        {isChatRestricted ? (
+                            <div className="flex-1 flex items-center justify-center bg-gray-50">
+                                <div className="text-center p-8">
+                                    <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <Shield className="w-10 h-10 text-red-400" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-800 mb-2">Chat Access Restricted</h3>
+                                    <p className="text-gray-500 text-sm">You have been reported multiple times and cannot access chats at this time.</p>
+                                </div>
+                            </div>
+                        ) : selectedConversation ? (
+                            <>
+                                {/* Header */}
+                                <div
+                                    className="px-4 py-3 border-b border-gray-100 bg-white flex items-center justify-between shadow-sm cursor-pointer hover:bg-gray-50 transition-colors"
+                                    onClick={() => {
+                                        if (selectedConversation?.isGroup) {
+                                            setShowGroupInfo(true);
+                                        } else {
+                                            setShowContactInfo(true);
+                                        }
                                     }}
                                 >
-                                    <X className="w-5 h-5 text-gray-500" />
-                                </button>
-                                <div className="relative">
-                                    <div className={`w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-white text-sm font-bold ${
-                                        selectedConversation.isGroup
-                                            ? (!selectedConversation.groupAvatar ? `bg-gradient-to-br ${getGroupAvatarColor(selectedConversation)}` : '')
-                                            : (getOtherUser(selectedConversation)?.avatarUrl ? '' : 'bg-gradient-to-br from-blue-400 to-blue-500')
-                                    }`}>
-                                        {selectedConversation.isGroup ? (
-                                            selectedConversation.groupAvatar ? (
-                                                <img src={selectedConversation.groupAvatar} alt="" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <span>{selectedConversation.groupName?.charAt(0) || 'G'}</span>
-                                            )
-                                        ) : (
-                                            <img src={getOtherUser(selectedConversation)?.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
-                                        )}
-                                    </div>
-                                    {isOnline(getOtherUser(selectedConversation)?._id) && (
-                                        <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white" />
-                                    )}
-                                </div>
-                                <div>
-                                    <div className="flex flex-row px-4">
-                                        <h3 className="font-semibold text-gray-800 text-sm">
-                                            {selectedConversation.isGroup ? selectedConversation.groupName : getOtherUser(selectedConversation)?.displayName || 'Unknown'}
-                                        </h3>
-                                        {selectedConversation?.disappearingTimer && (
-                                            <Clock className="w-4 h-4 text-gray-500 ml-1" title="Disappearing messages on" />
-                                        )}
-                                    </div>
-                                    <p className="text-xs text-gray-400">
-                                        {isTyping(getOtherUser(selectedConversation)?._id)
-                                            ? 'typing...'
-                                            : selectedConversation.isGroup
-                                                ? (getOnlineCount(selectedConversation) > 0 ? `${getOnlineCount(selectedConversation)} online` : 'no one else online')
-                                                : isOnline(getOtherUser(selectedConversation)?._id)
-                                                    ? 'online'
-                                                    : getLastSeen(getOtherUser(selectedConversation)?.lastSeen)}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <button onClick={(e) => { e.stopPropagation(); startCall(false); }} className="p-2 hover:bg-gray-100 rounded-full">
-                                    <Phone className="w-5 h-5 text-gray-500" />
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); startCall(true); }} className="p-2 hover:bg-gray-100 rounded-full">
-                                    <Video className="w-5 h-5 text-gray-500" />
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); setShowSearch(!showSearch); }} className="p-2 hover:bg-gray-100 rounded-full">
-                                    <Search className="w-5 h-5 text-gray-500" />
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); setShowConversationMenu(selectedConversation._id); }} className="p-2 hover:bg-gray-100 rounded-full">
-                                    <MoreVertical className="w-5 h-5 text-gray-500" />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Blocked UI */}
-                        {(isBlocked || isBlockedBy) && (
-                            <div className={`px-4 py-3 text-center text-sm ${isBlockedBy ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-500'}`}>
-                                {isBlockedBy ? 'You have been blocked by this user' : 'You have blocked this user. Unblock to send messages.'}
-                            </div>
-                        )}
-
-                        {/* Pinned messages bar */}
-                        {pinnedMessages.length > 0 && (
-                            <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 cursor-pointer">
-                                {pinnedMessages.map((msg, idx) => (
-                                    <div
-                                        key={msg._id}
-                                        className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
-                                        onClick={() => scrollToMessage(msg._id)}
-                                    >
-                                        <Pin className="w-4 h-4" />
-                                        <span>{msg.text?.substring(0, 30) || 'Media message'}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Search */}
-                        <AnimatePresence>
-                            {showSearch && (
-                                <motion.div
-                                    ref={searchRef}
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: 'auto', opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    className="bg-white border-b border-gray-100 overflow-hidden"
-                                >
-                                    <div className="p-3 flex gap-2">
-                                        <input
-                                            type="text"
-                                            placeholder="Search messages..."
-                                            className="flex-1 px-4 py-2 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30"
-                                            value={searchQuery}
-                                            onChange={(e) => handleSearchInput(e.target.value)}
-                                            autoFocus
-                                        />
-                                        <button onClick={() => { setShowSearch(false); setSearchResults([]); setSearchQuery(''); }} className="p-2 hover:bg-gray-100 rounded-full">
-                                            <X className="w-5 h-5 text-gray-400" />
-                                        </button>
-                                    </div>
-                                    {searchResults.length > 0 && (
-                                        <div className="max-h-48 overflow-y-auto px-4 pb-3">
-                                            {searchResults.map(msg => (
-                                                <div
-                                                    key={msg._id}
-                                                    className="p-2 hover:bg-gray-50 rounded-lg cursor-pointer text-sm text-gray-600"
-                                                    onClick={() => {
-                                                        setShowSearch(false);
-                                                        setSearchResults([]);
-                                                        setSearchQuery('');
-                                                        setTimeout(() => scrollToMessage(msg._id), 200);
-                                                    }}
-                                                >
-                                                    {msg.text?.substring(0, 100)}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-
-                        {/* Messages */}
-                        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto py-4 space-y-0.5">
-                            {isMessagesLoading ? (
-                                <div className="text-center text-gray-400 mt-20">Loading messages...</div>
-                            ) : messages.length === 0 ? (
-                                <EmptyChatPlaceholder />
-                            ) : (
-                                <>
-                                    {messages.map((message) => (
-                                        <div key={message._id} id={`msg-${message._id}`}>
-                                            {renderMessage(message)}
-                                        </div>
-                                    ))}
-                                    {isTyping(getOtherUser(selectedConversation)?._id) && <TypingIndicator />}
-                                    <div ref={messagesEndRef} />
-                                </>
-                            )}
-                        </div>
-
-                        {/* Reply Preview */}
-                        <AnimatePresence>
-                            {replyingTo && (
-                                <motion.div
-                                    initial={{ y: 20, opacity: 0 }}
-                                    animate={{ y: 0, opacity: 1 }}
-                                    exit={{ y: 20, opacity: 0 }}
-                                    className="px-4 py-2.5 bg-white border-t border-gray-100 flex items-center gap-3"
-                                >
-                                    <div className="w-1 h-10 bg-blue-400 rounded-full flex-shrink-0" />
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-semibold text-blue-400">
-                                            {replyingTo.senderId?._id === authUser?._id ? 'You' : replyingTo.senderId?.displayName || 'User'}
-                                        </p>
-                                        <p className="text-xs text-gray-500 truncate">
-                                            {replyingTo.text?.substring(0, 60) || (replyingTo.media?.length > 0 ? '📎 Media' : replyingTo.isVoiceMessage ? '🎤 Voice message' : 'Message')}
-                                        </p>
-                                    </div>
-                                    <button onClick={() => setReplyingTo(null)} className="p-1.5 hover:bg-gray-100 rounded-full flex-shrink-0">
-                                        <X className="w-4 h-4 text-gray-400" />
-                                    </button>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-
-                        {/* Video Recording Preview */}
-                        <AnimatePresence>
-                            {isRecordingVideo && (
-                                <motion.div
-                                    ref={fileRef}
-                                    initial={{ y: 20, opacity: 0 }}
-                                    animate={{ y: 0, opacity: 1 }}
-                                    exit={{ y: 20, opacity: 0 }}
-                                    className="px-4 py-2 bg-black border-t border-gray-700"
-                                >
                                     <div className="flex items-center gap-3">
-                                        <video ref={videoPreviewRef} autoPlay muted playsInline className="w-32 h-24 rounded-lg object-cover" />
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-                                            <span className="text-white text-sm">Recording</span>
-                                        </div>
-                                        <div className="flex gap-2 ml-auto">
-                                            <button onClick={takePhoto} className="p-2 bg-white text-gray-800 rounded-full hover:bg-gray-200">
-                                                <Camera className="w-5 h-5" />
-                                            </button>
-                                            <button onClick={stopVideoRecording} className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600">
-                                                <StopCircle className="w-5 h-5" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-
-                        {/* File Preview */}
-                        <AnimatePresence>
-                            {selectedFile && !isRecordingVideo && (
-                                <motion.div
-                                    ref={fileRef}
-                                    initial={{ y: 20, opacity: 0 }}
-                                    animate={{ y: 0, opacity: 1 }}
-                                    exit={{ y: 20, opacity: 0 }}
-                                    className="px-4 py-2 bg-white border-t border-gray-100"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            {selectedFile.type?.startsWith('image/') ? (
-                                                <img src={selectedFile.url} alt="" className="w-12 h-12 rounded-lg object-cover" />
-                                            ) : selectedFile.type?.startsWith('video/') ? (
-                                                <video src={selectedFile.url} className="w-12 h-12 rounded-lg object-cover" />
-                                            ) : selectedFile.isVoice ? (
-                                                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                                                    <Mic className="w-6 h-6 text-blue-400" />
-                                                </div>
-                                            ) : (
-                                                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                                                    <FileText className="w-6 h-6 text-gray-400" />
-                                                </div>
+                                        {/* Mobile back button */}
+                                        <button
+                                            className="lg:hidden p-1 mr-1 hover:bg-gray-100 rounded-full"
+                                            aria-label="cancel"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleBackToList();
+                                            }}
+                                        >
+                                            <X className="w-5 h-5 text-gray-500" />
+                                        </button>
+                                        <div className="relative">
+                                            <div className={`w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-white text-sm font-bold ${
+                                                selectedConversation.isGroup
+                                                    ? (!selectedConversation.groupAvatar ? `bg-gradient-to-br ${getGroupAvatarColor(selectedConversation)}` : '')
+                                                    : (getOtherUser(selectedConversation)?.avatarUrl ? '' : 'bg-gradient-to-br from-blue-400 to-blue-500')
+                                            }`}>
+                                                {selectedConversation.isGroup ? (
+                                                    selectedConversation.groupAvatar ? (
+                                                        <img src={selectedConversation.groupAvatar} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <span>{selectedConversation.groupName?.charAt(0) || 'G'}</span>
+                                                    )
+                                                ) : (
+                                                    <img src={getOtherUser(selectedConversation)?.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
+                                                )}
+                                            </div>
+                                            {isOnline(getOtherUser(selectedConversation)?._id) && (
+                                                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white" />
                                             )}
-                                            <div>
-                                                <p className="text-xs font-medium text-gray-700">{selectedFile.name}</p>
-                                                <p className="text-[10px] text-gray-400">{(selectedFile.size / 1024).toFixed(1)} KB</p>
-                                            </div>
                                         </div>
-                                        <button onClick={() => setSelectedFile(null)} className="p-1 hover:bg-gray-100 rounded-full">
-                                            <X className="w-4 h-4 text-gray-400" />
+                                        <div>
+                                            <div className="flex flex-row px-4">
+                                                <h3 className="font-semibold text-gray-800 text-sm">
+                                                    {selectedConversation.isGroup ? selectedConversation.groupName : getOtherUser(selectedConversation)?.displayName || 'Unknown'}
+                                                </h3>
+                                                {selectedConversation?.disappearingTimer && (
+                                                    <Clock className="w-4 h-4 text-gray-500 ml-1" title="Disappearing messages on" />
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-gray-400">
+                                                {isTyping(getOtherUser(selectedConversation)?._id)
+                                                    ? 'typing...'
+                                                    : selectedConversation.isGroup
+                                                        ? (getOnlineCount(selectedConversation) > 0 ? `${getOnlineCount(selectedConversation)} online` : 'no one else online')
+                                                        : isOnline(getOtherUser(selectedConversation)?._id)
+                                                            ? 'online'
+                                                            : getLastSeen(getOtherUser(selectedConversation)?.lastSeen)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <button aria-label="start audio call" onClick={(e) => { e.stopPropagation(); startCall(false); }} className="p-2 hover:bg-gray-100 rounded-full">
+                                            <Phone className="w-5 h-5 text-gray-500" />
+                                        </button>
+                                        <button aria-label="start video call" onClick={(e) => { e.stopPropagation(); startCall(true); }} className="p-2 hover:bg-gray-100 rounded-full">
+                                            <Video className="w-5 h-5 text-gray-500" />
+                                        </button>
+                                        <button aria-label="search messages" onClick={(e) => { e.stopPropagation(); setShowSearch(!showSearch); }} className="p-2 hover:bg-gray-100 rounded-full">
+                                            <Search className="w-5 h-5 text-gray-500" />
+                                        </button>
+                                        <button aria-label="actions" onClick={(e) => { e.stopPropagation(); setShowConversationMenu(selectedConversation._id); }} className="p-2 hover:bg-gray-100 rounded-full">
+                                            <MoreVertical className="w-5 h-5 text-gray-500" />
                                         </button>
                                     </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                                </div>
 
-                        {/* Message Input */}
-                        {!(isBlocked || isBlockedBy) && (
-                            <div className="px-4 py-3 bg-white border-t border-gray-100">
-                                {isRecording && <div className="mb-2"><RecordingWaveform duration={recordingDuration} /></div>}
-                                {isRecordingVideoNote && (
-                                    <div className="px-4 py-2 bg-black border-t border-gray-700 flex items-center gap-3">
-                                        <div className="w-12 h-12 relative flex-shrink-0"
-                                             style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', WebkitClipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', backgroundColor: bubbleColor }}>
-                                            <div className="w-[44px] h-[44px] absolute top-[2px] left-[2px]"
-                                                 style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', WebkitClipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}>
-                                                <video ref={videoNotePreviewRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 flex-1">
-                                            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-                                            <span className="text-white text-sm">Recording hexagon note</span>
-                                        </div>
-                                        <button onClick={stopVideoNote} className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors">
-                                            <StopCircle className="w-5 h-5" />
-                                        </button>
+                                {/* Blocked UI */}
+                                {(isBlocked || isBlockedBy) && (
+                                    <div className={`px-4 py-3 text-center text-sm ${isBlockedBy ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-500'}`}>
+                                        {isBlockedBy ? 'You have been blocked by this user' : 'You have blocked this user. Unblock to send messages.'}
                                     </div>
                                 )}
-                                <div className="flex items-end gap-1 sm:gap-2">
-                                    {/* Attachment menu */}
-                                    <div className="relative">
-                                        <button
-                                            onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
-                                            className="p-2 sm:p-2.5 hover:bg-gray-100 rounded-full"
-                                            title="Attachments"
-                                        >
-                                            <Paperclip className="w-5 h-5 text-gray-400" />
-                                        </button>
-                                        <AnimatePresence>
-                                            {showAttachmentMenu && (
-                                                <motion.div
-                                                    ref={attachmentRef}
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    exit={{ opacity: 0, y: 10 }}
-                                                    className="absolute bottom-12 left-0 bg-white rounded-xl shadow-xl border py-1 w-48 z-50"
-                                                >
-                                                    {[
-                                                        { Icon: ImageIcon, label: 'Photo/Video', action: () => fileInputRef.current?.click() },
-                                                        { Icon: Camera, label: 'Take Photo', action: () => { handleCameraCapture(); setShowAttachmentMenu(false); } },
-                                                        { Icon: FileText, label: 'Document', action: () => fileInputRef.current?.click() },
-                                                        { Icon: MapPin, label: 'Location', action: () => { setShowLocationPicker(true); setShowAttachmentMenu(false); } },
-                                                        { Icon: Contact, label: 'Contact', action: () => { setShowSendContactModal(true); setShowAttachmentMenu(false); } },
-                                                        { Icon: BarChart3, label: 'Poll', action: () => { setShowPollModal(true); setShowAttachmentMenu(false); } },
-                                                        { Icon: Calendar, label: 'Event', action: () => { setShowEventModal(true); setShowAttachmentMenu(false); } },
-                                                    ].map((item, i) => {
-                                                        const IconComponent = item.Icon;
-                                                        return (
-                                                            <button key={i} onClick={item.action} className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
-                                                                <IconComponent className="w-4 h-4" /> {item.label}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                        <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt" />
+
+                                {/* Pinned messages bar */}
+                                {pinnedMessages.length > 0 && (
+                                    <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 cursor-pointer">
+                                        {pinnedMessages.map((msg, idx) => (
+                                            <div
+                                                key={msg._id}
+                                                className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
+                                                onClick={() => scrollToMessage(msg._id)}
+                                            >
+                                                <Pin className="w-4 h-4" />
+                                                <span>{msg.text?.substring(0, 30) || 'Media message'}</span>
+                                            </div>
+                                        ))}
                                     </div>
+                                )}
 
-                                    {/* Combined Expression button + its two pickers */}
-                                    <div className="relative">
-                                        <button
-                                            onClick={() => setShowExpressionMenu(!showExpressionMenu)}
-                                            className="p-2 sm:p-2.5 hover:bg-gray-100 rounded-full"
-                                            title="Emoji & Sticker"
+                                {/* Search */}
+                                <AnimatePresence>
+                                    {showSearch && (
+                                        <motion.div
+                                            ref={searchRef}
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            className="bg-white border-b border-gray-100 overflow-hidden"
                                         >
-                                            <Smile className="w-5 h-5 text-gray-400" />
-                                        </button>
-
-                                        {/* Expression popover (Emoji / Sticker choice) */}
-                                        <AnimatePresence>
-                                            {showExpressionMenu && (
-                                                <motion.div
-                                                    ref={expressionMenuRef}
-                                                    initial={{ opacity: 0, y: 5, scale: 0.95 }}
-                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                    exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                                                    className="absolute bottom-12 left-0 bg-white rounded-xl shadow-xl border py-1 w-40 z-50"
-                                                >
-                                                    <button
-                                                        onClick={() => { setShowEmojiPicker(true); setShowExpressionMenu(false); }}
-                                                        className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600"
-                                                    >
-                                                        <Smile className="w-4 h-4" /> Emoji
-                                                    </button>
-                                                    <button
-                                                        onClick={() => { setShowGifPicker(true); setShowExpressionMenu(false); }}
-                                                        className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600"
-                                                    >
-                                                        <Sticker className="w-4 h-4" /> Sticker
-                                                    </button>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-
-                                        {/* Emoji Picker – positioned relative to this button */}
-                                        <AnimatePresence>
-                                            {showEmojiPicker && (
-                                                <motion.div
-                                                    ref={emojiPickerRef}
-                                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                                    className="fixed inset-x-0 bottom-0 z-50 flex justify-center md:absolute md:bottom-12 md:left-0 md:inset-x-auto"
-                                                >
-                                                    <EmojiPicker inputRef={messageInputRef} value={messageText} setValue={setMessageText} />
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-
-                                        {/* Sticker / GIF Picker – positioned relative to this button */}
-                                        <AnimatePresence>
-                                            {showGifPicker && (
-                                                <GifStickerPicker
-                                                    onSelect={({ type, url }) => {
-                                                        sendMediaMessage(url, { filename: type === 'sticker' ? 'sticker.png' : 'gif.gif' });
-                                                        setShowGifPicker(false);
-                                                    }}
-                                                    isOpen={showGifPicker}
-                                                    onClose={() => setShowGifPicker(false)}
-                                                    onOpenStickerEditor={() => setShowStickerEditor(true)}
+                                            <div className="p-3 flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search messages..."
+                                                    className="flex-1 px-4 py-2 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30"
+                                                    value={searchQuery}
+                                                    onChange={(e) => handleSearchInput(e.target.value)}
+                                                    autoFocus
                                                 />
+                                                <button aria-label="cancel" onClick={() => { setShowSearch(false); setSearchResults([]); setSearchQuery(''); }} className="p-2 hover:bg-gray-100 rounded-full">
+                                                    <X className="w-5 h-5 text-gray-400" />
+                                                </button>
+                                            </div>
+                                            {searchResults.length > 0 && (
+                                                <div className="max-h-48 overflow-y-auto px-4 pb-3">
+                                                    {searchResults.map(msg => (
+                                                        <div
+                                                            key={msg._id}
+                                                            className="p-2 hover:bg-gray-50 rounded-lg cursor-pointer text-sm text-gray-600"
+                                                            onClick={() => {
+                                                                setShowSearch(false);
+                                                                setSearchResults([]);
+                                                                setSearchQuery('');
+                                                                setTimeout(() => scrollToMessage(msg._id), 200);
+                                                            }}
+                                                        >
+                                                            {msg.text?.substring(0, 100)}
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             )}
-                                        </AnimatePresence>
-                                    </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
 
-                                    {/* Textarea (unchanged) */}
-                                    <div className="flex-1 relative">
+                                {/* Messages */}
+                                <div className="flex-1 flex flex-col">
+                                    {isMessagesLoading ? (
+                                        <div className="text-center text-gray-400 mt-20">Loading messages...</div>
+                                    ) : messages.length === 0 ? (
+                                        <EmptyChatPlaceholder />
+                                    ) : (
+                                        <div className="flex-1">
+                                            <Virtuoso
+                                                ref={virtuosoRef}
+                                                style={{ height: "100%" }}                  // fills the flex container
+                                                data={messages}
+                                                itemContent={(index, message) => (
+                                                    <div id={`msg-${message._id}`}>
+                                                        <MessageBubble message={message} />
+                                                    </div>
+                                                )}
+                                                followOutput="auto"                          // auto-scroll when new messages arrive
+                                                components={{
+                                                    Footer: () =>
+                                                        isTyping(getOtherUser(selectedConversation)?._id) ? (
+                                                            <TypingIndicator />
+                                                        ) : null,
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Reply Preview */}
+                                <AnimatePresence>
+                                    {replyingTo && (
+                                        <motion.div
+                                            initial={{ y: 20, opacity: 0 }}
+                                            animate={{ y: 0, opacity: 1 }}
+                                            exit={{ y: 20, opacity: 0 }}
+                                            className="px-4 py-2.5 bg-white border-t border-gray-100 flex items-center gap-3"
+                                        >
+                                            <div className="w-1 h-10 bg-blue-400 rounded-full flex-shrink-0" />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs font-semibold text-blue-400">
+                                                    {replyingTo.senderId?._id === authUser?._id ? 'You' : replyingTo.senderId?.displayName || 'User'}
+                                                </p>
+                                                <p className="text-xs text-gray-500 truncate">
+                                                    {replyingTo.text?.substring(0, 60) || (replyingTo.media?.length > 0 ? '📎 Media' : replyingTo.isVoiceMessage ? '🎤 Voice message' : 'Message')}
+                                                </p>
+                                            </div>
+                                            <button aria-label="cancel" onClick={() => setReplyingTo(null)} className="p-1.5 hover:bg-gray-100 rounded-full flex-shrink-0">
+                                                <X className="w-4 h-4 text-gray-400" />
+                                            </button>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                {/* Video Recording Preview */}
+                                <AnimatePresence>
+                                    {isRecordingVideo && (
+                                        <motion.div
+                                            ref={fileRef}
+                                            initial={{ y: 20, opacity: 0 }}
+                                            animate={{ y: 0, opacity: 1 }}
+                                            exit={{ y: 20, opacity: 0 }}
+                                            className="px-4 py-2 bg-black border-t border-gray-700"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <video ref={videoPreviewRef} autoPlay muted playsInline className="w-32 h-24 rounded-lg object-cover" />
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                                                    <span className="text-white text-sm">Recording</span>
+                                                </div>
+                                                <div className="flex gap-2 ml-auto">
+                                                    <button aria-label="Take photo" onClick={takePhoto} className="p-2 bg-white text-gray-800 rounded-full hover:bg-gray-200">
+                                                        <Camera className="w-5 h-5" />
+                                                    </button>
+                                                    <button aria-label="stop" onClick={stopVideoRecording} className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600">
+                                                        <StopCircle className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                {/* File Preview */}
+                                <AnimatePresence>
+                                    {selectedFile && !isRecordingVideo && (
+                                        <motion.div
+                                            ref={fileRef}
+                                            initial={{ y: 20, opacity: 0 }}
+                                            animate={{ y: 0, opacity: 1 }}
+                                            exit={{ y: 20, opacity: 0 }}
+                                            className="px-4 py-2 bg-white border-t border-gray-100"
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    {selectedFile.type?.startsWith('image/') ? (
+                                                        <img src={selectedFile.url} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                                                    ) : selectedFile.type?.startsWith('video/') ? (
+                                                        <video src={selectedFile.url} className="w-12 h-12 rounded-lg object-cover" />
+                                                    ) : selectedFile.isVoice ? (
+                                                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                                            <Mic className="w-6 h-6 text-blue-400" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                                                            <FileText className="w-6 h-6 text-gray-400" />
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <p className="text-xs font-medium text-gray-700">{selectedFile.name}</p>
+                                                        <p className="text-[10px] text-gray-400">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                                                    </div>
+                                                </div>
+                                                <button aria-label="cancel" onClick={() => setSelectedFile(null)} className="p-1 hover:bg-gray-100 rounded-full">
+                                                    <X className="w-4 h-4 text-gray-400" />
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                {/* Message Input */}
+                                {!(isBlocked || isBlockedBy) && (
+                                    <div className="px-4 py-3 bg-white border-t border-gray-100">
+                                        {isRecording && <div className="mb-2"><RecordingWaveform duration={recordingDuration} /></div>}
+                                        {isRecordingVideoNote && (
+                                            <div className="px-4 py-2 bg-black border-t border-gray-700 flex items-center gap-3">
+                                                <div className="w-12 h-12 relative flex-shrink-0"
+                                                     style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', WebkitClipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', backgroundColor: bubbleColor }}>
+                                                    <div className="w-[44px] h-[44px] absolute top-[2px] left-[2px]"
+                                                         style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', WebkitClipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}>
+                                                        <video ref={videoNotePreviewRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 flex-1">
+                                                    <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                                                    <span className="text-white text-sm">Recording hexagon note</span>
+                                                </div>
+                                                <button aria-label="stop" onClick={stopVideoNote} className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors">
+                                                    <StopCircle className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        )}
+                                        <div className="flex items-end gap-1 sm:gap-2">
+                                            {/* Attachment menu */}
+                                            <div className="relative">
+                                                <button
+                                                    onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+                                                    aria-label="Attachments"
+                                                    className="p-2 sm:p-2.5 hover:bg-gray-100 rounded-full"
+                                                    title="Attachments"
+                                                >
+                                                    <Paperclip className="w-5 h-5 text-gray-400" />
+                                                </button>
+                                                <AnimatePresence>
+                                                    {showAttachmentMenu && (
+                                                        <motion.div
+                                                            ref={attachmentRef}
+                                                            initial={{ opacity: 0, y: 10 }}
+                                                            animate={{ opacity: 1, y: 0 }}
+                                                            exit={{ opacity: 0, y: 10 }}
+                                                            className="absolute bottom-12 left-0 bg-white rounded-xl shadow-xl border py-1 w-48 z-50"
+                                                        >
+                                                            {[
+                                                                { Icon: ImageIcon, label: 'Photo/Video', action: () => fileInputRef.current?.click() },
+                                                                { Icon: Camera, label: 'Take Photo', action: () => { handleCameraCapture(); setShowAttachmentMenu(false); } },
+                                                                { Icon: FileText, label: 'Document', action: () => fileInputRef.current?.click() },
+                                                                { Icon: MapPin, label: 'Location', action: () => { setShowLocationPicker(true); setShowAttachmentMenu(false); } },
+                                                                { Icon: Contact, label: 'Contact', action: () => { setShowSendContactModal(true); setShowAttachmentMenu(false); } },
+                                                                { Icon: BarChart3, label: 'Poll', action: () => { setShowPollModal(true); setShowAttachmentMenu(false); } },
+                                                                { Icon: Calendar, label: 'Event', action: () => { setShowEventModal(true); setShowAttachmentMenu(false); } },
+                                                            ].map((item, i) => {
+                                                                const IconComponent = item.Icon;
+                                                                return (
+                                                                    <button key={i} onClick={item.action} className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
+                                                                        <IconComponent className="w-4 h-4" /> {item.label}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                                <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt" />
+                                            </div>
+
+                                            {/* Combined Expression button + its two pickers */}
+                                            <div className="relative">
+                                                <button
+                                                    onClick={() => setShowExpressionMenu(!showExpressionMenu)}
+                                                    className="p-2 sm:p-2.5 hover:bg-gray-100 rounded-full"
+                                                    aria-label="expressions"
+                                                    title="Emoji & Sticker"
+                                                >
+                                                    <Smile className="w-5 h-5 text-gray-400" />
+                                                </button>
+
+                                                {/* Expression popover (Emoji / Sticker choice) */}
+                                                <AnimatePresence>
+                                                    {showExpressionMenu && (
+                                                        <motion.div
+                                                            ref={expressionMenuRef}
+                                                            initial={{ opacity: 0, y: 5, scale: 0.95 }}
+                                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                            exit={{ opacity: 0, y: 5, scale: 0.95 }}
+                                                            className="absolute bottom-12 left-0 bg-white rounded-xl shadow-xl border py-1 w-40 z-50"
+                                                        >
+                                                            <button
+                                                                onClick={() => { setShowEmojiPicker(true); setShowExpressionMenu(false); }}
+                                                                className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600"
+                                                            >
+                                                                <Smile className="w-4 h-4" /> Emoji
+                                                            </button>
+                                                            <button
+                                                                onClick={() => { setShowGifPicker(true); setShowExpressionMenu(false); }}
+                                                                className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600"
+                                                            >
+                                                                <Sticker className="w-4 h-4" /> Sticker
+                                                            </button>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+
+                                                {/* Emoji Picker – positioned relative to this button */}
+                                                <AnimatePresence>
+                                                    {showEmojiPicker && (
+                                                        <motion.div
+                                                            ref={emojiPickerRef}
+                                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                            className="fixed inset-x-0 bottom-0 z-50 flex justify-center md:absolute md:bottom-12 md:left-0 md:inset-x-auto"
+                                                        >
+                                                            <Suspense fallback={null}>
+                                                                <EmojiPicker inputRef={messageInputRef} value={messageText} setValue={setMessageText} />
+                                                            </Suspense>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+
+                                                {/* Sticker / GIF Picker – positioned relative to this button */}
+                                                <AnimatePresence>
+                                                    {showGifPicker && (
+                                                        <Suspense fallback={null}>
+                                                            <GifStickerPicker
+                                                                onSelect={({ type, url }) => {
+                                                                    sendMediaMessage(url, { filename: type === 'sticker' ? 'sticker.png' : 'gif.gif' });
+                                                                    setShowGifPicker(false);
+                                                                }}
+                                                                isOpen={showGifPicker}
+                                                                onClose={() => setShowGifPicker(false)}
+                                                                onOpenStickerEditor={() => setShowStickerEditor(true)}
+                                                            />
+                                                        </Suspense>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+
+                                            {/* Textarea (unchanged) */}
+                                            <div className="flex-1 relative">
         <textarea
             ref={messageInputRef}
             value={messageText}
@@ -4075,1735 +4140,1745 @@ const ChatPage = () => {
             rows={1}
             style={{ minHeight: '40px', maxHeight: '120px' }}
         />
-                                        {/* Mentions dropdown (unchanged) */}
-                                        {showMentionsDropdown && (
-                                            <div className="absolute bottom-full left-0 mb-2 w-48 bg-white rounded-xl shadow-lg border z-50 max-h-40 overflow-y-auto">
-                                                {selectedConversation?.isGroup && (
-                                                    <div className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                                                         onClick={() => {
-                                                             const beforeAt = messageText.substring(0, messageText.lastIndexOf('@', cursorPosition));
-                                                             const afterCursor = messageText.substring(cursorPosition);
-                                                             const newText = beforeAt + '@everyone ' + afterCursor;
-                                                             setMessageText(newText);
-                                                             setShowMentionsDropdown(false);
-                                                             messageInputRef.current?.focus();
-                                                         }}
-                                                    >
-                                                        <div className="w-6 h-6 rounded-full bg-blue-400 flex items-center justify-center">
-                                                            <Users className="w-4 h-4 text-white" />
-                                                        </div>
-                                                        <span className="text-sm font-medium">@everyone</span>
+                                                {/* Mentions dropdown (unchanged) */}
+                                                {showMentionsDropdown && (
+                                                    <div className="absolute bottom-full left-0 mb-2 w-48 bg-white rounded-xl shadow-lg border z-50 max-h-40 overflow-y-auto">
+                                                        {selectedConversation?.isGroup && (
+                                                            <div className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                                                                 onClick={() => {
+                                                                     const beforeAt = messageText.substring(0, messageText.lastIndexOf('@', cursorPosition));
+                                                                     const afterCursor = messageText.substring(cursorPosition);
+                                                                     const newText = beforeAt + '@everyone ' + afterCursor;
+                                                                     setMessageText(newText);
+                                                                     setShowMentionsDropdown(false);
+                                                                     messageInputRef.current?.focus();
+                                                                 }}
+                                                            >
+                                                                <div className="w-6 h-6 rounded-full bg-blue-400 flex items-center justify-center">
+                                                                    <Users className="w-4 h-4 text-white" />
+                                                                </div>
+                                                                <span className="text-sm font-medium">@everyone</span>
+                                                            </div>
+                                                        )}
+                                                        {mentionableUsers
+                                                            .filter(u => u.username?.toLowerCase().includes(mentionSearch) || u.displayName?.toLowerCase().includes(mentionSearch))
+                                                            .slice(0, 5)
+                                                            .map(user => (
+                                                                <div key={user._id} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                                                                     onClick={() => {
+                                                                         const beforeAt = messageText.substring(0, messageText.lastIndexOf('@', cursorPosition));
+                                                                         const afterCursor = messageText.substring(cursorPosition);
+                                                                         const newText = beforeAt + '@' + user.username + ' ' + afterCursor;
+                                                                         setMessageText(newText);
+                                                                         setShowMentionsDropdown(false);
+                                                                         messageInputRef.current?.focus();
+                                                                     }}
+                                                                >
+                                                                    <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden">
+                                                                        <img src={user.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
+                                                                    </div>
+                                                                    <span className="text-sm">{user.username}</span>
+                                                                </div>
+                                                            ))}
+                                                        {mentionableUsers.filter(u => u.username?.toLowerCase().includes(mentionSearch) || u.displayName?.toLowerCase().includes(mentionSearch)).length === 0 && (
+                                                            <div className="px-3 py-2 text-xs text-gray-400">No users found</div>
+                                                        )}
                                                     </div>
                                                 )}
-                                                {mentionableUsers
-                                                    .filter(u => u.username?.toLowerCase().includes(mentionSearch) || u.displayName?.toLowerCase().includes(mentionSearch))
-                                                    .slice(0, 5)
-                                                    .map(user => (
-                                                        <div key={user._id} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                                                             onClick={() => {
-                                                                 const beforeAt = messageText.substring(0, messageText.lastIndexOf('@', cursorPosition));
-                                                                 const afterCursor = messageText.substring(cursorPosition);
-                                                                 const newText = beforeAt + '@' + user.username + ' ' + afterCursor;
-                                                                 setMessageText(newText);
-                                                                 setShowMentionsDropdown(false);
-                                                                 messageInputRef.current?.focus();
-                                                             }}
-                                                        >
-                                                            <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden">
-                                                                <img src={user.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
-                                                            </div>
-                                                            <span className="text-sm">{user.username}</span>
-                                                        </div>
-                                                    ))}
-                                                {mentionableUsers.filter(u => u.username?.toLowerCase().includes(mentionSearch) || u.displayName?.toLowerCase().includes(mentionSearch)).length === 0 && (
-                                                    <div className="px-3 py-2 text-xs text-gray-400">No users found</div>
-                                                )}
                                             </div>
-                                        )}
-                                    </div>
 
-                                    {/* Camera / Mic / Send (unchanged, but icons slightly larger on mobile) */}
-                                    <div className="flex items-center gap-1">
-                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                            {/* Camera / Mic / Send (unchanged, but icons slightly larger on mobile) */}
                                             <div className="flex items-center gap-1">
-                                                {!isRecording && !isRecordingVideoNote && (
-                                                    <button
-                                                        onClick={startVideoNote}
-                                                        className="p-2 sm:p-2.5 text-gray-400 hover:bg-gray-100 rounded-full transition-colors"
-                                                        title="Record hexagon video note"
-                                                    >
-                                                        <Camera className="w-5 h-5" />
-                                                    </button>
-                                                )}
-                                                {!isRecording && !isRecordingVideoNote && !messageText.trim() && !selectedFile && (
-                                                    <button
-                                                        onClick={startRecording}
-                                                        className="p-2 sm:p-2.5 text-gray-400 hover:text-red-400 hover:bg-gray-100 rounded-full transition-colors"
-                                                        title="Record voice message"
-                                                    >
-                                                        <Mic className="w-5 h-5" />
-                                                    </button>
-                                                )}
-                                                {isRecording && (
-                                                    <button
-                                                        onClick={stopRecording}
-                                                        className="p-2 sm:p-2.5 bg-red-400 text-white rounded-full hover:bg-red-500 transition-colors animate-pulse"
-                                                        title="Stop recording"
-                                                    >
-                                                        <X className="w-5 h-5" />
-                                                    </button>
-                                                )}
-                                                {isRecordingVideoNote && (
-                                                    <button
-                                                        onClick={stopVideoNote}
-                                                        className="p-2 sm:p-2.5 text-white rounded-full transition-colors"
-                                                        style={{ backgroundColor: bubbleColor }}
-                                                        title="Stop recording"
-                                                    >
-                                                        <StopCircle className="w-5 h-5" />
-                                                    </button>
-                                                )}
-                                                {selectedFile && !selectedFile.isVoice && (
-                                                    <label className="flex items-center gap-2 px-4 py-1 text-xs text-gray-500 cursor-pointer">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={isViewOnce}
-                                                            onChange={(e) => setIsViewOnce(e.target.checked)}
-                                                            className="rounded"
-                                                        />
-                                                        View once
-                                                    </label>
-                                                )}
-                                                {(messageText.trim() || selectedFile) && (
-                                                    <button
-                                                        onClick={handleSendMessage}
-                                                        disabled={isSending}
-                                                        className="p-2 sm:p-2.5 rounded-full transition-colors shadow-sm text-white"
-                                                        style={{ backgroundColor: isSending ? '#d1d5db' : (themeColorMap[convoSettings.themeColor || 'emerald'] || '#10b981') }}
-                                                    >
-                                                        {isSending ? <Clock className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                                                    </button>
-                                                )}
+                                                <div className="flex items-center gap-1 flex-shrink-0">
+                                                    <div className="flex items-center gap-1">
+                                                        {!isRecording && !isRecordingVideoNote && (
+                                                            <button
+                                                                onClick={startVideoNote}
+                                                                aria-label="Start video note"
+                                                                className="p-2 sm:p-2.5 text-gray-400 hover:bg-gray-100 rounded-full transition-colors"
+                                                                title="Record hexagon video note"
+                                                            >
+                                                                <Camera className="w-5 h-5" />
+                                                            </button>
+                                                        )}
+                                                        {!isRecording && !isRecordingVideoNote && !messageText.trim() && !selectedFile && (
+                                                            <button
+                                                                onClick={startRecording}
+                                                                className="p-2 sm:p-2.5 text-gray-400 hover:text-red-400 hover:bg-gray-100 rounded-full transition-colors"
+                                                                aria-label="mic"
+                                                                title="Record voice message"
+                                                            >
+                                                                <Mic className="w-5 h-5" />
+                                                            </button>
+                                                        )}
+                                                        {isRecording && (
+                                                            <button
+                                                                onClick={stopRecording}
+                                                                className="p-2 sm:p-2.5 bg-red-400 text-white rounded-full hover:bg-red-500 transition-colors animate-pulse"
+                                                                aria-label="stop recording"
+                                                                title="Stop recording"
+                                                            >
+                                                                <X className="w-5 h-5" />
+                                                            </button>
+                                                        )}
+                                                        {isRecordingVideoNote && (
+                                                            <button
+                                                                onClick={stopVideoNote}
+                                                                className="p-2 sm:p-2.5 text-white rounded-full transition-colors"
+                                                                style={{ backgroundColor: bubbleColor }}
+                                                                aria-label="stop recording"
+                                                                title="Stop recording"
+                                                            >
+                                                                <StopCircle className="w-5 h-5" />
+                                                            </button>
+                                                        )}
+                                                        {selectedFile && !selectedFile.isVoice && (
+                                                            <label className="flex items-center gap-2 px-4 py-1 text-xs text-gray-500 cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isViewOnce}
+                                                                    onChange={(e) => setIsViewOnce(e.target.checked)}
+                                                                    className="rounded"
+                                                                />
+                                                                View once
+                                                            </label>
+                                                        )}
+                                                        {(messageText.trim() || selectedFile) && (
+                                                            <button
+                                                                onClick={handleSendMessage}
+                                                                aria-label="sendp"
+                                                                disabled={isSending}
+                                                                className="p-2 sm:p-2.5 rounded-full transition-colors shadow-sm text-white"
+                                                                style={{ backgroundColor: isSending ? '#d1d5db' : (themeColorMap[convoSettings.themeColor || 'emerald'] || '#10b981') }}
+                                                            >
+                                                                {isSending ? <Clock className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
+                                )}
+                            </>
+                        ) : (
+                            <NoConversationPlaceholder />
                         )}
-                    </>
-                ) : (
-                    <NoConversationPlaceholder />
-                )}
-            </div>
+                    </div>
 
-            {/* ========== Contact Info Panel (responsive) ========== */}
-            <AnimatePresence>
-                {showContactInfo && selectedConversation && !selectedConversation.isGroup && (() => {
-                    const user = getOtherUser(selectedConversation);
-                    if (!user) return null;
-                    return (
-                        <motion.div
-                            ref={contactInfoRef}
-                            initial={{ x: 300, opacity: 0 }}
-                            animate={{ x: 0, opacity: 1 }}
-                            exit={{ x: 300, opacity: 0 }}
-                            className="fixed inset-0 z-50 lg:static lg:w-[350px] border-l border-gray-100 bg-white overflow-y-auto flex-shrink-0"
-                        >
-                            {/* On mobile, add a header with close button */}
-                            <div className="flex items-center justify-between p-4 lg:hidden border-b">
-                                <h3 className="font-bold text-lg">Contact Info</h3>
-                                <button onClick={() => setShowContactInfo(false)} className="p-2 hover:bg-gray-100 rounded-full">
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-                            <div className="p-6">
-                                <div className="flex items-center justify-between mb-6 hidden lg:flex">
-                                    <h3 className="font-bold text-lg">Contact Info</h3>
-                                    <button onClick={() => setShowContactInfo(false)} className="p-2 hover:bg-gray-100 rounded-full">
-                                        <X className="w-5 h-5 text-gray-500" />
-                                    </button>
-                                </div>
-                                <div className="text-center mb-6">
-                                    <div className="w-24 h-24 rounded-full mx-auto mb-3 overflow-hidden">
-                                        {user?.avatarUrl ? (
-                                            <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white text-3xl font-bold">
-                                                {user?.displayName?.charAt(0) || '?'}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <h4 className="font-bold text-lg">{user?.displayName}</h4>
-                                    <p className="text-gray-500 text-sm">@{user?.username}</p>
-                                    <p className="text-xs text-gray-400 mt-1">{user?.bio || 'No bio'}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <button onClick={handleGoToProfile} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
-                                        <ExternalLink className="w-4 h-4" /> Go to Profile
-                                    </button>
-                                    <button onClick={() => { handleOpenMedia(); setShowContactInfo(false); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
-                                        <ImageIcon className="w-4 h-4" /> Media, Links & Docs
-                                    </button>
-                                    <button onClick={() => { handleShareContactAsActualLink(user); setShowContactInfo(false); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
-                                        <ExternalLink className="w-4 h-4" /> Share Contact Link
-                                    </button>
-                                    <button onClick={() => { handleOpenStarred(); setShowContactInfo(false); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
-                                        <Star className="w-4 h-4" /> Starred Messages
-                                    </button>
-                                    <button onClick={() => { handleOpenBookmarked(); setShowContactInfo(false); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
-                                        <Bookmark className="w-4 h-4" /> Bookmarked Messages
-                                    </button>
-                                    <button onClick={() => { setShowContactInfo(false); setShowWallpaperModal(true); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
-                                        <ImageIcon className="w-4 h-4" /> Wallpaper
-                                    </button>
-                                    <button onClick={() => setShowThemeModal(true)} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
-                                        <Palette className="w-4 h-4" /> Chat Theme
-                                    </button>
-                                    <button onClick={() => { handleOpenGroupsInCommon(); setShowContactInfo(false); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
-                                        <Users className="w-4 h-4" /> Groups in Common
-                                    </button>
-                                    <button onClick={() => { handleShareContactOpen(user); setShowContactInfo(false); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
-                                        <Contact className="w-4 h-4" /> Share Contact
-                                    </button>
-                                    <button onClick={() => { setShowContactInfo(false); setShowDisappearingModal(true); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
-                                        <Clock className="w-4 h-4" /> Disappearing Messages
-                                    </button>
-                                    {selectedConversation?.lockedBy?.includes(authUser?._id) ? (
-                                        <button onClick={() => { setShowContactInfo(false); setUnlockContext('chat'); setShowUnlockModal(true); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
-                                            <Unlock className="w-4 h-4" /> Unlock Chat
+                    {/* ========== Contact Info Panel (responsive) ========== */}
+                    <AnimatePresence>
+                        {showContactInfo && selectedConversation && !selectedConversation.isGroup && (() => {
+                            const user = getOtherUser(selectedConversation);
+                            if (!user) return null;
+                            return (
+                                <motion.div
+                                    ref={contactInfoRef}
+                                    initial={{ x: 300, opacity: 0 }}
+                                    animate={{ x: 0, opacity: 1 }}
+                                    exit={{ x: 300, opacity: 0 }}
+                                    className="fixed inset-0 z-50 lg:static lg:w-[350px] border-l border-gray-100 bg-white overflow-y-auto flex-shrink-0"
+                                >
+                                    {/* On mobile, add a header with close button */}
+                                    <div className="flex items-center justify-between p-4 lg:hidden border-b">
+                                        <h3 className="font-bold text-lg">Contact Info</h3>
+                                        <button aria-label="cancel" onClick={() => setShowContactInfo(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                                            <X className="w-5 h-5" />
                                         </button>
-                                    ) : (
-                                        <button onClick={() => { setShowContactInfo(false); handleLockChatOpen(); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
-                                            <Lock className="w-4 h-4" /> Lock Chat
+                                    </div>
+                                    <div className="p-6">
+                                        <div className="flex items-center justify-between mb-6 hidden lg:flex">
+                                            <h3 className="font-bold text-lg">Contact Info</h3>
+                                            <button aria-label="cancel" onClick={() => setShowContactInfo(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                                                <X className="w-5 h-5 text-gray-500" />
+                                            </button>
+                                        </div>
+                                        <div className="text-center mb-6">
+                                            <div className="w-24 h-24 rounded-full mx-auto mb-3 overflow-hidden">
+                                                {user?.avatarUrl ? (
+                                                    <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white text-3xl font-bold">
+                                                        {user?.displayName?.charAt(0) || '?'}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <h4 className="font-bold text-lg">{user?.displayName}</h4>
+                                            <p className="text-gray-500 text-sm">@{user?.username}</p>
+                                            <p className="text-xs text-gray-400 mt-1">{user?.bio || 'No bio'}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <button onClick={handleGoToProfile} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                                <ExternalLink className="w-4 h-4" /> Go to Profile
+                                            </button>
+                                            <button onClick={() => { handleOpenMedia(); setShowContactInfo(false); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                                <ImageIcon className="w-4 h-4" /> Media, Links & Docs
+                                            </button>
+                                            <button onClick={() => { handleShareContactAsActualLink(user); setShowContactInfo(false); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                                <ExternalLink className="w-4 h-4" /> Share Contact Link
+                                            </button>
+                                            <button onClick={() => { handleOpenStarred(); setShowContactInfo(false); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                                <Star className="w-4 h-4" /> Starred Messages
+                                            </button>
+                                            <button onClick={() => { handleOpenBookmarked(); setShowContactInfo(false); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                                <Bookmark className="w-4 h-4" /> Bookmarked Messages
+                                            </button>
+                                            <button onClick={() => { setShowContactInfo(false); setShowWallpaperModal(true); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                                <ImageIcon className="w-4 h-4" /> Wallpaper
+                                            </button>
+                                            <button onClick={() => setShowThemeModal(true)} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                                <Palette className="w-4 h-4" /> Chat Theme
+                                            </button>
+                                            <button onClick={() => { handleOpenGroupsInCommon(); setShowContactInfo(false); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                                <Users className="w-4 h-4" /> Groups in Common
+                                            </button>
+                                            <button onClick={() => { handleShareContactOpen(user); setShowContactInfo(false); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                                <Contact className="w-4 h-4" /> Share Contact
+                                            </button>
+                                            <button onClick={() => { setShowContactInfo(false); setShowDisappearingModal(true); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                                <Clock className="w-4 h-4" /> Disappearing Messages
+                                            </button>
+                                            {selectedConversation?.lockedBy?.includes(authUser?._id) ? (
+                                                <button onClick={() => { setShowContactInfo(false); setUnlockContext('chat'); setShowUnlockModal(true); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                                    <Unlock className="w-4 h-4" /> Unlock Chat
+                                                </button>
+                                            ) : (
+                                                <button onClick={() => { setShowContactInfo(false); handleLockChatOpen(); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                                    <Lock className="w-4 h-4" /> Lock Chat
+                                                </button>
+                                            )}
+                                            <button onClick={() => { handleAddToFavorites(); setShowContactInfo(false); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                                <Heart className={`w-4 h-4 ${selectedConversation?.favoritedBy?.includes(authUser?._id) ? 'fill-red-400 text-red-400' : ''}`} />
+                                                {selectedConversation?.favoritedBy?.includes(authUser?._id) ? 'Remove from Favorites' : 'Add to Favorites'}
+                                            </button>
+                                            <button onClick={() => { handleBlockContact(); setShowContactInfo(false); }} className={`w-full px-4 py-3 rounded-xl flex items-center gap-3 text-sm ${isBlocked ? 'hover:bg-green-50 text-green-500' : 'hover:bg-red-50 text-red-500'}`}>
+                                                {isBlocked ? <><UserCheck className="w-4 h-4" /> Unblock Contact</> : <><UserX className="w-4 h-4" /> Block Contact</>}
+                                            </button>
+                                            <button onClick={() => { handleReportContact(); setShowContactInfo(false); }} className="w-full px-4 py-3 hover:bg-red-50 rounded-xl flex items-center gap-3 text-sm text-red-500">
+                                                <Flag className="w-4 h-4" /> Report Contact
+                                            </button>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            );
+                        })()}
+                    </AnimatePresence>
+                </main>
+
+                {/* Group Info Modal */}
+                <Suspense fallback={null}>
+                    <GroupInfoModal
+                        isOpen={showGroupInfo}
+                        onClose={() => setShowGroupInfo(false)}
+                        conversationId={selectedConversation?._id}
+                        onlineUsers={onlineUsers}
+                        onMemberClick={async (memberId) => {
+                            setShowGroupInfo(false);
+                            try {
+                                const conv = await getConversation(memberId);
+                                if (conv) selectConversation(conv);
+                            } catch (error) {
+                                toast.error('Could not open conversation');
+                            }
+                        }}
+                        onAvatarChange={handleGroupAvatarChange}
+                    />
+                </Suspense>
+
+                {/* ========== Context Menu, Conversation Menu, All Modals ========== */}
+                {/* ========== Context Menu ========== */}
+                <AnimatePresence>
+                    {
+                        showMenu && (() => {
+                            const message = messages.find(m => m._id === showMenu);
+                            if (!message) return null;
+                            const isOwn = getIsOwn(message);
+                            const isStarred = message.starredBy?.includes(authUser?._id);
+                            const isBookmarked = message.bookmarkedBy?.includes(authUser?._id);
+                            return (
+                                <motion.div
+                                    ref={menuRef}
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    className="fixed z-50 bg-white rounded-xl shadow-xl border py-1 w-56 max-w-[95vw]"
+                                    style={{
+                                        left: Math.min(menuPosition.x, window.innerWidth - 240),
+                                        top: Math.min(menuPosition.y, window.innerHeight - 450)
+                                    }}
+                                    onClick={() => setShowMenu(null)}
+                                >
+                                    <button onClick={() => handleReply(message)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
+                                        <Reply className="w-4 h-4" /> Reply
+                                    </button>
+                                    {isOwn && message.text && (
+                                        <button onClick={() => handleEdit(message)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
+                                            <Edit className="w-4 h-4" /> Edit
                                         </button>
                                     )}
-                                    <button onClick={() => { handleAddToFavorites(); setShowContactInfo(false); }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
-                                        <Heart className={`w-4 h-4 ${selectedConversation?.favoritedBy?.includes(authUser?._id) ? 'fill-red-400 text-red-400' : ''}`} />
-                                        {selectedConversation?.favoritedBy?.includes(authUser?._id) ? 'Remove from Favorites' : 'Add to Favorites'}
+                                    <button onClick={() => handleForward(message._id)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
+                                        <Forward className="w-4 h-4" /> Forward
                                     </button>
-                                    <button onClick={() => { handleBlockContact(); setShowContactInfo(false); }} className={`w-full px-4 py-3 rounded-xl flex items-center gap-3 text-sm ${isBlocked ? 'hover:bg-green-50 text-green-500' : 'hover:bg-red-50 text-red-500'}`}>
-                                        {isBlocked ? <><UserCheck className="w-4 h-4" /> Unblock Contact</> : <><UserX className="w-4 h-4" /> Block Contact</>}
+                                    <button onClick={() => handleStar(message._id)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
+                                        {isStarred ? <><StarOff className="w-4 h-4" /> Unstar</> : <><Star className="w-4 h-4" /> Star</>}
                                     </button>
-                                    <button onClick={() => { handleReportContact(); setShowContactInfo(false); }} className="w-full px-4 py-3 hover:bg-red-50 rounded-xl flex items-center gap-3 text-sm text-red-500">
-                                        <Flag className="w-4 h-4" /> Report Contact
+                                    <button onClick={() => handleBookmark(message._id)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
+                                        {isBookmarked ? <><TbBookmarkOff className="w-4 h-4" /> Unbookmark</> : <><Bookmark className="w-4 h-4" /> Bookmark</>}
                                     </button>
-                                </div>
-                            </div>
-                        </motion.div>
-                    );
-                })()}
-            </AnimatePresence>
-            
-            {/* Group Info Modal */}
-            <GroupInfoModal
-                isOpen={showGroupInfo}
-                onClose={() => setShowGroupInfo(false)}
-                conversationId={selectedConversation?._id}
-                onlineUsers={onlineUsers}
-                onMemberClick={async (memberId) => {
-                    setShowGroupInfo(false);
-                    try {
-                        const conv = await getConversation(memberId);
-                        if (conv) selectConversation(conv);
-                    } catch (error) {
-                        toast.error('Could not open conversation');
-                    }
-                }}
-                onAvatarChange={handleGroupAvatarChange}
-            />
-
-            {/* ========== Context Menu, Conversation Menu, All Modals ========== */}
-            {/* ========== Context Menu ========== */}
-            <AnimatePresence>
-                {
-                    showMenu && (() => {
-                        const message = messages.find(m => m._id === showMenu);
-                        if (!message) return null;
-                        const isOwn = getIsOwn(message);
-                        const isStarred = message.starredBy?.includes(authUser?._id);
-                        const isBookmarked = message.bookmarkedBy?.includes(authUser?._id);
-                        return (
-                            <motion.div
-                                ref={menuRef}
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                className="fixed z-50 bg-white rounded-xl shadow-xl border py-1 w-56 max-w-[95vw]"
-                                style={{
-                                    left: Math.min(menuPosition.x, window.innerWidth - 240),
-                                    top: Math.min(menuPosition.y, window.innerHeight - 450)
-                                }}
-                                onClick={() => setShowMenu(null)}
-                            >
-                                <button onClick={() => handleReply(message)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
-                                    <Reply className="w-4 h-4" /> Reply
-                                </button>
-                                {isOwn && message.text && (
-                                    <button onClick={() => handleEdit(message)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
-                                        <Edit className="w-4 h-4" /> Edit
+                                    <button onClick={() => handleCopy(message.text || '')} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
+                                        <Copy className="w-4 h-4" /> Copy
                                     </button>
-                                )}
-                                <button onClick={() => handleForward(message._id)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
-                                    <Forward className="w-4 h-4" /> Forward
-                                </button>
-                                <button onClick={() => handleStar(message._id)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
-                                    {isStarred ? <><StarOff className="w-4 h-4" /> Unstar</> : <><Star className="w-4 h-4" /> Star</>}
-                                </button>
-                                <button onClick={() => handleBookmark(message._id)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
-                                    {isBookmarked ? <><TbBookmarkOff className="w-4 h-4" /> Unbookmark</> : <><Bookmark className="w-4 h-4" /> Bookmark</>}
-                                </button>
-                                <button onClick={() => handleCopy(message.text || '')} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
-                                    <Copy className="w-4 h-4" /> Copy
-                                </button>
-                                <button onClick={() => setShowTranslateModal(message._id)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
-                                    <Languages className="w-4 h-4" /> Translate
-                                </button>
-                                <button onClick={() => handlePinMessage(message._id)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
-                                    <Pin className="w-4 h-4" /> {message.pinned ? 'Unpin' : 'Pin'}
-                                </button>
-                                <button onClick={() => handleReportMessage(message._id)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
-                                    <Flag className="w-4 h-4" /> Report
-                                </button>
-                                {isOwn && (
-                                    <button onClick={() => setShowDeleteModal(message._id)} className="w-full px-4 py-2.5 text-left hover:bg-red-50 flex items-center gap-3 text-sm text-red-500">
-                                        <Trash2 className="w-4 h-4" /> Delete
+                                    <button onClick={() => setShowTranslateModal(message._id)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
+                                        <Languages className="w-4 h-4" /> Translate
                                     </button>
-                                )}
-                            </motion.div>
-                        );
-                    })()
-                }
-            </AnimatePresence>
-
-            {/* ========== Conversation Menu ========== */}
-            <AnimatePresence>
-                {
-                    showConversationMenu && (() => {
-                        const conv = conversations.find(c => c._id === showConversationMenu);
-                        const isPinned = conv?.pinnedBy?.includes(authUser?._id);
-                        const isMuted = conv?.mutedBy?.find(m => m.user === authUser?._id);
-                        return (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                                onClick={() => setShowConversationMenu(null)}
-                            >
-                                <motion.div
-                                    ref={conversationRef}
-                                    initial={{ scale: 0.95 }}
-                                    animate={{ scale: 1 }}
-                                    exit={{ scale: 0.95 }}
-                                    className="bg-white rounded-xl shadow-xl p-2 w-[90%] max-w-xs"
-                                    onClick={e => e.stopPropagation()}
-                                >
-                                    <button onClick={handlePinConversation} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 rounded-lg flex items-center gap-3 text-sm text-gray-600">
-                                        <Pin className="w-4 h-4" /> {isPinned ? 'Unpin' : 'Pin'}
+                                    <button onClick={() => handlePinMessage(message._id)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
+                                        <Pin className="w-4 h-4" /> {message.pinned ? 'Unpin' : 'Pin'}
                                     </button>
-                                    <button onClick={handleArchiveConversation} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 rounded-lg flex items-center gap-3 text-sm text-gray-600">
-                                        <Archive className="w-4 h-4" /> {conv?.archivedBy?.includes(authUser?._id) ? 'Unarchive' : 'Archive'}
+                                    <button onClick={() => handleReportMessage(message._id)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-600">
+                                        <Flag className="w-4 h-4" /> Report
                                     </button>
-                                    <button onClick={() => handleMuteConversation(isMuted ? null : 8)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 rounded-lg flex items-center gap-3 text-sm text-gray-600">
-                                        <BellOff className="w-4 h-4" /> {isMuted ? 'Unmute' : 'Mute'}
-                                    </button>
-                                    <button onClick={() => { handleShareContactOpen(getOtherUser(selectedConversation)); setShowConversationMenu(null); }} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 rounded-lg flex items-center gap-3 text-sm text-gray-600">
-                                        <Contact className="w-4 h-4" /> Share Contact
-                                    </button>
-                                    <button
-                                        onClick={async () => {
-                                            try {
-                                                const token = localStorage.getItem('access-token');
-                                                const res = await axiosInstance.get(
-                                                    `/chat/conversation/${selectedConversation._id}/export`,
-                                                    {
-                                                        headers: { Authorization: `Bearer ${token}` },
-                                                        responseType: 'blob',
-                                                    }
-                                                );
-                                                const url = window.URL.createObjectURL(new Blob([res.data]));
-                                                const link = document.createElement('a');
-                                                link.href = url;
-                                                link.setAttribute('download', `chat_${selectedConversation._id}.txt`);
-                                                document.body.appendChild(link);
-                                                link.click();
-                                                link.remove();
-                                                window.URL.revokeObjectURL(url);
-                                            } catch (error) {
-                                                toast.error('Failed to export chat');
-                                            }
-                                        }}
-                                        className="w-full px-4 py-2.5 text-left hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
-                                    >
-                                        <Download className="w-4 h-4" />
-                                        Export Chat
-                                    </button>
-                                    <button onClick={handleClearChat} className="w-full px-4 py-2.5 text-left hover:bg-red-50 rounded-lg flex items-center gap-3 text-sm text-red-500">
-                                        <Trash2 className="w-4 h-4" /> Clear Chat
-                                    </button>
-                                    <button onClick={() => setShowConversationMenu(null)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 rounded-lg flex items-center gap-3 text-sm text-gray-400 mt-1 border-t">
-                                        <X className="w-4 h-4" /> Cancel
-                                    </button>
+                                    {isOwn && (
+                                        <button onClick={() => setShowDeleteModal(message._id)} className="w-full px-4 py-2.5 text-left hover:bg-red-50 flex items-center gap-3 text-sm text-red-500">
+                                            <Trash2 className="w-4 h-4" /> Delete
+                                        </button>
+                                    )}
                                 </motion.div>
-                            </motion.div>
-                        );
-                    })()
-                }
-            </AnimatePresence>
+                            );
+                        })()
+                    }
+                </AnimatePresence>
 
-            {/* ========== Pin Duration Modal ========== */}
-            <AnimatePresence>
-                {showPinDurationModal && (
-                    <motion.div
-                        ref={pinDurationRef}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowPinDurationModal(null)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <h3 className="text-lg font-bold mb-4">Pin Message</h3>
-                            <p className="text-sm text-gray-500 mb-4">How long?</p>
-                            <div className="space-y-2">
-                                {[
-                                    { label: '24 hours', value: 24 },
-                                    { label: '7 days', value: 168 },
-                                    { label: '30 days', value: 720 },
-                                    { label: 'Unpin', value: null, danger: true }
-                                ].map((opt, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => handlePinDurationSelect(opt.value)}
-                                        className={`w-full py-2.5 rounded-xl text-sm font-medium transition-colors ${opt.danger ? 'text-red-500 hover:bg-red-50' : 'hover:bg-gray-50 text-gray-600'}`}
+                {/* ========== Conversation Menu ========== */}
+                <AnimatePresence>
+                    {
+                        showConversationMenu && (() => {
+                            const conv = conversations.find(c => c._id === showConversationMenu);
+                            const isPinned = conv?.pinnedBy?.includes(authUser?._id);
+                            const isMuted = conv?.mutedBy?.find(m => m.user === authUser?._id);
+                            return (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                                    onClick={() => setShowConversationMenu(null)}
+                                >
+                                    <motion.div
+                                        ref={conversationRef}
+                                        initial={{ scale: 0.95 }}
+                                        animate={{ scale: 1 }}
+                                        exit={{ scale: 0.95 }}
+                                        className="bg-white rounded-xl shadow-xl p-2 w-[90%] max-w-xs"
+                                        onClick={e => e.stopPropagation()}
                                     >
-                                        {opt.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                                        <button onClick={handlePinConversation} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 rounded-lg flex items-center gap-3 text-sm text-gray-600">
+                                            <Pin className="w-4 h-4" /> {isPinned ? 'Unpin' : 'Pin'}
+                                        </button>
+                                        <button onClick={handleArchiveConversation} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 rounded-lg flex items-center gap-3 text-sm text-gray-600">
+                                            <Archive className="w-4 h-4" /> {conv?.archivedBy?.includes(authUser?._id) ? 'Unarchive' : 'Archive'}
+                                        </button>
+                                        <button onClick={() => handleMuteConversation(isMuted ? null : 8)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 rounded-lg flex items-center gap-3 text-sm text-gray-600">
+                                            <BellOff className="w-4 h-4" /> {isMuted ? 'Unmute' : 'Mute'}
+                                        </button>
+                                        <button onClick={() => { handleShareContactOpen(getOtherUser(selectedConversation)); setShowConversationMenu(null); }} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 rounded-lg flex items-center gap-3 text-sm text-gray-600">
+                                            <Contact className="w-4 h-4" /> Share Contact
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    const token = localStorage.getItem('access-token');
+                                                    const res = await axiosInstance.get(
+                                                        `/chat/conversation/${selectedConversation._id}/export`,
+                                                        {
+                                                            headers: { Authorization: `Bearer ${token}` },
+                                                            responseType: 'blob',
+                                                        }
+                                                    );
+                                                    const url = window.URL.createObjectURL(new Blob([res.data]));
+                                                    const link = document.createElement('a');
+                                                    link.href = url;
+                                                    link.setAttribute('download', `chat_${selectedConversation._id}.txt`);
+                                                    document.body.appendChild(link);
+                                                    link.click();
+                                                    link.remove();
+                                                    window.URL.revokeObjectURL(url);
+                                                } catch (error) {
+                                                    toast.error('Failed to export chat');
+                                                }
+                                            }}
+                                            className="w-full px-4 py-2.5 text-left hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                        >
+                                            <Download className="w-4 h-4" />
+                                            Export Chat
+                                        </button>
+                                        <button onClick={handleClearChat} className="w-full px-4 py-2.5 text-left hover:bg-red-50 rounded-lg flex items-center gap-3 text-sm text-red-500">
+                                            <Trash2 className="w-4 h-4" /> Clear Chat
+                                        </button>
+                                        <button onClick={() => setShowConversationMenu(null)} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 rounded-lg flex items-center gap-3 text-sm text-gray-400 mt-1 border-t">
+                                            <X className="w-4 h-4" /> Cancel
+                                        </button>
+                                    </motion.div>
+                                </motion.div>
+                            );
+                        })()
+                    }
+                </AnimatePresence>
 
-            {/* ========== Poll Modal ========== */}
-            <AnimatePresence>
-                {showPollModal && (
-                    <motion.div
-                        ref={pollRef}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowPollModal(false)}
-                    >
+                {/* ========== Pin Duration Modal ========== */}
+                <AnimatePresence>
+                    {showPinDurationModal && (
                         <motion.div
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-md shadow-xl"
-                            onClick={e => e.stopPropagation()}
+                            ref={pinDurationRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowPinDurationModal(null)}
                         >
-                            <h3 className="text-lg font-bold mb-4">Create Poll</h3>
-                            <input
-                                type="text"
-                                placeholder="Question"
-                                className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-3"
-                                value={pollQuestion}
-                                onChange={(e) => setPollQuestion(e.target.value)}
-                            />
-                            {pollOptions.map((opt, i) => (
+                            <motion.div
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <h3 className="text-lg font-bold mb-4">Pin Message</h3>
+                                <p className="text-sm text-gray-500 mb-4">How long?</p>
+                                <div className="space-y-2">
+                                    {[
+                                        { label: '24 hours', value: 24 },
+                                        { label: '7 days', value: 168 },
+                                        { label: '30 days', value: 720 },
+                                        { label: 'Unpin', value: null, danger: true }
+                                    ].map((opt, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => handlePinDurationSelect(opt.value)}
+                                            className={`w-full py-2.5 rounded-xl text-sm font-medium transition-colors ${opt.danger ? 'text-red-500 hover:bg-red-50' : 'hover:bg-gray-50 text-gray-600'}`}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* ========== Poll Modal ========== */}
+                <AnimatePresence>
+                    {showPollModal && (
+                        <motion.div
+                            ref={pollRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowPollModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-md shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <h3 className="text-lg font-bold mb-4">Create Poll</h3>
                                 <input
-                                    key={i}
                                     type="text"
-                                    placeholder={`Option ${i + 1}`}
-                                    className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-2"
-                                    value={opt}
-                                    onChange={(e) => {
-                                        const newOpts = [...pollOptions]; newOpts[i] = e.target.value; setPollOptions(newOpts);
-                                    }}
+                                    placeholder="Question"
+                                    className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-3"
+                                    value={pollQuestion}
+                                    onChange={(e) => setPollQuestion(e.target.value)}
                                 />
-                            ))}
-                            <button onClick={() => setPollOptions([...pollOptions, ''])} className="text-blue-400 text-sm mb-4 hover:text-blue-500">+ Add Option</button>
-                            <label className="flex items-center gap-2 text-sm mb-4 text-blue-400 hover:text-blue-500 cursor-pointer">
+                                {pollOptions.map((opt, i) => (
+                                    <input
+                                        key={i}
+                                        type="text"
+                                        placeholder={`Option ${i + 1}`}
+                                        className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-2"
+                                        value={opt}
+                                        onChange={(e) => {
+                                            const newOpts = [...pollOptions]; newOpts[i] = e.target.value; setPollOptions(newOpts);
+                                        }}
+                                    />
+                                ))}
+                                <button onClick={() => setPollOptions([...pollOptions, ''])} className="text-blue-400 text-sm mb-4 hover:text-blue-500">+ Add Option</button>
+                                <label className="flex items-center gap-2 text-sm mb-4 text-blue-400 hover:text-blue-500 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={isMultipleTrue}
+                                        onChange={(e) => setIsMultipleTrue(e.target.checked)}
+                                        className="rounded"
+                                    />
+                                    Allow Multiple Votes
+                                </label>
+                                <div className="flex gap-2">
+                                    <button onClick={handleCreatePoll} className="flex-1 py-2.5 text-white rounded-xl font-medium" style={{backgroundColor: bubbleColor}}>Create Poll</button>
+                                    <button onClick={() => setShowPollModal(false)} className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* ========== Event Modal ========== */}
+                <AnimatePresence>
+                    {showEventModal && (
+                        <motion.div
+                            ref={eventRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowEventModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-md shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <h3 className="text-lg font-bold mb-4">Create Event</h3>
                                 <input
-                                    type="checkbox"
-                                    checked={isMultipleTrue}
-                                    onChange={(e) => setIsMultipleTrue(e.target.checked)}
-                                    className="rounded"
+                                    type="text"
+                                    placeholder="Event name"
+                                    className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-3"
+                                    value={eventName}
+                                    onChange={(e) => setEventName(e.target.value)}
                                 />
-                                Allow Multiple Votes
-                            </label>
-                            <div className="flex gap-2">
-                                <button onClick={handleCreatePoll} className="flex-1 py-2.5 text-white rounded-xl font-medium" style={{backgroundColor: bubbleColor}}>Create Poll</button>
-                                <button onClick={() => setShowPollModal(false)} className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* ========== Event Modal ========== */}
-            <AnimatePresence>
-                {showEventModal && (
-                    <motion.div
-                        ref={eventRef}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowEventModal(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-md shadow-xl"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <h3 className="text-lg font-bold mb-4">Create Event</h3>
-                            <input
-                                type="text"
-                                placeholder="Event name"
-                                className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-3"
-                                value={eventName}
-                                onChange={(e) => setEventName(e.target.value)}
-                            />
-                            <input type="date" className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-3" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
-                            <input type="time" className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-3" value={eventTime} onChange={(e) => setEventTime(e.target.value)} />
-                            <input type="text" placeholder="Location (optional)" className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-4" value={eventLocation} onChange={(e) => setEventLocation(e.target.value)} />
-                            <div className="flex gap-2">
-                                <button onClick={handleCreateEvent} className="flex-1 py-2.5 text-white rounded-xl font-medium" style={{background: bubbleColor}}>Create Event</button>
-                                <button onClick={() => setShowEventModal(false)} className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* ========== Share Contact Modal ========== */}
-            <AnimatePresence>
-                {showShareContactModal && contactToShare && (
-                    <motion.div
-                        ref={shareContactRef}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowShareContactModal(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <h3 className="text-lg font-bold mb-3">Share Contact</h3>
-                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl mb-4">
-                                <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
-                                    {contactToShare.avatarUrl ? <img src={contactToShare.avatarUrl} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white font-bold">{contactToShare.displayName?.charAt(0)}</div>}
+                                <input type="date" className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-3" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+                                <input type="time" className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-3" value={eventTime} onChange={(e) => setEventTime(e.target.value)} />
+                                <input type="text" placeholder="Location (optional)" className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-4" value={eventLocation} onChange={(e) => setEventLocation(e.target.value)} />
+                                <div className="flex gap-2">
+                                    <button onClick={handleCreateEvent} className="flex-1 py-2.5 text-white rounded-xl font-medium" style={{background: bubbleColor}}>Create Event</button>
+                                    <button onClick={() => setShowEventModal(false)} className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
                                 </div>
-                                <div>
-                                    <p className="font-medium text-sm">{contactToShare.displayName}</p>
-                                    <p className="text-xs text-gray-400">@{contactToShare.username}</p>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* ========== Share Contact Modal ========== */}
+                <AnimatePresence>
+                    {showShareContactModal && contactToShare && (
+                        <motion.div
+                            ref={shareContactRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowShareContactModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <h3 className="text-lg font-bold mb-3">Share Contact</h3>
+                                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl mb-4">
+                                    <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
+                                        {contactToShare.avatarUrl ? <img src={contactToShare.avatarUrl} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white font-bold">{contactToShare.displayName?.charAt(0)}</div>}
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-sm">{contactToShare.displayName}</p>
+                                        <p className="text-xs text-gray-400">@{contactToShare.username}</p>
+                                    </div>
                                 </div>
-                            </div>
-                            <p className="text-sm text-gray-500 mb-3">Select conversations to share this contact with:</p>
-                            <div className="space-y-1 mb-4 max-h-48 overflow-y-auto">
-                                {conversations.map(conv => {
-                                    const other = getOtherUser(conv);
-                                    const targetId = conv.isGroup ? conv._id : other?._id;
-                                    if (!targetId || targetId === contactToShare?._id) return null;
-                                    return (
-                                        <div key={conv._id} onClick={() => setShareTargets(prev => prev.includes(targetId) ? prev.filter(id => id !== targetId) : [...prev, targetId])} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer ${shareTargets.includes(targetId) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                                            <div className={`w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-white text-sm font-bold ${
-                                                conv.isGroup
-                                                    ? (!conv.groupAvatar ? `bg-gradient-to-br ${getGroupAvatarColor(conv)}` : '')
-                                                    : (other?.avatarUrl ? '' : 'bg-gradient-to-br from-blue-400 to-blue-500')
-                                            }`}>
-                                                {conv.isGroup ? (
-                                                    conv.groupAvatar ? (
-                                                        <img src={conv.groupAvatar} alt="" className="w-full h-full object-cover" />
+                                <p className="text-sm text-gray-500 mb-3">Select conversations to share this contact with:</p>
+                                <div className="space-y-1 mb-4 max-h-48 overflow-y-auto">
+                                    {conversations.map(conv => {
+                                        const other = getOtherUser(conv);
+                                        const targetId = conv.isGroup ? conv._id : other?._id;
+                                        if (!targetId || targetId === contactToShare?._id) return null;
+                                        return (
+                                            <div key={conv._id} onClick={() => setShareTargets(prev => prev.includes(targetId) ? prev.filter(id => id !== targetId) : [...prev, targetId])} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer ${shareTargets.includes(targetId) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                                                <div className={`w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-white text-sm font-bold ${
+                                                    conv.isGroup
+                                                        ? (!conv.groupAvatar ? `bg-gradient-to-br ${getGroupAvatarColor(conv)}` : '')
+                                                        : (other?.avatarUrl ? '' : 'bg-gradient-to-br from-blue-400 to-blue-500')
+                                                }`}>
+                                                    {conv.isGroup ? (
+                                                        conv.groupAvatar ? (
+                                                            <img src={conv.groupAvatar} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <span>{conv.groupName?.charAt(0) || 'G'}</span>
+                                                        )
                                                     ) : (
-                                                        <span>{conv.groupName?.charAt(0) || 'G'}</span>
-                                                    )
-                                                ) : (
-                                                    <img src={other?.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
-                                                )}
+                                                        <img src={other?.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
+                                                    )}
+                                                </div>
+                                                <span className="text-sm">{conv.isGroup ? conv.groupName : other?.displayName}</span>
                                             </div>
-                                            <span className="text-sm">{conv.isGroup ? conv.groupName : other?.displayName}</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <div className="flex gap-2">
-                                <button onClick={handleShareContactConfirm} disabled={shareTargets.length === 0} className="flex-1 py-2.5 text-white rounded-xl font-medium disabled:bg-gray-200 disabled:text-gray-400" style={{background: bubbleColor}}>Share ({shareTargets.length})</button>
-                                <button onClick={() => setShowShareContactModal(false)} className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
-                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={handleShareContactConfirm} disabled={shareTargets.length === 0} className="flex-1 py-2.5 text-white rounded-xl font-medium disabled:bg-gray-200 disabled:text-gray-400" style={{background: bubbleColor}}>Share ({shareTargets.length})</button>
+                                    <button onClick={() => setShowShareContactModal(false)} className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
+                                </div>
+                            </motion.div>
                         </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    )}
+                </AnimatePresence>
 
-            {/* ========== Media Modal ========== */}
-            <AnimatePresence>
-                {showMediaModal && (
-                    <motion.div
-                        ref={mediaRef}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowMediaModal(false)}
-                    >
+                {/* ========== Media Modal ========== */}
+                <AnimatePresence>
+                    {showMediaModal && (
                         <motion.div
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[95%] max-w-xl max-h-[80vh] overflow-y-auto shadow-xl"
-                            onClick={e => e.stopPropagation()}
+                            ref={mediaRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowMediaModal(false)}
                         >
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold">Media, Links & Docs</h3>
-                                <button onClick={() => setShowMediaModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
-                            </div>
-                            {mediaItems.length === 0 ? <p className="text-center text-gray-400 py-8">No media shared yet</p> : (
-                                <div className="grid grid-cols-3 gap-2">
-                                    {mediaItems.map((item, i) => (
-                                        <div key={i} className="aspect-square rounded-lg overflow-hidden cursor-pointer bg-gray-100" onClick={() => { setShowMediaModal(false); setShowMediaViewer(item); }}>
-                                            {item.mime?.startsWith('image/') ? <img src={item.url} alt="" className="w-full h-full object-cover" /> : item.mime?.startsWith('video/') ? <video src={item.url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><FileText className="w-8 h-8 text-gray-400" /></div>}
+                            <motion.div
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[95%] max-w-xl max-h-[80vh] overflow-y-auto shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold">Media, Links & Docs</h3>
+                                    <button onClick={() => setShowMediaModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+                                </div>
+                                {mediaItems.length === 0 ? <p className="text-center text-gray-400 py-8">No media shared yet</p> : (
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {mediaItems.map((item, i) => (
+                                            <div key={i} className="aspect-square rounded-lg overflow-hidden cursor-pointer bg-gray-100" onClick={() => { setShowMediaModal(false); setShowMediaViewer(item); }}>
+                                                {item.mime?.startsWith('image/') ? <img src={item.url} alt="" className="w-full h-full object-cover" /> : item.mime?.startsWith('video/') ? <video src={item.url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><FileText className="w-8 h-8 text-gray-400" /></div>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* ========== Starred Messages Modal ========== */}
+                <AnimatePresence>
+                    {showStarredModal && (
+                        <motion.div
+                            ref={starredRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowStarredModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[95%] max-w-xl max-h-[80vh] overflow-y-auto shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold">Starred Messages</h3>
+                                    <button onClick={() => setShowStarredModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+                                </div>
+                                {starredMessages.length === 0 ? <p className="text-center text-gray-400 py-8">No starred messages</p> : starredMessages.map(msg => (
+                                    <div key={msg._id} className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => { setShowStarredModal(false); setTimeout(() => scrollToMessage(msg._id), 300); }}>
+                                        <div className="flex items-center gap-2 mb-1"><Star className="w-3 h-3 text-yellow-400 fill-yellow-400" /><span className="text-xs text-gray-400">{formatMessageTime(msg.createdAt)}</span></div>
+                                        <p className="text-sm text-gray-600">{msg.text?.substring(0, 100)}</p>
+                                    </div>
+                                ))}
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* ========== Bookmarked Messages Modal ========== */}
+                <AnimatePresence>
+                    {showBookmarkedModal && (
+                        <motion.div
+                            ref={bookmarkedRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowBookmarkedModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[95%] max-w-xl max-h-[80vh] overflow-y-auto shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold">Bookmarked Messages</h3>
+                                    <button onClick={() => setShowBookmarkedModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+                                </div>
+                                {bookmarkedMessages.length === 0 ? <p className="text-center text-gray-400 py-8">No bookmarked messages</p> : bookmarkedMessages.map(msg => (
+                                    <div key={msg._id} className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => { setShowBookmarkedModal(false); setTimeout(() => scrollToMessage(msg._id), 300); }}>
+                                        <div className="flex items-center gap-2 mb-1"><Bookmark className="w-3 h-3 text-blue-400 fill-blue-400" /><span className="text-xs text-gray-400">{formatMessageTime(msg.createdAt)}</span></div>
+                                        <p className="text-sm text-gray-600">{msg.text?.substring(0, 100)}</p>
+                                    </div>
+                                ))}
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* ========== Groups in Common Modal ========== */}
+                <AnimatePresence>
+                    {showGroupsInCommonModal && (
+                        <motion.div
+                            ref={groupsRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowGroupsInCommonModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold">Groups in Common</h3>
+                                    <button onClick={() => setShowGroupsInCommonModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+                                </div>
+                                {groupsInCommon.length === 0 ? <p className="text-center text-gray-400 py-8">No groups in common</p> : groupsInCommon.map(group => (
+                                    <div key={group._id} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => { selectConversation(group); setShowGroupsInCommonModal(false); }}>
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white font-bold">{group.groupName?.charAt(0) || 'G'}</div>
+                                        <span className="text-sm font-medium">{group.groupName}</span>
+                                    </div>
+                                ))}
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* ========== Lock Chat Modal ========== */}
+                <AnimatePresence>
+                    {showLockChatModal && (
+                        <motion.div
+                            ref={lockRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowLockChatModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold">Lock Chat</h3>
+                                    <button onClick={() => setShowLockChatModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+                                </div>
+                                <p className="text-sm text-gray-500 mb-4">Enter your login password to lock this chat.</p>
+                                <input type="password" placeholder="Enter password" className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-4" value={lockPassword} onChange={(e) => setLockPassword(e.target.value)} autoFocus />
+                                <div className="flex gap-2">
+                                    <button onClick={handleLockChatConfirm} className="flex-1 py-2.5 bg-blue-400 text-white rounded-xl font-medium hover:bg-blue-500">Lock Chat</button>
+                                    <button onClick={() => setShowLockChatModal(false)} className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* ========== Unlock Modal ========== */}
+                <AnimatePresence>
+                    {showUnlockModal && (
+                        <motion.div
+                            ref={unlockRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowUnlockModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold">Unlock Chats</h3>
+                                    <button onClick={() => setShowUnlockModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+                                </div>
+                                <p className="text-sm text-gray-500 mb-4">Enter your login password to access locked chats.</p>
+                                <input type="password" placeholder="Enter password" className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-4" value={unlockPassword} onChange={(e) => setUnlockPassword(e.target.value)} autoFocus />
+                                <div className="flex gap-2">
+                                    <button onClick={unlockContext === 'section' ? handleUnlockSection : handleUnlockSpecificChat} className="flex-1 py-2.5 bg-blue-400 text-white rounded-xl font-medium hover:bg-blue-500">Unlock</button>
+                                    <button onClick={() => setShowUnlockModal(false)} className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* ========== Media Viewer Modal ========== */}
+                <AnimatePresence>
+                    {showMediaViewer && (
+                        <motion.div
+                            ref={mediaViewerRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+                            onClick={() => setShowMediaViewer(null)}
+                        >
+                            <button onClick={() => setShowMediaViewer(null)} className="absolute top-4 right-4 p-2 bg-white/20 rounded-full text-white hover:bg-white/40 z-10">
+                                <X className="w-6 h-6" />
+                            </button>
+                            {showMediaViewer.mime?.startsWith('image/') ? (
+                                <img src={showMediaViewer.url} alt="" className="max-w-[95vw] max-h-[95vh] rounded-xl object-contain" onClick={e => e.stopPropagation()} />
+                            ) : showMediaViewer.mime?.startsWith('video/') ? (
+                                <video src={showMediaViewer.url} controls className="max-w-[95vw] max-h-[95vh] rounded-xl" onClick={e => e.stopPropagation()} />
+                            ) : (
+                                <div className="bg-white rounded-xl p-8 text-center max-w-[90%]" onClick={e => e.stopPropagation()}>
+                                    <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                                    <p className="text-lg font-medium">{showMediaViewer.filename || 'File'}</p>
+                                    <a href={showMediaViewer.url} download className="text-blue-400 hover:text-blue-500 mt-2 inline-block"><Download className="w-5 h-5 inline mr-1" /> Download</a>
+                                </div>
+                            )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* ========== Forward Modal ========== */}
+                <AnimatePresence>
+                    {showForwardModal && (
+                        <motion.div
+                            ref={forwardMessageRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowForwardModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <h3 className="text-lg font-bold mb-3">Forward Message</h3>
+                                <div className="bg-gray-50 rounded-xl p-3 mb-4 text-sm text-gray-500">{messageToForward?.text?.substring(0, 100) || 'Media message'}</div>
+                                <div className="space-y-1 mb-4">
+                                    {conversations.map(conv => {
+                                        const other = getOtherUser(conv);
+                                        const targetId = conv.isGroup ? conv._id : other?._id;
+                                        if (!targetId) return null;
+                                        return (
+                                            <div key={conv._id} onClick={() => setForwardTargets(prev => prev.includes(targetId) ? prev.filter(id => id !== targetId) : [...prev, targetId])} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer ${forwardTargets.includes(targetId) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                                                <div className={`w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-white text-sm font-bold ${
+                                                    conv.isGroup
+                                                        ? (!conv.groupAvatar ? `bg-gradient-to-br ${getGroupAvatarColor(conv)}` : '')
+                                                        : (other?.avatarUrl ? '' : 'bg-gradient-to-br from-blue-400 to-blue-500')
+                                                }`}>
+                                                    {conv.isGroup ? (
+                                                        conv.groupAvatar ? (
+                                                            <img src={conv.groupAvatar} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <span>{conv.groupName?.charAt(0) || 'G'}</span>
+                                                        )
+                                                    ) : (
+                                                        <img src={other?.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
+                                                    )}
+                                                </div>
+                                                <span className="text-sm font-medium">{conv.isGroup ? conv.groupName : other?.displayName}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <button onClick={handleForwardSubmit} disabled={forwardTargets.length === 0} className="w-full py-2.5 text-white rounded-xl font-medium disabled:bg-gray-200 disabled:text-gray-400" style={{background: bubbleColor}}>Forward ({forwardTargets.length})</button>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* ========== New Group Modal ========== */}
+                <AnimatePresence>
+                    {showNewGroupModal && (
+                        <motion.div
+                            ref={newGroupRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowNewGroupModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-md shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <h3 className="text-lg font-bold mb-4">New Group</h3>
+                                <input type="text" placeholder="Group name" className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-3" value={groupName} onChange={(e) => setGroupName(e.target.value)} autoFocus />
+                                <div className="max-h-48 overflow-y-auto mb-4">
+                                    {contacts.map(user => (
+                                        <div key={user._id} onClick={() => setSelectedParticipants(prev => prev.includes(user._id) ? prev.filter(id => id !== user._id) : [...prev, user._id])} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer ${selectedParticipants.includes(user._id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                                            <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden"><img src={user.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" /></div>
+                                            <span className="text-sm">{user.displayName}</span>
                                         </div>
                                     ))}
                                 </div>
-                            )}
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* ========== Starred Messages Modal ========== */}
-            <AnimatePresence>
-                {showStarredModal && (
-                    <motion.div
-                        ref={starredRef}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowStarredModal(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[95%] max-w-xl max-h-[80vh] overflow-y-auto shadow-xl"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold">Starred Messages</h3>
-                                <button onClick={() => setShowStarredModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
-                            </div>
-                            {starredMessages.length === 0 ? <p className="text-center text-gray-400 py-8">No starred messages</p> : starredMessages.map(msg => (
-                                <div key={msg._id} className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => { setShowStarredModal(false); setTimeout(() => scrollToMessage(msg._id), 300); }}>
-                                    <div className="flex items-center gap-2 mb-1"><Star className="w-3 h-3 text-yellow-400 fill-yellow-400" /><span className="text-xs text-gray-400">{formatMessageTime(msg.createdAt)}</span></div>
-                                    <p className="text-sm text-gray-600">{msg.text?.substring(0, 100)}</p>
+                                <div className="flex gap-2">
+                                    <button onClick={handleCreateGroup} className="flex-1 py-2.5 text-white rounded-xl font-medium" style={{background: bubbleColor}}>Create ({selectedParticipants.length})</button>
+                                    <button onClick={() => setShowNewGroupModal(false)} className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
                                 </div>
-                            ))}
+                            </motion.div>
                         </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    )}
+                </AnimatePresence>
 
-            {/* ========== Bookmarked Messages Modal ========== */}
-            <AnimatePresence>
-                {showBookmarkedModal && (
-                    <motion.div
-                        ref={bookmarkedRef}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowBookmarkedModal(false)}
-                    >
+                {/* ========== Contact List Modal ========== */}
+                <AnimatePresence>
+                    {showContactList && (
                         <motion.div
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[95%] max-w-xl max-h-[80vh] overflow-y-auto shadow-xl"
-                            onClick={e => e.stopPropagation()}
+                            ref={contactListRef}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
                         >
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold">Bookmarked Messages</h3>
-                                <button onClick={() => setShowBookmarkedModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
-                            </div>
-                            {bookmarkedMessages.length === 0 ? <p className="text-center text-gray-400 py-8">No bookmarked messages</p> : bookmarkedMessages.map(msg => (
-                                <div key={msg._id} className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => { setShowBookmarkedModal(false); setTimeout(() => scrollToMessage(msg._id), 300); }}>
-                                    <div className="flex items-center gap-2 mb-1"><Bookmark className="w-3 h-3 text-blue-400 fill-blue-400" /><span className="text-xs text-gray-400">{formatMessageTime(msg.createdAt)}</span></div>
-                                    <p className="text-sm text-gray-600">{msg.text?.substring(0, 100)}</p>
+                            <motion.div
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-2xl pointer-events-auto"
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold">New Chat</h3>
+                                    <button onClick={() => setShowContactList(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                                        <X className="w-5 h-5" />
+                                    </button>
                                 </div>
-                            ))}
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* ========== Groups in Common Modal ========== */}
-            <AnimatePresence>
-                {showGroupsInCommonModal && (
-                    <motion.div
-                        ref={groupsRef}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowGroupsInCommonModal(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold">Groups in Common</h3>
-                                <button onClick={() => setShowGroupsInCommonModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
-                            </div>
-                            {groupsInCommon.length === 0 ? <p className="text-center text-gray-400 py-8">No groups in common</p> : groupsInCommon.map(group => (
-                                <div key={group._id} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => { selectConversation(group); setShowGroupsInCommonModal(false); }}>
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white font-bold">{group.groupName?.charAt(0) || 'G'}</div>
-                                    <span className="text-sm font-medium">{group.groupName}</span>
-                                </div>
-                            ))}
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* ========== Lock Chat Modal ========== */}
-            <AnimatePresence>
-                {showLockChatModal && (
-                    <motion.div
-                        ref={lockRef}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowLockChatModal(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold">Lock Chat</h3>
-                                <button onClick={() => setShowLockChatModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
-                            </div>
-                            <p className="text-sm text-gray-500 mb-4">Enter your login password to lock this chat.</p>
-                            <input type="password" placeholder="Enter password" className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-4" value={lockPassword} onChange={(e) => setLockPassword(e.target.value)} autoFocus />
-                            <div className="flex gap-2">
-                                <button onClick={handleLockChatConfirm} className="flex-1 py-2.5 bg-blue-400 text-white rounded-xl font-medium hover:bg-blue-500">Lock Chat</button>
-                                <button onClick={() => setShowLockChatModal(false)} className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* ========== Unlock Modal ========== */}
-            <AnimatePresence>
-                {showUnlockModal && (
-                    <motion.div
-                        ref={unlockRef}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowUnlockModal(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold">Unlock Chats</h3>
-                                <button onClick={() => setShowUnlockModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
-                            </div>
-                            <p className="text-sm text-gray-500 mb-4">Enter your login password to access locked chats.</p>
-                            <input type="password" placeholder="Enter password" className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-4" value={unlockPassword} onChange={(e) => setUnlockPassword(e.target.value)} autoFocus />
-                            <div className="flex gap-2">
-                                <button onClick={unlockContext === 'section' ? handleUnlockSection : handleUnlockSpecificChat} className="flex-1 py-2.5 bg-blue-400 text-white rounded-xl font-medium hover:bg-blue-500">Unlock</button>
-                                <button onClick={() => setShowUnlockModal(false)} className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* ========== Media Viewer Modal ========== */}
-            <AnimatePresence>
-                {showMediaViewer && (
-                    <motion.div
-                        ref={mediaViewerRef}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
-                        onClick={() => setShowMediaViewer(null)}
-                    >
-                        <button onClick={() => setShowMediaViewer(null)} className="absolute top-4 right-4 p-2 bg-white/20 rounded-full text-white hover:bg-white/40 z-10">
-                            <X className="w-6 h-6" />
-                        </button>
-                        {showMediaViewer.mime?.startsWith('image/') ? (
-                            <img src={showMediaViewer.url} alt="" className="max-w-[95vw] max-h-[95vh] rounded-xl object-contain" onClick={e => e.stopPropagation()} />
-                        ) : showMediaViewer.mime?.startsWith('video/') ? (
-                            <video src={showMediaViewer.url} controls className="max-w-[95vw] max-h-[95vh] rounded-xl" onClick={e => e.stopPropagation()} />
-                        ) : (
-                            <div className="bg-white rounded-xl p-8 text-center max-w-[90%]" onClick={e => e.stopPropagation()}>
-                                <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                                <p className="text-lg font-medium">{showMediaViewer.filename || 'File'}</p>
-                                <a href={showMediaViewer.url} download className="text-blue-400 hover:text-blue-500 mt-2 inline-block"><Download className="w-5 h-5 inline mr-1" /> Download</a>
-                            </div>
-                        )}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* ========== Forward Modal ========== */}
-            <AnimatePresence>
-                {showForwardModal && (
-                    <motion.div
-                        ref={forwardMessageRef}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowForwardModal(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <h3 className="text-lg font-bold mb-3">Forward Message</h3>
-                            <div className="bg-gray-50 rounded-xl p-3 mb-4 text-sm text-gray-500">{messageToForward?.text?.substring(0, 100) || 'Media message'}</div>
-                            <div className="space-y-1 mb-4">
-                                {conversations.map(conv => {
-                                    const other = getOtherUser(conv);
-                                    const targetId = conv.isGroup ? conv._id : other?._id;
-                                    if (!targetId) return null;
-                                    return (
-                                        <div key={conv._id} onClick={() => setForwardTargets(prev => prev.includes(targetId) ? prev.filter(id => id !== targetId) : [...prev, targetId])} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer ${forwardTargets.includes(targetId) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                                            <div className={`w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-white text-sm font-bold ${
-                                                conv.isGroup
-                                                    ? (!conv.groupAvatar ? `bg-gradient-to-br ${getGroupAvatarColor(conv)}` : '')
-                                                    : (other?.avatarUrl ? '' : 'bg-gradient-to-br from-blue-400 to-blue-500')
-                                            }`}>
-                                                {conv.isGroup ? (
-                                                    conv.groupAvatar ? (
-                                                        <img src={conv.groupAvatar} alt="" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <span>{conv.groupName?.charAt(0) || 'G'}</span>
-                                                    )
-                                                ) : (
-                                                    <img src={other?.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
-                                                )}
+                                {contacts.length === 0 ? (
+                                    <p className="text-center text-gray-400 py-8">No contacts yet</p>
+                                ) : (
+                                    contacts.map(user => (
+                                        <div
+                                            key={user._id}
+                                            onClick={async () => {
+                                                const conv = await getConversation(user._id);
+                                                if (conv) selectConversation(conv);
+                                                setShowContactList(false);
+                                            }}
+                                            className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer"
+                                        >
+                                            <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
+                                                <img src={user.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
                                             </div>
-                                            <span className="text-sm font-medium">{conv.isGroup ? conv.groupName : other?.displayName}</span>
+                                            <div>
+                                                <p className="font-medium text-sm">{user.displayName}</p>
+                                                <p className="text-xs text-gray-400">@{user.username}</p>
+                                            </div>
                                         </div>
-                                    );
-                                })}
-                            </div>
-                            <button onClick={handleForwardSubmit} disabled={forwardTargets.length === 0} className="w-full py-2.5 text-white rounded-xl font-medium disabled:bg-gray-200 disabled:text-gray-400" style={{background: bubbleColor}}>Forward ({forwardTargets.length})</button>
+                                    ))
+                                )}
+                            </motion.div>
                         </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    )}
+                </AnimatePresence>
 
-            {/* ========== New Group Modal ========== */}
-            <AnimatePresence>
-                {showNewGroupModal && (
-                    <motion.div
-                        ref={newGroupRef}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowNewGroupModal(false)}
-                    >
+                {/* ========== Incoming Call ========== */}
+                <AnimatePresence>
+                    {incomingCall && (
                         <motion.div
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-md shadow-xl"
-                            onClick={e => e.stopPropagation()}
+                            ref={callRef}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
                         >
-                            <h3 className="text-lg font-bold mb-4">New Group</h3>
-                            <input type="text" placeholder="Group name" className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-3" value={groupName} onChange={(e) => setGroupName(e.target.value)} autoFocus />
-                            <div className="max-h-48 overflow-y-auto mb-4">
-                                {contacts.map(user => (
-                                    <div key={user._id} onClick={() => setSelectedParticipants(prev => prev.includes(user._id) ? prev.filter(id => id !== user._id) : [...prev, user._id])} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer ${selectedParticipants.includes(user._id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                                        <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden"><img src={user.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" /></div>
-                                        <span className="text-sm">{user.displayName}</span>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="flex gap-2">
-                                <button onClick={handleCreateGroup} className="flex-1 py-2.5 text-white rounded-xl font-medium" style={{background: bubbleColor}}>Create ({selectedParticipants.length})</button>
-                                <button onClick={() => setShowNewGroupModal(false)} className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
-                            </div>
+                            <motion.div
+                                initial={{ scale: 0.9, y: 20 }}
+                                animate={{ scale: 1, y: 0 }}
+                                className="bg-white rounded-2xl p-8 w-[90%] max-w-xs text-center shadow-2xl"
+                            >
+                                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    {incomingCall.isVideo ? <Video className="w-10 h-10 text-blue-400" /> : <Phone className="w-10 h-10 text-blue-400" />}
+                                </div>
+                                <h3 className="text-xl font-bold mb-1">
+                                    {incomingCall.isGroupCall ? `Group Call: ${incomingCall.metadata?.groupName || 'Group'}` : `Incoming ${incomingCall.isVideo ? 'Video' : 'Audio'} Call`}
+                                </h3>
+                                <p className="text-gray-500 mb-6">
+                                    {incomingCall.isGroupCall ? `${incomingCall.callerName} is calling the group` : `${incomingCall.callerName} is calling...`}
+                                </p>
+                                <div className="flex gap-4 justify-center">
+                                    <button aria-label="reject call" onClick={rejectCall} className="p-4 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"><PhoneOff className="w-6 h-6" /></button>
+                                    <button aria-label="accept call" onClick={acceptCall} className="p-4 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors shadow-lg"><Phone className="w-6 h-6" /></button>
+                                </div>
+                            </motion.div>
                         </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    )}
+                </AnimatePresence>
 
-            {/* ========== Contact List Modal ========== */}
-            <AnimatePresence>
-                {showContactList && (
-                    <motion.div
-                        ref={contactListRef}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
-                    >
+                {/* ========== Add to Call Modal ========== */}
+                <AnimatePresence>
+                    {showAddToCallModal && (
                         <motion.div
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-2xl pointer-events-auto"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
+                            onClick={() => setShowAddToCallModal(false)}
                         >
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold">New Chat</h3>
-                                <button onClick={() => setShowContactList(false)} className="p-2 hover:bg-gray-100 rounded-full">
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-                            {contacts.length === 0 ? (
-                                <p className="text-center text-gray-400 py-8">No contacts yet</p>
-                            ) : (
-                                contacts.map(user => (
-                                    <div
-                                        key={user._id}
-                                        onClick={async () => {
-                                            const conv = await getConversation(user._id);
-                                            if (conv) selectConversation(conv);
-                                            setShowContactList(false);
-                                        }}
-                                        className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer"
-                                    >
-                                        <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
-                                            <img src={user.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
+                            <motion.div
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-md max-h-[70vh] overflow-y-auto shadow-xl z-[61]"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <h3 className="text-lg font-bold mb-4">Add to Call</h3>
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    {contacts.map(user => (
+                                        <div key={user._id} onClick={() => { socket?.emit('webrtc:call:initiate', { targets: [user._id], isVideo: isVideoMode, metadata: { callerName: authUser?.displayName, callId: activeCall?.callId } }); toast.success(`Invited ${user.displayName}`); setShowAddToCallModal(false); }} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
+                                            <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden"><img src={user.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" /></div>
+                                            <span className="text-sm font-medium">{user.displayName}</span>
                                         </div>
-                                        <div>
-                                            <p className="font-medium text-sm">{user.displayName}</p>
-                                            <p className="text-xs text-gray-400">@{user.username}</p>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
+                                    ))}
+                                </div>
+                                <button onClick={() => setShowAddToCallModal(false)} className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
+                            </motion.div>
                         </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    )}
+                </AnimatePresence>
 
-            {/* ========== Incoming Call ========== */}
-            <AnimatePresence>
-                {incomingCall && (
-                    <motion.div
-                        ref={callRef}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
-                    >
-                        <motion.div
-                            initial={{ scale: 0.9, y: 20 }}
-                            animate={{ scale: 1, y: 0 }}
-                            className="bg-white rounded-2xl p-8 w-[90%] max-w-xs text-center shadow-2xl"
-                        >
-                            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                {incomingCall.isVideo ? <Video className="w-10 h-10 text-blue-400" /> : <Phone className="w-10 h-10 text-blue-400" />}
-                            </div>
-                            <h3 className="text-xl font-bold mb-1">
-                                {incomingCall.isGroupCall ? `Group Call: ${incomingCall.metadata?.groupName || 'Group'}` : `Incoming ${incomingCall.isVideo ? 'Video' : 'Audio'} Call`}
-                            </h3>
-                            <p className="text-gray-500 mb-6">
-                                {incomingCall.isGroupCall ? `${incomingCall.callerName} is calling the group` : `${incomingCall.callerName} is calling...`}
-                            </p>
-                            <div className="flex gap-4 justify-center">
-                                <button onClick={rejectCall} className="p-4 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"><PhoneOff className="w-6 h-6" /></button>
-                                <button onClick={acceptCall} className="p-4 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors shadow-lg"><Phone className="w-6 h-6" /></button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* ========== Add to Call Modal ========== */}
-            <AnimatePresence>
-                {showAddToCallModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
-                        onClick={() => setShowAddToCallModal(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-md max-h-[70vh] overflow-y-auto shadow-xl z-[61]"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <h3 className="text-lg font-bold mb-4">Add to Call</h3>
-                            <div className="space-y-2 max-h-48 overflow-y-auto">
-                                {contacts.map(user => (
-                                    <div key={user._id} onClick={() => { socket?.emit('webrtc:call:initiate', { targets: [user._id], isVideo: isVideoMode, metadata: { callerName: authUser?.displayName, callId: activeCall?.callId } }); toast.success(`Invited ${user.displayName}`); setShowAddToCallModal(false); }} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
-                                        <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden"><img src={user.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" /></div>
-                                        <span className="text-sm font-medium">{user.displayName}</span>
-                                    </div>
-                                ))}
-                            </div>
-                            <button onClick={() => setShowAddToCallModal(false)} className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* ========== Delete Message Modal ========== */}
-            <AnimatePresence>
-                {showDeleteModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowDeleteModal(null)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-xs shadow-xl"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <h3 className="text-lg font-bold mb-4">Delete Message</h3>
-                            <p className="text-sm text-gray-500 mb-4">Choose how you want to delete this message.</p>
-                            <div className="space-y-2">
-                                <button onClick={() => { handleDeleteForMe(showDeleteModal); setShowDeleteModal(null); }} className="w-full py-2.5 rounded-xl font-medium hover:bg-gray-50 flex items-center justify-center gap-2 text-gray-600">
-                                    <Trash2 className="w-4 h-4" /> Delete for me
-                                </button>
-                                <button onClick={() => { handleDeleteForEveryone(showDeleteModal); setShowDeleteModal(null); }} className="w-full py-2.5 rounded-xl font-medium hover:bg-red-50 flex items-center justify-center gap-2 text-red-500">
-                                    <Trash2 className="w-4 h-4" /> Delete for everyone
-                                </button>
-                            </div>
-                            <button onClick={() => setShowDeleteModal(null)} className="mt-2 w-full py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* ========== Poll Voters Modal ========== */}
-            <AnimatePresence>
-                {showPollVoters && (() => {
-                    const msg = messages.find(m => m._id === showPollVoters);
-                    if (!msg || !msg.poll) return null;
-                    return (
+                {/* ========== Delete Message Modal ========== */}
+                <AnimatePresence>
+                    {showDeleteModal && (
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                            onClick={() => { setShowPollVoters(null); setPollVoterDetails({}); }}
+                            onClick={() => setShowDeleteModal(null)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-xs shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <h3 className="text-lg font-bold mb-4">Delete Message</h3>
+                                <p className="text-sm text-gray-500 mb-4">Choose how you want to delete this message.</p>
+                                <div className="space-y-2">
+                                    <button onClick={() => { handleDeleteForMe(showDeleteModal); setShowDeleteModal(null); }} className="w-full py-2.5 rounded-xl font-medium hover:bg-gray-50 flex items-center justify-center gap-2 text-gray-600">
+                                        <Trash2 className="w-4 h-4" /> Delete for me
+                                    </button>
+                                    <button onClick={() => { handleDeleteForEveryone(showDeleteModal); setShowDeleteModal(null); }} className="w-full py-2.5 rounded-xl font-medium hover:bg-red-50 flex items-center justify-center gap-2 text-red-500">
+                                        <Trash2 className="w-4 h-4" /> Delete for everyone
+                                    </button>
+                                </div>
+                                <button onClick={() => setShowDeleteModal(null)} className="mt-2 w-full py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* ========== Poll Voters Modal ========== */}
+                <AnimatePresence>
+                    {showPollVoters && (() => {
+                        const msg = messages.find(m => m._id === showPollVoters);
+                        if (!msg || !msg.poll) return null;
+                        return (
+                            <motion.div
+                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                                onClick={() => { setShowPollVoters(null); setPollVoterDetails({}); }}
+                            >
+                                <motion.div
+                                    initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                                    className="bg-white rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
+                                    onClick={e => e.stopPropagation()}
+                                >
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-lg font-bold">Poll Voters</h3>
+                                        <button onClick={() => { setShowPollVoters(null); setPollVoterDetails({}); }} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+                                    </div>
+                                    {loadingPollVoters ? (
+                                        <p className="text-center text-gray-400 py-4">Loading...</p>
+                                    ) : (
+                                        msg.poll.options.map((opt, idx) => {
+                                            const voters = Object.entries(msg.poll.votes || {}).filter(([, option]) => {
+                                                if (Array.isArray(option)) return option.includes(idx);
+                                                return option === idx;
+                                            }).map(([uid]) => uid);
+                                            return (
+                                                <div key={idx} className="mb-3">
+                                                    <p className="font-semibold text-sm mb-1">{opt}</p>
+                                                    {voters.length === 0 ? (
+                                                        <p className="text-xs text-gray-400 ml-2">No votes</p>
+                                                    ) : (
+                                                        <ul className="text-xs text-gray-600 ml-2 space-y-0.5">
+                                                            <div className="max-h-40 overflow-y-auto">
+                                                                {voters.map(uid => (
+                                                                    <li key={uid} className="flex items-center gap-2 py-2">
+                                                                        <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
+                                                                            {pollVoterDetails[uid]?.avatarUrl ? (
+                                                                                <img src={pollVoterDetails[uid].avatarUrl} alt="" className="w-full h-full object-cover" />
+                                                                            ) : (
+                                                                                <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white text-[10px] font-bold">{(pollVoterDetails[uid]?.displayName || uid).charAt(0)}</div>
+                                                                            )}
+                                                                        </div>
+                                                                        <span>{pollVoterDetails[uid]?.displayName || pollVoterDetails[uid]?.username || uid}</span>
+                                                                    </li>
+                                                                ))}
+                                                            </div>
+                                                        </ul>
+                                                    )}
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                    <button onClick={() => { setShowPollVoters(null); setPollVoterDetails({}); }} className="mt-4 w-full py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Close</button>
+                                </motion.div>
+                            </motion.div>
+                        );
+                    })()}
+                </AnimatePresence>
+
+                {/* ========== Disappearing Messages Modal ========== */}
+                <AnimatePresence>
+                    {showDisappearingModal && (
+                        <motion.div
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowDisappearingModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <h3 className="text-lg font-bold mb-4">Disappearing Messages</h3>
+                                <p className="text-sm text-gray-500 mb-4">Messages will be automatically deleted after the selected time.</p>
+                                <div className="space-y-2">
+                                    {[
+                                        { label: '24 hours', value: 86400 },
+                                        { label: '7 days', value: 604800 },
+                                        { label: '90 days', value: 7776000 },
+                                        { label: 'Off', value: null },
+                                    ].map(option => (
+                                        <button
+                                            key={option.value}
+                                            onClick={async () => {
+                                                try {
+                                                    const token = localStorage.getItem('access-token');
+                                                    await axiosInstance.put(
+                                                        `/chat/conversation/${selectedConversation._id}/disappearing`,
+                                                        { timer: option.value },
+                                                        { headers: { Authorization: `Bearer ${token}` } }
+                                                    );
+                                                    // Update the conversation in the store WITHOUT clearing messages
+                                                    const updatedConv = { ...selectedConversation, disappearingTimer: option.value };
+                                                    const updatedConversations = conversations.map(c =>
+                                                        c._id === selectedConversation._id ? updatedConv : c
+                                                    );
+                                                    useChatStore.setState({
+                                                        conversations: updatedConversations,
+                                                        selectedConversation: updatedConv,
+                                                    });
+                                                    toast.success(
+                                                        option.value ? `Disappearing after ${option.label}` : 'Disappearing messages off'
+                                                    );
+                                                    setShowDisappearingModal(false);
+                                                } catch (error) {
+                                                    toast.error('Failed to update');
+                                                }
+                                            }}
+                                            className={`w-full py-2.5 rounded-xl text-sm font-medium ${selectedConversation?.disappearingTimer === option.value ? 'bg-blue-50 text-blue-500' : 'hover:bg-gray-50 text-gray-600'}`}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <button onClick={() => setShowDisappearingModal(false)} className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* ========== Wallpaper Modal ========== */}
+                <AnimatePresence>
+                    {showWallpaperModal && (
+                        <motion.div
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowWallpaperModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[520px] max-h-[85vh] overflow-y-auto shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold">Chat Wallpaper</h3>
+                                    <button onClick={() => setShowWallpaperModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                {/* Search Bar */}
+                                <div className="relative mb-4">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search wallpapers... (e.g. forest, ocean, sky)"
+                                        value={wallpaperSearch}
+                                        onChange={(e) => {
+                                            setWallpaperSearch(e.target.value);
+                                            fetchWallpapers(e.target.value || "nature", 1, false);
+                                        }}
+                                        className="w-full pl-10 pr-4 py-2 bg-gray-50 rounded-lg text-sm focus:outline-none"
+                                    />
+                                </div>
+
+                                {/* Unsplash Results with Infinite Scroll */}
+                                <div className="mb-4">
+                                    <p className="text-sm text-gray-500 mb-2">Browse Wallpapers</p>
+                                    <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+                                        {wallpapers.map(img => (
+                                            <div key={img.id} className="relative group">
+                                                <img
+                                                    src={img.thumb}
+                                                    alt=""
+                                                    className="w-full h-24 object-cover rounded-lg cursor-pointer"
+                                                    onClick={() => {
+                                                        updateConvoSetting('wallpaper', img.url);
+                                                        setShowWallpaperModal(false);
+                                                        toast.success('Wallpaper updated');
+                                                    }}
+                                                />
+                                                <button
+                                                    onClick={() => handleSaveWallpaper(img.url, img.thumb, "unsplash")}
+                                                    className="absolute top-1 right-1 p-1 bg-white/80 rounded-full hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    title="Save to my wallpapers"
+                                                >
+                                                    <Download className="w-3 h-3 text-gray-700" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {loadingWallpapers && (
+                                            <div className="col-span-3 text-center py-4 text-sm text-gray-400">Loading...</div>
+                                        )}
+                                    </div>
+                                    {wallpaperPage < wallpaperTotalPages && !loadingWallpapers && (
+                                        <button
+                                            onClick={() => fetchWallpapers(wallpaperSearch || "nature", wallpaperPage + 1, true)}
+                                            className="w-full mt-2 py-2 text-sm text-blue-400 hover:bg-blue-50 rounded-lg transition-colors"
+                                        >
+                                            Load More
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Plain Colors */}
+                                <div className="border-t border-gray-100 pt-4 mb-4">
+                                    <p className="text-sm text-gray-500 mb-2">
+                                        Plain Colors
+                                        <a
+                                            href="https://colors.codes"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-400 hover:text-blue-500 ml-1 text-xs"
+                                        >
+                                            (find hex codes at colors.codes)
+                                        </a>
+                                    </p>
+                                    <div className="grid grid-cols-8 gap-2 max-h-40 overflow-y-auto">
+                                        {Object.entries(themeColorMap).map(([name, color]) => (
+                                            <div
+                                                key={name}
+                                                className="w-8 h-8 rounded-full cursor-pointer border-2 hover:scale-110 transition-transform"
+                                                style={{
+                                                    backgroundColor: color,
+                                                    borderColor: convoSettings.wallpaper === color ? '#3b82f6' : 'transparent',
+                                                }}
+                                                onClick={() => {
+                                                    updateConvoSetting('wallpaper', color);
+                                                    setShowWallpaperModal(false);
+                                                    toast.success(`Wallpaper set to ${name}`);
+                                                }}
+                                                title={name}
+                                            />
+                                        ))}
+                                    </div>
+
+                                    {/* Custom Hex Color */}
+                                    <div className="mt-3 flex gap-2 items-center">
+                                        <input
+                                            type="color"
+                                            value={hexWallpaperInput.startsWith('#') ? hexWallpaperInput : '#000000'}
+                                            onChange={(e) => setHexWallpaperInput(e.target.value)}
+                                            className="w-10 h-10 rounded cursor-pointer border-0 p-0"
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="#RRGGBB"
+                                            value={hexWallpaperInput}
+                                            onChange={(e) => setHexWallpaperInput(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    handleAddWallpaperColor();
+                                                }
+                                            }}
+                                            className="flex-1 px-3 py-2 bg-gray-50 rounded-lg text-sm focus:outline-none"
+                                            maxLength={7}
+                                        />
+                                        <button
+                                            onClick={handleAddWallpaperColor}
+                                            className="px-4 py-2 bg-blue-400 text-white rounded-lg text-sm font-medium hover:bg-blue-500"
+                                        >
+                                            Set
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 mt-1">
+                                        Enter a hex code or pick a color above
+                                    </p>
+                                </div>
+
+                                {/* My Wallpapers (Uploaded & Saved) */}
+                                <div className="border-t border-gray-100 pt-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <p className="text-sm text-gray-500">My Wallpapers</p>
+                                        <label className="cursor-pointer text-sm text-blue-400 hover:text-blue-500">
+                                            <Upload className="w-4 h-4 inline mr-1" />
+                                            Upload
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (!file) return;
+                                                    // Upload to MinIO and save
+                                                    try {
+                                                        const uploadResult = await useChatStore.getState().uploadChatMedia({
+                                                            file,
+                                                            conversationId: selectedConversation._id,
+                                                            mediaType: 'wallpapers',
+                                                        });
+                                                        await handleSaveWallpaper(uploadResult.url, uploadResult.url, "upload");
+                                                    } catch (error) {
+                                                        toast.error('Upload failed');
+                                                    }
+                                                }}
+                                            />
+                                        </label>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto">
+                                        {myWallpapers.map(wp => (
+                                            <div key={wp._id} className="relative group">
+                                                <img
+                                                    src={wp.thumb || wp.url}
+                                                    alt=""
+                                                    className="w-full h-20 object-cover rounded-lg cursor-pointer"
+                                                    onClick={() => {
+                                                        updateConvoSetting('wallpaper', wp.url);
+                                                        setShowWallpaperModal(false);
+                                                        toast.success('Wallpaper updated');
+                                                    }}
+                                                />
+                                                <button
+                                                    onClick={() => handleDeleteWallpaper(wp._id)}
+                                                    className="absolute top-1 right-1 p-1 bg-white/80 rounded-full hover:bg-red-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    title="Delete wallpaper"
+                                                >
+                                                    <Trash2 className="w-3 h-3 text-red-500" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {myWallpapers.length === 0 && (
+                                            <div className="col-span-3 text-center text-sm text-gray-400 py-4">
+                                                No saved wallpapers
+                                            </div>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            updateConvoSetting('wallpaper', null);
+                                            setShowWallpaperModal(false);
+                                            toast.success('Wallpaper set to default');
+                                        }}
+                                        className="w-full py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200 mb-3"
+                                    >
+                                        Set to Default
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* ========== Translate Modal ========== */}
+                <AnimatePresence>
+                    {showTranslateModal && (
+                        <motion.div
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowTranslateModal(null)}
                         >
                             <motion.div
                                 initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
                                 className="bg-white rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-bold">Poll Voters</h3>
-                                    <button onClick={() => { setShowPollVoters(null); setPollVoterDetails({}); }} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+                                <h3 className="text-lg font-bold mb-4">Translate to</h3>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {TRANSLATE_LANGUAGES.map((lang) => (
+                                        <button key={lang.code} onClick={() => { const messageId = showTranslateModal; const message = messages.find(m => m._id === messageId); if (message?.text) handleTranslate(messageId, message.text, lang.code); setShowTranslateModal(null); }} className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors text-sm text-gray-700">
+                                            <span className="text-lg">{lang.flag}</span> <span>{lang.label}</span>
+                                        </button>
+                                    ))}
                                 </div>
-                                {loadingPollVoters ? (
-                                    <p className="text-center text-gray-400 py-4">Loading...</p>
-                                ) : (
-                                    msg.poll.options.map((opt, idx) => {
-                                        const voters = Object.entries(msg.poll.votes || {}).filter(([, option]) => {
-                                            if (Array.isArray(option)) return option.includes(idx);
-                                            return option === idx;
-                                        }).map(([uid]) => uid);
-                                        return (
-                                            <div key={idx} className="mb-3">
-                                                <p className="font-semibold text-sm mb-1">{opt}</p>
-                                                {voters.length === 0 ? (
-                                                    <p className="text-xs text-gray-400 ml-2">No votes</p>
-                                                ) : (
-                                                    <ul className="text-xs text-gray-600 ml-2 space-y-0.5">
-                                                        <div className="max-h-40 overflow-y-auto">
-                                                            {voters.map(uid => (
-                                                                <li key={uid} className="flex items-center gap-2 py-2">
-                                                                    <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
-                                                                        {pollVoterDetails[uid]?.avatarUrl ? (
-                                                                            <img src={pollVoterDetails[uid].avatarUrl} alt="" className="w-full h-full object-cover" />
-                                                                        ) : (
-                                                                            <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white text-[10px] font-bold">{(pollVoterDetails[uid]?.displayName || uid).charAt(0)}</div>
-                                                                        )}
-                                                                    </div>
-                                                                    <span>{pollVoterDetails[uid]?.displayName || pollVoterDetails[uid]?.username || uid}</span>
-                                                                </li>
-                                                            ))}
-                                                        </div>
-                                                    </ul>
-                                                )}
-                                            </div>
-                                        );
-                                    })
-                                )}
-                                <button onClick={() => { setShowPollVoters(null); setPollVoterDetails({}); }} className="mt-4 w-full py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Close</button>
+                                <button onClick={() => setShowTranslateModal(null)} className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
                             </motion.div>
                         </motion.div>
-                    );
-                })()}
-            </AnimatePresence>
+                    )}
+                </AnimatePresence>
 
-            {/* ========== Disappearing Messages Modal ========== */}
-            <AnimatePresence>
-                {showDisappearingModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowDisappearingModal(false)}
-                    >
+                {/* ========== Theme Modal ========== */}
+                <AnimatePresence>
+                    {showThemeModal && (
                         <motion.div
-                            initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
-                            onClick={e => e.stopPropagation()}
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                            onClick={() => setShowThemeModal(false)}
                         >
-                            <h3 className="text-lg font-bold mb-4">Disappearing Messages</h3>
-                            <p className="text-sm text-gray-500 mb-4">Messages will be automatically deleted after the selected time.</p>
-                            <div className="space-y-2">
-                                {[
-                                    { label: '24 hours', value: 86400 },
-                                    { label: '7 days', value: 604800 },
-                                    { label: '90 days', value: 7776000 },
-                                    { label: 'Off', value: null },
-                                ].map(option => (
-                                    <button
-                                        key={option.value}
-                                        onClick={async () => {
-                                            try {
-                                                const token = localStorage.getItem('access-token');
-                                                await axiosInstance.put(
-                                                    `/chat/conversation/${selectedConversation._id}/disappearing`,
-                                                    { timer: option.value },
-                                                    { headers: { Authorization: `Bearer ${token}` } }
-                                                );
-                                                // Update the conversation in the store WITHOUT clearing messages
-                                                const updatedConv = { ...selectedConversation, disappearingTimer: option.value };
-                                                const updatedConversations = conversations.map(c =>
-                                                    c._id === selectedConversation._id ? updatedConv : c
-                                                );
-                                                useChatStore.setState({
-                                                    conversations: updatedConversations,
-                                                    selectedConversation: updatedConv,
-                                                });
-                                                toast.success(
-                                                    option.value ? `Disappearing after ${option.label}` : 'Disappearing messages off'
-                                                );
-                                                setShowDisappearingModal(false);
-                                            } catch (error) {
-                                                toast.error('Failed to update');
-                                            }
-                                        }}
-                                        className={`w-full py-2.5 rounded-xl text-sm font-medium ${selectedConversation?.disappearingTimer === option.value ? 'bg-blue-50 text-blue-500' : 'hover:bg-gray-50 text-gray-600'}`}
-                                    >
-                                        {option.label}
+                            <motion.div
+                                initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-[480px] max-h-[80vh] overflow-y-auto shadow-xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold">Chat Theme</h3>
+                                    <button onClick={() => setShowThemeModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                                        <X className="w-5 h-5" />
                                     </button>
-                                ))}
-                            </div>
-                            <button onClick={() => setShowDisappearingModal(false)} className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* ========== Wallpaper Modal ========== */}
-            <AnimatePresence>
-                {showWallpaperModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowWallpaperModal(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[520px] max-h-[85vh] overflow-y-auto shadow-xl"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold">Chat Wallpaper</h3>
-                                <button onClick={() => setShowWallpaperModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-
-                            {/* Search Bar */}
-                            <div className="relative mb-4">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Search wallpapers... (e.g. forest, ocean, sky)"
-                                    value={wallpaperSearch}
-                                    onChange={(e) => {
-                                        setWallpaperSearch(e.target.value);
-                                        fetchWallpapers(e.target.value || "nature", 1, false);
-                                    }}
-                                    className="w-full pl-10 pr-4 py-2 bg-gray-50 rounded-lg text-sm focus:outline-none"
-                                />
-                            </div>
-
-                            {/* Unsplash Results with Infinite Scroll */}
-                            <div className="mb-4">
-                                <p className="text-sm text-gray-500 mb-2">Browse Wallpapers</p>
-                                <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
-                                    {wallpapers.map(img => (
-                                        <div key={img.id} className="relative group">
-                                            <img
-                                                src={img.thumb}
-                                                alt=""
-                                                className="w-full h-24 object-cover rounded-lg cursor-pointer"
-                                                onClick={() => {
-                                                    updateConvoSetting('wallpaper', img.url);
-                                                    setShowWallpaperModal(false);
-                                                    toast.success('Wallpaper updated');
-                                                }}
-                                            />
-                                            <button
-                                                onClick={() => handleSaveWallpaper(img.url, img.thumb, "unsplash")}
-                                                className="absolute top-1 right-1 p-1 bg-white/80 rounded-full hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
-                                                title="Save to my wallpapers"
-                                            >
-                                                <Download className="w-3 h-3 text-gray-700" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                    {loadingWallpapers && (
-                                        <div className="col-span-3 text-center py-4 text-sm text-gray-400">Loading...</div>
-                                    )}
-                                </div>
-                                {wallpaperPage < wallpaperTotalPages && !loadingWallpapers && (
-                                    <button
-                                        onClick={() => fetchWallpapers(wallpaperSearch || "nature", wallpaperPage + 1, true)}
-                                        className="w-full mt-2 py-2 text-sm text-blue-400 hover:bg-blue-50 rounded-lg transition-colors"
-                                    >
-                                        Load More
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Plain Colors */}
-                            <div className="border-t border-gray-100 pt-4 mb-4">
-                                <p className="text-sm text-gray-500 mb-2">
-                                    Plain Colors
-                                    <a
-                                        href="https://colors.codes"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-blue-400 hover:text-blue-500 ml-1 text-xs"
-                                    >
-                                        (find hex codes at colors.codes)
-                                    </a>
-                                </p>
-                                <div className="grid grid-cols-8 gap-2 max-h-40 overflow-y-auto">
-                                    {Object.entries(themeColorMap).map(([name, color]) => (
-                                        <div
-                                            key={name}
-                                            className="w-8 h-8 rounded-full cursor-pointer border-2 hover:scale-110 transition-transform"
-                                            style={{
-                                                backgroundColor: color,
-                                                borderColor: convoSettings.wallpaper === color ? '#3b82f6' : 'transparent',
-                                            }}
-                                            onClick={() => {
-                                                updateConvoSetting('wallpaper', color);
-                                                setShowWallpaperModal(false);
-                                                toast.success(`Wallpaper set to ${name}`);
-                                            }}
-                                            title={name}
-                                        />
-                                    ))}
                                 </div>
 
-                                {/* Custom Hex Color */}
-                                <div className="mt-3 flex gap-2 items-center">
-                                    <input
-                                        type="color"
-                                        value={hexWallpaperInput.startsWith('#') ? hexWallpaperInput : '#000000'}
-                                        onChange={(e) => setHexWallpaperInput(e.target.value)}
-                                        className="w-10 h-10 rounded cursor-pointer border-0 p-0"
-                                    />
+                                <p className="text-sm text-gray-500 mb-4">Choose a preset color or enter a custom hex code.</p>
+
+                                {/* Search Bar */}
+                                <div className="relative mb-4">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input
                                         type="text"
-                                        placeholder="#RRGGBB"
-                                        value={hexWallpaperInput}
-                                        onChange={(e) => setHexWallpaperInput(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                handleAddWallpaperColor();
-                                            }
-                                        }}
-                                        className="flex-1 px-3 py-2 bg-gray-50 rounded-lg text-sm focus:outline-none"
-                                        maxLength={7}
+                                        placeholder="Search by name or hex..."
+                                        value={searchColorQuery}
+                                        onChange={(e) => setSearchColorQuery(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-2 bg-gray-50 rounded-lg text-sm focus:outline-none"
                                     />
-                                    <button
-                                        onClick={handleAddWallpaperColor}
-                                        className="px-4 py-2 bg-blue-400 text-white rounded-lg text-sm font-medium hover:bg-blue-500"
-                                    >
-                                        Set
-                                    </button>
                                 </div>
-                                <p className="text-[10px] text-gray-400 mt-1">
-                                    Enter a hex code or pick a color above
-                                </p>
-                            </div>
 
-                            {/* My Wallpapers (Uploaded & Saved) */}
-                            <div className="border-t border-gray-100 pt-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <p className="text-sm text-gray-500">My Wallpapers</p>
-                                    <label className="cursor-pointer text-sm text-blue-400 hover:text-blue-500">
-                                        <Upload className="w-4 h-4 inline mr-1" />
-                                        Upload
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            onChange={async (e) => {
-                                                const file = e.target.files?.[0];
-                                                if (!file) return;
-                                                // Upload to MinIO and save
-                                                try {
-                                                    const uploadResult = await useChatStore.getState().uploadChatMedia({
-                                                        file,
-                                                        conversationId: selectedConversation._id,
-                                                        mediaType: 'wallpapers',
-                                                    });
-                                                    await handleSaveWallpaper(uploadResult.url, uploadResult.url, "upload");
-                                                } catch (error) {
-                                                    toast.error('Upload failed');
-                                                }
-                                            }}
-                                        />
-                                    </label>
-                                </div>
-                                <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto">
-                                    {myWallpapers.map(wp => (
-                                        <div key={wp._id} className="relative group">
-                                            <img
-                                                src={wp.thumb || wp.url}
-                                                alt=""
-                                                className="w-full h-20 object-cover rounded-lg cursor-pointer"
-                                                onClick={() => {
-                                                    updateConvoSetting('wallpaper', wp.url);
-                                                    setShowWallpaperModal(false);
-                                                    toast.success('Wallpaper updated');
-                                                }}
-                                            />
+                                {/* Filtered swatches */}
+                                <div className="grid grid-cols-8 gap-3 mb-4 max-h-64 overflow-y-auto">
+                                    {[
+                                        ...Object.entries(themeColorMap).map(([name, color]) => ({ name, color, id: name })),
+                                        ...customColors.map(c => ({ name: c.name, color: c.hex, id: c._id })),
+                                    ]
+                                        .filter(item => {
+                                            const query = searchColorQuery.toLowerCase();
+                                            if (!query) return true;
+                                            return (
+                                                item.name.toLowerCase().includes(query) ||
+                                                item.color.toLowerCase().includes(query)
+                                            );
+                                        })
+                                        .map((item) => (
                                             <button
-                                                onClick={() => handleDeleteWallpaper(wp._id)}
-                                                className="absolute top-1 right-1 p-1 bg-white/80 rounded-full hover:bg-red-100 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                title="Delete wallpaper"
+                                                key={item.id}
+                                                onClick={() => {
+                                                    updateConvoSetting('themeColor', item.color);
+                                                    setShowThemeModal(false);
+                                                    toast.success(`Theme set to ${item.name}`);
+                                                }}
+                                                className="flex flex-col items-center gap-1 p-1 rounded-xl hover:bg-gray-100 transition-colors"
                                             >
-                                                <Trash2 className="w-3 h-3 text-red-500" />
+                                                <div
+                                                    className="w-8 h-8 rounded-full border-2 transition-transform hover:scale-110"
+                                                    style={{
+                                                        backgroundColor: item.color,
+                                                        borderColor: (convoSettings.themeColor || 'emerald') === item.color ? '#3b82f6' : 'transparent',
+                                                    }}
+                                                />
+                                                <span className="text-[10px] text-gray-600 capitalize truncate w-full text-center">
+                                                {item.name}
+                                            </span>
                                             </button>
-                                        </div>
-                                    ))}
-                                    {myWallpapers.length === 0 && (
-                                        <div className="col-span-3 text-center text-sm text-gray-400 py-4">
-                                            No saved wallpapers
+                                        ))}
+                                    {searchColorQuery && customColors.filter(c =>
+                                        c.name.toLowerCase().includes(searchColorQuery.toLowerCase()) ||
+                                        c.hex.toLowerCase().includes(searchColorQuery.toLowerCase())
+                                    ).length === 0 && Object.entries(themeColorMap).filter(([name, color]) =>
+                                        name.toLowerCase().includes(searchColorQuery.toLowerCase()) ||
+                                        color.toLowerCase().includes(searchColorQuery.toLowerCase())
+                                    ).length === 0 && (
+                                        <div className="col-span-8 text-center text-sm text-gray-400 py-4">
+                                            No colors found
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Custom color input */}
+                                <div className="border-t border-gray-100 pt-4">
+                                    <p className="text-sm text-gray-500 mb-2">Add custom color</p>
+                                    <p className="text-sm text-gray-500 mb-2">
+                                        <a
+                                            href="https://colors.codes"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-400 hover:text-blue-500 ml-1 text-xs"
+                                        >
+                                            (find hex codes at colors.codes)
+                                        </a>
+                                    </p>
+                                    <div className="flex gap-2 items-center">
+                                        <input
+                                            type="color"
+                                            value={hexInput.startsWith('#') ? hexInput : '#000000'}
+                                            onChange={(e) => setHexInput(e.target.value)}
+                                            className="w-10 h-10 rounded cursor-pointer border-0 p-0"
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="#RRGGBB"
+                                            value={hexInput}
+                                            onChange={(e) => setHexInput(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    handleAddCustomColor();
+                                                }
+                                            }}
+                                            className="flex-1 px-3 py-2 bg-gray-50 rounded-lg text-sm focus:outline-none"
+                                            maxLength={7}
+                                        />
+                                        <button
+                                            onClick={handleAddCustomColor}
+                                            className="px-4 py-2 bg-blue-400 text-white rounded-lg text-sm font-medium hover:bg-blue-500"
+                                        >
+                                            Add
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 mt-1">Enter a hex code and press Enter or click Add</p>
+                                </div>
+
                                 <button
                                     onClick={() => {
-                                        updateConvoSetting('wallpaper', null);
-                                        setShowWallpaperModal(false);
-                                        toast.success('Wallpaper set to default');
+                                        updateConvoSetting('themeColor', 'emerald');
+                                        setShowThemeModal(false);
+                                        toast.success('Theme set to default');
                                     }}
                                     className="w-full py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200 mb-3"
                                 >
                                     Set to Default
                                 </button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
-            {/* ========== Translate Modal ========== */}
-            <AnimatePresence>
-                {showTranslateModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowTranslateModal(null)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <h3 className="text-lg font-bold mb-4">Translate to</h3>
-                            <div className="grid grid-cols-2 gap-2">
-                                {TRANSLATE_LANGUAGES.map((lang) => (
-                                    <button key={lang.code} onClick={() => { const messageId = showTranslateModal; const message = messages.find(m => m._id === messageId); if (message?.text) handleTranslate(messageId, message.text, lang.code); setShowTranslateModal(null); }} className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors text-sm text-gray-700">
-                                        <span className="text-lg">{lang.flag}</span> <span>{lang.label}</span>
-                                    </button>
-                                ))}
-                            </div>
-                            <button onClick={() => setShowTranslateModal(null)} className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* ========== Theme Modal ========== */}
-            <AnimatePresence>
-                {showThemeModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowThemeModal(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[480px] max-h-[80vh] overflow-y-auto shadow-xl"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold">Chat Theme</h3>
-                                <button onClick={() => setShowThemeModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
-                                    <X className="w-5 h-5" />
+                                <button
+                                    onClick={() => setShowThemeModal(false)}
+                                    className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200"
+                                >
+                                    Cancel
                                 </button>
-                            </div>
-
-                            <p className="text-sm text-gray-500 mb-4">Choose a preset color or enter a custom hex code.</p>
-
-                            {/* Search Bar */}
-                            <div className="relative mb-4">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Search by name or hex..."
-                                    value={searchColorQuery}
-                                    onChange={(e) => setSearchColorQuery(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 bg-gray-50 rounded-lg text-sm focus:outline-none"
-                                />
-                            </div>
-
-                            {/* Filtered swatches */}
-                            <div className="grid grid-cols-8 gap-3 mb-4 max-h-64 overflow-y-auto">
-                                {[
-                                    ...Object.entries(themeColorMap).map(([name, color]) => ({ name, color, id: name })),
-                                    ...customColors.map(c => ({ name: c.name, color: c.hex, id: c._id })),
-                                ]
-                                    .filter(item => {
-                                        const query = searchColorQuery.toLowerCase();
-                                        if (!query) return true;
-                                        return (
-                                            item.name.toLowerCase().includes(query) ||
-                                            item.color.toLowerCase().includes(query)
-                                        );
-                                    })
-                                    .map((item) => (
-                                        <button
-                                            key={item.id}
-                                            onClick={() => {
-                                                updateConvoSetting('themeColor', item.color);
-                                                setShowThemeModal(false);
-                                                toast.success(`Theme set to ${item.name}`);
-                                            }}
-                                            className="flex flex-col items-center gap-1 p-1 rounded-xl hover:bg-gray-100 transition-colors"
-                                        >
-                                            <div
-                                                className="w-8 h-8 rounded-full border-2 transition-transform hover:scale-110"
-                                                style={{
-                                                    backgroundColor: item.color,
-                                                    borderColor: (convoSettings.themeColor || 'emerald') === item.color ? '#3b82f6' : 'transparent',
-                                                }}
-                                            />
-                                            <span className="text-[10px] text-gray-600 capitalize truncate w-full text-center">
-                                                {item.name}
-                                            </span>
-                                        </button>
-                                    ))}
-                                {searchColorQuery && customColors.filter(c =>
-                                    c.name.toLowerCase().includes(searchColorQuery.toLowerCase()) ||
-                                    c.hex.toLowerCase().includes(searchColorQuery.toLowerCase())
-                                ).length === 0 && Object.entries(themeColorMap).filter(([name, color]) =>
-                                    name.toLowerCase().includes(searchColorQuery.toLowerCase()) ||
-                                    color.toLowerCase().includes(searchColorQuery.toLowerCase())
-                                ).length === 0 && (
-                                    <div className="col-span-8 text-center text-sm text-gray-400 py-4">
-                                        No colors found
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Custom color input */}
-                            <div className="border-t border-gray-100 pt-4">
-                                <p className="text-sm text-gray-500 mb-2">Add custom color</p>
-                                <p className="text-sm text-gray-500 mb-2">
-                                    <a
-                                        href="https://colors.codes"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-blue-400 hover:text-blue-500 ml-1 text-xs"
-                                    >
-                                        (find hex codes at colors.codes)
-                                    </a>
-                                </p>
-                                <div className="flex gap-2 items-center">
-                                    <input
-                                        type="color"
-                                        value={hexInput.startsWith('#') ? hexInput : '#000000'}
-                                        onChange={(e) => setHexInput(e.target.value)}
-                                        className="w-10 h-10 rounded cursor-pointer border-0 p-0"
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="#RRGGBB"
-                                        value={hexInput}
-                                        onChange={(e) => setHexInput(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                handleAddCustomColor();
-                                            }
-                                        }}
-                                        className="flex-1 px-3 py-2 bg-gray-50 rounded-lg text-sm focus:outline-none"
-                                        maxLength={7}
-                                    />
-                                    <button
-                                        onClick={handleAddCustomColor}
-                                        className="px-4 py-2 bg-blue-400 text-white rounded-lg text-sm font-medium hover:bg-blue-500"
-                                    >
-                                        Add
-                                    </button>
-                                </div>
-                                <p className="text-[10px] text-gray-400 mt-1">Enter a hex code and press Enter or click Add</p>
-                            </div>
-
-                            <button
-                                onClick={() => {
-                                    updateConvoSetting('themeColor', 'emerald');
-                                    setShowThemeModal(false);
-                                    toast.success('Theme set to default');
-                                }}
-                                className="w-full py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200 mb-3"
-                            >
-                                Set to Default
-                            </button>
-
-                            <button
-                                onClick={() => setShowThemeModal(false)}
-                                className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200"
-                            >
-                                Cancel
-                            </button>
+                            </motion.div>
                         </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    )}
+                </AnimatePresence>
 
-            {/* ========== Message Info Modal ========== */}
-            <AnimatePresence>
-                {showMessageInfo && (() => {
-                    const msg = messages.find(m => m._id === showMessageInfo);
-                    if (!msg) return null;
-                    return (
+                {/* ========== Message Info Modal ========== */}
+                <AnimatePresence>
+                    {showMessageInfo && (() => {
+                        const msg = messages.find(m => m._id === showMessageInfo);
+                        if (!msg) return null;
+                        return (
+                            <motion.div
+                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                                onClick={() => setShowMessageInfo(null)}
+                            >
+                                <motion.div
+                                    initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                                    className="bg-white rounded-2xl p-6 w-[90%] max-w-sm max-h-[80vh] overflow-y-auto shadow-xl"
+                                    onClick={e => e.stopPropagation()}
+                                >
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-lg font-bold">Message Info</h3>
+                                        <button onClick={() => setShowMessageInfo(null)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"><Check className="w-5 h-5 text-gray-500" /></div><div><p className="text-sm font-medium">Sent</p><p className="text-xs text-gray-400">{formatMessageTime(msg.createdAt)}</p></div></div>
+                                        {msg.deliveredAt && <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"><CheckCheck className="w-5 h-5 text-gray-500" /></div><div><p className="text-sm font-medium">Delivered</p><p className="text-xs text-gray-400">{formatMessageTime(msg.deliveredAt)}</p></div></div>}
+                                        {msg.status === 'read' && msg.readAt && <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center"><CheckCheck className="w-5 h-5 text-blue-400" /></div><div><p className="text-sm font-medium">Read</p><p className="text-xs text-gray-400">{Object.values(msg.readAt).length > 0 ? formatMessageTime(Object.values(msg.readAt)[0]) : 'Unknown'}</p></div></div>}
+                                    </div>
+                                    <button onClick={() => setShowMessageInfo(null)} className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Close</button>
+                                </motion.div>
+                            </motion.div>
+                        );
+                    })()}
+                </AnimatePresence>
+
+                {/* ========== Location Picker ========== */}
+                <AnimatePresence>
+                    {showLocationPicker && (
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                            onClick={() => setShowMessageInfo(null)}
+                            onClick={() => setShowLocationPicker(false)}
                         >
                             <motion.div
                                 initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                                className="bg-white rounded-2xl p-6 w-[90%] max-w-sm max-h-[80vh] overflow-y-auto shadow-xl"
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-bold">Message Info</h3>
-                                    <button onClick={() => setShowMessageInfo(null)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
-                                </div>
-                                <div className="space-y-3">
-                                    <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"><Check className="w-5 h-5 text-gray-500" /></div><div><p className="text-sm font-medium">Sent</p><p className="text-xs text-gray-400">{formatMessageTime(msg.createdAt)}</p></div></div>
-                                    {msg.deliveredAt && <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"><CheckCheck className="w-5 h-5 text-gray-500" /></div><div><p className="text-sm font-medium">Delivered</p><p className="text-xs text-gray-400">{formatMessageTime(msg.deliveredAt)}</p></div></div>}
-                                    {msg.status === 'read' && msg.readAt && <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center"><CheckCheck className="w-5 h-5 text-blue-400" /></div><div><p className="text-sm font-medium">Read</p><p className="text-xs text-gray-400">{Object.values(msg.readAt).length > 0 ? formatMessageTime(Object.values(msg.readAt)[0]) : 'Unknown'}</p></div></div>}
-                                </div>
-                                <button onClick={() => setShowMessageInfo(null)} className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Close</button>
+                                <LocationPicker onClose={onLocationPickerClose} onSelect={onLocationPickerSelect} />
                             </motion.div>
                         </motion.div>
-                    );
-                })()}
-            </AnimatePresence>
+                    )}
+                </AnimatePresence>
 
-            {/* ========== Location Picker ========== */}
-            <AnimatePresence>
-                {showLocationPicker && (
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-                        onClick={() => setShowLocationPicker(false)}
-                    >
+                {/* ========== Sticker Editor ========== */}
+                <AnimatePresence>
+                    {showStickerEditor && (
+                        <Suspense fallback={null}>
+                            <StickerEditor
+                                onClose={() => setShowStickerEditor(false)}
+                                onSave={async (blob) => { /* upload and save logic unchanged */ setShowStickerEditor(false); }}
+                            />
+                        </Suspense>
+                    )}
+                </AnimatePresence>
+
+                {/* Active Call */}
+                <AnimatePresence>
+                    {activeCall && (
                         <motion.div
-                            initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
-                            onClick={e => e.stopPropagation()}
+                            ref={activeCallRef}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={
+                                isCallMinimized
+                                    ? { opacity: 1, scale: 1, width: 300, height: 200, bottom: 20, right: 20, position: 'fixed' }
+                                    : { opacity: 1, scale: 1, width: '100%', height: '100%', inset: 0, position: 'fixed' }
+                            }
+                            className="z-50 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl"
                         >
-                            <LocationPicker onClose={onLocationPickerClose} onSelect={onLocationPickerSelect} />
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* ========== Sticker Editor ========== */}
-            <AnimatePresence>
-                {showStickerEditor && (
-                    <StickerEditor
-                        onClose={() => setShowStickerEditor(false)}
-                        onSave={async (blob) => { /* upload and save logic unchanged */ setShowStickerEditor(false); }}
-                    />
-                )}
-            </AnimatePresence>
-
-            {/* Active Call */}
-            <AnimatePresence>
-                {activeCall && (
-                    <motion.div
-                        ref={activeCallRef}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={
-                            isCallMinimized
-                                ? { opacity: 1, scale: 1, width: 300, height: 200, bottom: 20, right: 20, position: 'fixed' }
-                                : { opacity: 1, scale: 1, width: '100%', height: '100%', inset: 0, position: 'fixed' }
-                        }
-                        className="z-50 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl"
-                    >
-                        <div className="relative w-full h-full">
-                            {isVideoMode && remoteStreams.size > 0 ? (
-                                remoteStreams.size === 1 ? (
-                                    Array.from(remoteStreams.entries()).map(([userId, stream]) => (
-                                        <video
-                                            key={userId}
-                                            ref={el => {
-                                                if (el) { remoteVideoRefs.current.set(userId, el); el.srcObject = stream; }
-                                            }}
-                                            autoPlay playsInline className="w-full h-full object-cover"
-                                        />
-                                    ))
-                                ) : (
-                                    <div className={`w-full h-full p-4 grid gap-2 ${
-                                        remoteStreams.size === 2 ? 'grid-cols-2' : remoteStreams.size <= 4 ? 'grid-cols-2' : 'grid-cols-3'
-                                    }`}>
-                                        {Array.from(remoteStreams.entries()).map(([userId, stream]) => (
-                                            <div key={userId} className="relative rounded-xl overflow-hidden bg-gray-800">
-                                                <video
-                                                    ref={el => {
-                                                        if (el) { remoteVideoRefs.current.set(userId, el); el.srcObject = stream; }
-                                                    }}
-                                                    autoPlay playsInline className="w-full h-full object-cover"
-                                                />
-                                                <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded text-white text-xs">
-                                                    {userId === authUser?._id ? 'You' : 'Participant'}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )
-                            ) : (
-                                <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-                                    <div className="w-24 h-24 bg-blue-400 rounded-full flex items-center justify-center mb-4">
-                                        <Phone className="w-12 h-12 text-white" />
-                                    </div>
-                                    <p className="text-white text-lg font-medium">{getOtherUser(selectedConversation)?.displayName || 'Call'}</p>
-                                    <p className="text-gray-400 text-sm">{isVideoMode ? 'Video call' : 'Audio call'}</p>
-                                    {callAnswered ? (
-                                        <div className="mt-6 w-64">
-                                            <AudioWaveform isActive={true} isMuted={isMicMuted} />
-                                            <p className="text-white text-sm mt-2">{formatCallDuration(callDuration)}</p>
-                                        </div>
+                            <div className="relative w-full h-full">
+                                {isVideoMode && remoteStreams.size > 0 ? (
+                                    remoteStreams.size === 1 ? (
+                                        Array.from(remoteStreams.entries()).map(([userId, stream]) => (
+                                            <video
+                                                key={userId}
+                                                ref={el => {
+                                                    if (el) { remoteVideoRefs.current.set(userId, el); el.srcObject = stream; }
+                                                }}
+                                                autoPlay playsInline className="w-full h-full object-cover"
+                                            />
+                                        ))
                                     ) : (
-                                        <div className="mt-6">
-                                            <p className="text-white text-lg animate-pulse">Ringing...</p>
+                                        <div className={`w-full h-full p-4 grid gap-2 ${
+                                            remoteStreams.size === 2 ? 'grid-cols-2' : remoteStreams.size <= 4 ? 'grid-cols-2' : 'grid-cols-3'
+                                        }`}>
+                                            {Array.from(remoteStreams.entries()).map(([userId, stream]) => (
+                                                <div key={userId} className="relative rounded-xl overflow-hidden bg-gray-800">
+                                                    <video
+                                                        ref={el => {
+                                                            if (el) { remoteVideoRefs.current.set(userId, el); el.srcObject = stream; }
+                                                        }}
+                                                        autoPlay playsInline className="w-full h-full object-cover"
+                                                    />
+                                                    <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded text-white text-xs">
+                                                        {userId === authUser?._id ? 'You' : 'Participant'}
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {isVideoMode && localStream && (
-                                <div className="absolute top-4 right-4 w-32 h-44 rounded-xl overflow-hidden border-2 border-white/30 shadow-lg">
-                                    <video
-                                        ref={el => { localVideoRef.current = el; if (el && localStream) el.srcObject = localStream; }}
-                                        autoPlay muted playsInline className="w-full h-full object-cover"
-                                    />
-                                </div>
-                            )}
-
-                            {/* Call controls – responsive */}
-                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-3 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2 md:px-6 md:py-3 flex-wrap justify-center">
-                                <button onClick={toggleMute} className={`p-2 md:p-3 rounded-full transition-colors ${isMicMuted ? 'bg-red-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}>
-                                    {isMicMuted ? <MicOff className="w-4 h-4 md:w-5 md:h-5" /> : <Mic className="w-4 h-4 md:w-5 md:h-5" />}
-                                </button>
-                                <button onClick={toggleVideo} className={`p-2 md:p-3 rounded-full transition-colors ${isVideoOff ? 'bg-red-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}
-                                        title={isVideoOff ? "Turn on camera" : "Turn off camera"}>
-                                    {isVideoOff ? <VideoOff className="w-4 h-4 md:w-5 md:h-5" /> : <Video className="w-4 h-4 md:w-5 md:h-5" />}
-                                </button>
-                                {isVideoMode && (
-                                    <button onClick={flipCamera} className="p-2 md:p-3 rounded-full bg-white/20 text-white hover:bg-white/30">
-                                        <RotateCw className="w-4 h-4 md:w-5 md:h-5" />
-                                    </button>
+                                    )
+                                ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                                        <div className="w-24 h-24 bg-blue-400 rounded-full flex items-center justify-center mb-4">
+                                            <Phone className="w-12 h-12 text-white" />
+                                        </div>
+                                        <p className="text-white text-lg font-medium">{getOtherUser(selectedConversation)?.displayName || 'Call'}</p>
+                                        <p className="text-gray-400 text-sm">{isVideoMode ? 'Video call' : 'Audio call'}</p>
+                                        {callAnswered ? (
+                                            <div className="mt-6 w-64">
+                                                <AudioWaveform isActive={true} isMuted={isMicMuted} />
+                                                <p className="text-white text-sm mt-2">{formatCallDuration(callDuration)}</p>
+                                            </div>
+                                        ) : (
+                                            <div className="mt-6">
+                                                <p className="text-white text-lg animate-pulse">Ringing...</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
-                                <button onClick={shareScreen} className={`p-2 md:p-3 rounded-full transition-colors ${isSharingScreen ? 'bg-blue-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}>
-                                    <MonitorUp className="w-4 h-4 md:w-5 md:h-5" />
-                                </button>
-                                <button onClick={() => setShowAddToCallModal(true)} className="p-2 md:p-3 rounded-full bg-white/20 text-white hover:bg-white/30" title="Add participant">
-                                    <UserPlus className="w-4 h-4 md:w-5 md:h-5" />
-                                </button>
-                                <button onClick={endCall} className="p-2 md:p-3 rounded-full bg-red-500 text-white hover:bg-red-600">
-                                    <PhoneOff className="w-4 h-4 md:w-5 md:h-5" />
+
+                                {isVideoMode && localStream && (
+                                    <div className="absolute top-4 right-4 w-32 h-44 rounded-xl overflow-hidden border-2 border-white/30 shadow-lg">
+                                        <video
+                                            ref={el => { localVideoRef.current = el; if (el && localStream) el.srcObject = localStream; }}
+                                            autoPlay muted playsInline className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Call controls – responsive */}
+                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-3 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2 md:px-6 md:py-3 flex-wrap justify-center">
+                                    <button onClick={toggleMute} className={`p-2 md:p-3 rounded-full transition-colors ${isMicMuted ? 'bg-red-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}>
+                                        {isMicMuted ? <MicOff className="w-4 h-4 md:w-5 md:h-5" /> : <Mic className="w-4 h-4 md:w-5 md:h-5" />}
+                                    </button>
+                                    <button onClick={toggleVideo} className={`p-2 md:p-3 rounded-full transition-colors ${isVideoOff ? 'bg-red-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}
+                                            title={isVideoOff ? "Turn on camera" : "Turn off camera"}>
+                                        {isVideoOff ? <VideoOff className="w-4 h-4 md:w-5 md:h-5" /> : <Video className="w-4 h-4 md:w-5 md:h-5" />}
+                                    </button>
+                                    {isVideoMode && (
+                                        <button aria-label="flip camera" onClick={flipCamera} className="p-2 md:p-3 rounded-full bg-white/20 text-white hover:bg-white/30">
+                                            <RotateCw className="w-4 h-4 md:w-5 md:h-5" />
+                                        </button>
+                                    )}
+                                    <button onClick={shareScreen} className={`p-2 md:p-3 rounded-full transition-colors ${isSharingScreen ? 'bg-blue-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}>
+                                        <MonitorUp className="w-4 h-4 md:w-5 md:h-5" />
+                                    </button>
+                                    <button onClick={() => setShowAddToCallModal(true)} className="p-2 md:p-3 rounded-full bg-white/20 text-white hover:bg-white/30" title="Add participant">
+                                        <UserPlus className="w-4 h-4 md:w-5 md:h-5" />
+                                    </button>
+                                    <button onClick={endCall} className="p-2 md:p-3 rounded-full bg-red-500 text-white hover:bg-red-600">
+                                        <PhoneOff className="w-4 h-4 md:w-5 md:h-5" />
+                                    </button>
+                                </div>
+
+                                <button onClick={toggleCallMinimize} className="absolute top-4 left-4 p-2 bg-black/40 rounded-full text-white hover:bg-black/60">
+                                    {isCallMinimized ? <Maximize2 className="w-5 h-5" /> : <Minimize2 className="w-5 h-5" />}
                                 </button>
                             </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
-                            <button onClick={toggleCallMinimize} className="absolute top-4 left-4 p-2 bg-black/40 rounded-full text-white hover:bg-black/60">
-                                {isCallMinimized ? <Maximize2 className="w-5 h-5" /> : <Minimize2 className="w-5 h-5" />}
-                            </button>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                {/* Hidden audio element */}
+                <audio
+                    ref={audioRef}
+                    onTimeUpdate={(e) => {
+                        const a = e.currentTarget;
+                        if (a.duration) setAudioProgress((a.currentTime / a.duration) * 100);
+                    }}
+                    onEnded={() => { setIsPlayingAudio(null); setAudioProgress(0); }}
+                    className="hidden"
+                />
 
-            {/* Hidden audio element */}
-            <audio
-                ref={audioRef}
-                onTimeUpdate={(e) => {
-                    const a = e.currentTarget;
-                    if (a.duration) setAudioProgress((a.currentTime / a.duration) * 100);
-                }}
-                onEnded={() => { setIsPlayingAudio(null); setAudioProgress(0); }}
-                className="hidden"
-            />
-
-            <style>{`
+                <style>{`
                 @keyframes wave {
                     0% { height: 8px; }
                     100% { height: 36px; }
@@ -5823,81 +5898,82 @@ const ChatPage = () => {
                 }
             `}</style>
 
-            {/* Video Recording Modal (responsive) */}
-            <AnimatePresence>
-                {showVideoRecordModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black z-50 flex flex-col"
-                    >
-                        <div className="flex-1 relative">
-                            <video
-                                ref={el => {
-                                    if (el) { videoPreviewRef.current = el; if (videoStream) el.srcObject = videoStream; }
-                                }}
-                                autoPlay muted playsInline className="w-full h-full object-cover"
-                            />
-                        </div>
-                        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4">
-                            <button onClick={() => { if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); setVideoStream(null); } setShowVideoRecordModal(false); }} className="p-4 bg-white/20 rounded-full text-white hover:bg-white/40">
-                                <X className="w-6 h-6" />
-                            </button>
-                            <button onClick={takePhoto} className="p-6 bg-white rounded-full hover:bg-gray-200 shadow-xl">
-                                <Camera className="w-8 h-8 text-gray-800" />
-                            </button>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* ========== Send Contact Modal ========== */}
-            <AnimatePresence>
-                {showSendContactModal && (
-                    <motion.div
-                        ref={sendContactRef}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
-                    >
+                {/* Video Recording Modal (responsive) */}
+                <AnimatePresence>
+                    {showVideoRecordModal && (
                         <motion.div
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-2xl pointer-events-auto"
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black z-50 flex flex-col"
                         >
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold">Send Contact</h3>
-                                <button onClick={() => setShowSendContactModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
-                                    <X className="w-5 h-5" />
+                            <div className="flex-1 relative">
+                                <video
+                                    ref={el => {
+                                        if (el) { videoPreviewRef.current = el; if (videoStream) el.srcObject = videoStream; }
+                                    }}
+                                    autoPlay muted playsInline className="w-full h-full object-cover"
+                                />
+                            </div>
+                            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4">
+                                <button onClick={() => { if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); setVideoStream(null); } setShowVideoRecordModal(false); }} className="p-4 bg-white/20 rounded-full text-white hover:bg-white/40">
+                                    <X className="w-6 h-6" />
+                                </button>
+                                <button onClick={takePhoto} className="p-6 bg-white rounded-full hover:bg-gray-200 shadow-xl">
+                                    <Camera className="w-8 h-8 text-gray-800" />
                                 </button>
                             </div>
-                            {contacts.length === 0 ? (
-                                <p className="text-center text-gray-400 py-8">No contacts yet</p>
-                            ) : (
-                                contacts.map(user => (
-                                    <div
-                                        key={user._id}
-                                        onClick={() => handleSendContactMessage(user)}
-                                        className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer"
-                                    >
-                                        <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
-                                            <img src={user.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-sm">{user.displayName}</p>
-                                            <p className="text-xs text-gray-400">@{user.username}</p>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                            <button onClick={() => setShowSendContactModal(false)} className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">
-                                Cancel
-                            </button>
                         </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    )}
+                </AnimatePresence>
 
-        </div>
-    );
+                {/* ========== Send Contact Modal ========== */}
+                <AnimatePresence>
+                    {showSendContactModal && (
+                        <motion.div
+                            ref={sendContactRef}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+                        >
+                            <motion.div
+                                className="bg-white rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-2xl pointer-events-auto"
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold">Send Contact</h3>
+                                    <button onClick={() => setShowSendContactModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                {contacts.length === 0 ? (
+                                    <p className="text-center text-gray-400 py-8">No contacts yet</p>
+                                ) : (
+                                    contacts.map(user => (
+                                        <div
+                                            key={user._id}
+                                            onClick={() => handleSendContactMessage(user)}
+                                            className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer"
+                                        >
+                                            <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
+                                                <img src={user.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-sm">{user.displayName}</p>
+                                                <p className="text-xs text-gray-400">@{user.username}</p>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                                <button onClick={() => setShowSendContactModal(false)} className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">
+                                    Cancel
+                                </button>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+            </div>
+        );
+        
 };
 
 export default ChatPage;

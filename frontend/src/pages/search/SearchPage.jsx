@@ -336,7 +336,7 @@ const SearchPage = () => {
     return (
         <div className="w-full flex flex-col md:flex-row h-screen bg-gray-100">
             <Sidebar/>
-            <div className="flex-1 flex flex-col h-screen overflow-hidden">
+            <main className="flex-1 flex flex-col h-screen overflow-hidden">
                 {/* Hamburger spacer */}
                 <div className="h-14 lg:hidden" />
 
@@ -733,7 +733,7 @@ const SearchPage = () => {
                         </div>
                     </div>
                 </div>
-            </div>
+            </main>
         </div>
     )
 }
