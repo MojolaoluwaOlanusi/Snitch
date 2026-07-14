@@ -2,9 +2,9 @@ import Sidebar from "../../components/common/Sidebar";
 
 const AIPage = () => {
     return (
-        <div className="w-full flex flex-col md:flex-row h-screen">
+        <div className="w-full flex flex-col md:flex-row h-screen bg-base-200">
             <Sidebar />
-            <main className="flex-1 bg-blue-100 overflow-y-auto">
+            <main className="flex-1 bg-base-100 overflow-y-auto">
                 {/* Spacer for hamburger on mobile */}
                 <div className="h-14 lg:hidden" />
 

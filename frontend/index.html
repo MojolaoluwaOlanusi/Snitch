@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="winter">
+<html lang="en">
 <head>
     <meta charset="UTF-8" />
 
     <!-- ========== INLINED CRITICAL CSS ========== -->
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-        body{font-family:system-ui,-apple-system,sans-serif;background:#dbeafe}
+        body{font-family:system-ui,-apple-system,sans-serif;}
 
         /* login page essential styles */
         .min-h-screen{min-height:100vh}
@@ -70,6 +70,15 @@
             l.rel = 'stylesheet';
             l.href = '/src/index.css';
             document.head.appendChild(l);
+        })();
+    </script>
+
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('snitch-theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            }
         })();
     </script>
 

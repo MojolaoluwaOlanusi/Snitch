@@ -14,12 +14,12 @@ function ForgotPasswordPage() {
     };
 
     return (
-        <main className="min-h-screen bg-blue-200 flex items-center justify-center px-4 py-8 sm:py-16">
-            <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-6 sm:p-10 md:p-20">
+        <main className="min-h-screen bg-base-200 flex items-center justify-center px-4 py-8 sm:py-16">
+            <div className="w-full max-w-md bg-base-100 rounded-2xl shadow-lg p-6 sm:p-10 md:p-20">
                 {/* Back button */}
                 <Link
                     to={authUser?.username ? `/profile/${authUser.username}` : "/"}
-                    className="inline-flex items-center mb-6 text-blue-600 hover:text-blue-700 transition-colors"
+                    className="inline-flex items-center mb-6 text-primary/90 hover:text-primary transition-colors"
                 >
                     <FaArrowLeft className="w-4 h-4 mr-2" />
                     <span className="text-sm">Back</span>
@@ -27,10 +27,10 @@ function ForgotPasswordPage() {
 
                 {/* HEADING TEXT */}
                 <div className="text-center mb-8">
-                    <h2 className="text-2xl font-bold text-blue-600 mb-2">
+                    <h2 className="text-2xl font-bold text-primary/90 mb-2">
                         Verify Account
                     </h2>
-                    <p className="text-blue-600 text-sm sm:text-base">
+                    <p className="text-primary/90 text-sm sm:text-base">
                         Enter Your Email To Request A Code
                     </p>
                 </div>
@@ -71,7 +71,7 @@ function ForgotPasswordPage() {
                 <div className="mt-6 text-center">
                     <Link
                         to="/verify-verification-code"
-                        className="text-blue-600 underline text-sm block"
+                        className="text-primary/90 underline text-sm block"
                     >
                         Received Code?
                     </Link>

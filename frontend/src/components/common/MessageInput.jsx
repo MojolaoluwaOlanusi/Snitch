@@ -14,20 +14,20 @@ const MessageInput = () => {
     }
 
     return (
-        <div className="p-2 mt-auto border-t border-gray-300">
+        <div className="p-2 mt-auto border-t border-base-300">
             <div className="flex items-center gap-2 w-full">
                 <input
                 aria-label="Type a message"
                 placeholder="Type a message"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                className="bg-gray-100 border-none w-full flex-1 py-2 px-3 rounded-md outline-blue-100"
+                className="bg-base-200 border-none w-full flex-1 py-2 px-3 rounded-md outline-primary/20"
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 />
 
                 <button
                   aria-label="Send message"
-                  className="size-icon h-8 w-8 flex items-center justify-center rounded-md bg-blue-500 text-white disabled:opacity-50"
+                  className="size-icon h-8 w-8 flex items-center justify-center rounded-md bg-primary text-primary-content disabled:opacity-50"
                   onClick={handleSend}
                   disabled={!newMessage.trim()}
                 >

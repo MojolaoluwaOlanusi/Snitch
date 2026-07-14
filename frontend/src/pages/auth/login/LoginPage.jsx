@@ -13,17 +13,17 @@ function LoginPage() {
     };
 
     return (
-        <main className="min-h-screen bg-blue-200 flex items-center justify-center px-4 py-8 sm:py-16">
-            <div className="w-full max-w-4xl bg-white rounded-2xl shadow-lg overflow-hidden">
+        <main className="min-h-screen bg-base-200 flex items-center justify-center px-4 py-8 sm:py-16">
+            <div className="w-full max-w-4xl bg-base-100 rounded-2xl shadow-lg overflow-hidden">
                 <div className="flex flex-col md:flex-row">
                     {/* FORM COLUMN – LEFT SIDE */}
-                    <div className="w-full md:w-1/2 p-6 sm:p-10 md:p-12 flex items-center justify-center md:border-r border-slate-600/30">
+                    <div className="w-full md:w-1/2 p-6 sm:p-10 md:p-12 flex items-center justify-center md:border-r border-base-content/30/30">
                         <div className="w-full max-w-md">
                             {/* HEADING TEXT */}
                             <div className="text-center mb-8">
-                                <MessageCircleIcon className="w-12 h-12 mx-auto text-blue-400 mb-4" />
-                                <h2 className="text-2xl font-bold text-blue-600 mb-2">Welcome Back</h2>
-                                <p className="text-blue-600">Login to access your account</p>
+                                <MessageCircleIcon className="w-12 h-12 mx-auto text-primary mb-4" />
+                                <h2 className="text-2xl font-bold text-primary/90 mb-2">Welcome Back</h2>
+                                <p className="text-primary/90">Login to access your account</p>
                             </div>
 
                             {/* FORM */}
@@ -72,7 +72,7 @@ function LoginPage() {
                                 <Link to="/signup" className="auth-link text-sm block">
                                     Don't have an account? Sign Up
                                 </Link>
-                                <Link to="/forgotpassword" className="text-blue-600 underline text-sm block">
+                                <Link to="/forgotpassword" className="text-primary/90 underline text-sm block">
                                     Forgot password?
                                 </Link>
                             </div>
@@ -90,7 +90,7 @@ function LoginPage() {
                                 decoding="async"
                             />
                             <div className="mt-6 text-center">
-                                <h3 className="text-xl font-medium text-blue-400">Connect anytime, anywhere</h3>
+                                <h3 className="text-xl font-medium text-primary">Connect anytime, anywhere</h3>
                                 <div className="mt-4 flex justify-center gap-4">
                                     <span className="auth-badge">Free</span>
                                     <span className="auth-badge">Quick</span>

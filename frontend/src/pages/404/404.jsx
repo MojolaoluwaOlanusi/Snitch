@@ -4,7 +4,7 @@ import { SnitchLogoSmall } from "../../components/svgs/snitch";
 const NotFoundPage = () => {
     return (
         <div
-            className="min-h-screen bg-cover bg-center flex flex-col justify-center items-center text-white px-4"
+            className="min-h-screen bg-cover bg-center flex flex-col justify-center items-center text-primary-content px-4"
             style={{ backgroundImage: `url('/404.png')` }}
         >
             {/* Logo – positioned at top left, with responsive spacing */}

@@ -2,6 +2,8 @@ import express from 'express';
 import crypto from 'crypto';
 import { User } from '../models/User.ts';
 import Warning from '../models/Warning.ts';
+import Report from '../models/Report.ts';
+import Post from '../models/Post.ts';
 import jwt from 'jsonwebtoken';
 import mongoose from "mongoose";
 
@@ -86,6 +88,20 @@ router.get('/users/banned', auth, requireAdmin, async (_req, res) => {
 router.get('/users', auth, requireAdmin, async (_req, res) => {
     const users = await User.find({}, 'email username warningsCount isBanned isAdmin');
     res.json(users);
+});
+
+router.get('/posts', auth, requireAdmin, async (_req, res) => {
+    const posts = await Post.find({},);
+    res.json(posts);
+});
+
+router.get('/reports', auth, requireAdmin, async (_req, res) => {
+    const reports = await Report.find()
+        .populate('reason')
+        .populate('reportedBy', 'username')
+        .populate('postId', 'text')
+        .populate('createdAt')
+    res.json(reports);
 });
 
 // 🔹 Get A User by Username
@@ -174,7 +190,7 @@ router.get('/warnings/:userId', auth, requireAdmin, async (req, res) => {
         .sort({ createdAt: -1 });
 
     if (!warnings.length) {
-        return res.status(404).json({ error: 'No warnings found for this user' });
+        return res.status(200).json({ message: 'No warnings found for this user' });
     }
 
     res.json({
@@ -256,6 +272,35 @@ router.post('/accept-invite', auth, async (req,res)=>{
     res.json({ ok: true, message: 'You are now an admin' });
 });
 
+// GET /api/admin/stats/users – new users per month for the last 12 months
+router.get('/stats/users', auth, requireAdmin, async (_req, res) => {
+    const stats = await User.aggregate([
+        { $match: { createdAt: { $exists: true } } },
+        { $group: { _id: { $month: "$createdAt" }, count: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+    ]);
+    res.json(stats);
+});
+
+// GET /api/admin/stats/posts
+router.get('/stats/posts', auth, requireAdmin, async (_req, res) => {
+    const stats = await Post.aggregate([
+        { $match: { createdAt: { $exists: true } } },
+        { $group: { _id: { $month: "$createdAt" }, count: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+    ]);
+    res.json(stats);
+});
+
+// GET /api/admin/stats/reports
+router.get('/stats/reports', auth, requireAdmin, async (_req, res) => {
+    const stats = await Report.aggregate([
+        { $match: { createdAt: { $exists: true } } },
+        { $group: { _id: { $month: "$createdAt" }, count: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+    ]);
+    res.json(stats);
+});
 
 // @ts-ignore
 export default router;

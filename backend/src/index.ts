@@ -14,6 +14,8 @@ import repostsRoutes from './routes/reposts.ts';
 import chatRoutes from './routes/chat.ts';
 import './config/env.ts';
 import path from 'node:path';
+import Post from "./models/Post.ts";
+import {sendPushNotification} from "./utils/pushNotifications.ts"
 import { fileURLToPath } from 'node:url';
 import { initRealtime } from './realtime/server.ts';
 
@@ -29,7 +31,22 @@ const httpServer = createServer(app);
 // initialize the new realtime socket server (auth middleware is applied inside)
 initRealtime(httpServer);
 app.use(express.json({ limit: '20mb' }));
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
+
+const allowedOrigins = [
+    process.env.CLIENT_URL,
+    process.env.ADMIN_URL,
+];
+
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+}));
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/auth', authRoutes);
@@ -86,5 +103,35 @@ app.use(express.static(clientBuildPath));
 app.get('*', (_req, res) => {
     res.sendFile(path.join(clientBuildPath, 'index.html'));
 });
+
+setInterval(async () => {
+    try {
+        const now = new Date();
+        const postsToPublish = await Post.find({
+            scheduledAt: { $lte: now },
+            isPublished: false,
+        });
+
+        for (const post of postsToPublish) {
+            post.isPublished = true;
+            await post.save();
+
+            // 🔔 Send push notification to the author
+            if (post.author) {
+                sendPushNotification(post.author.toString(), {
+                    title: 'Your post is live!',
+                    body: post.text
+                        ? `"${post.text.substring(0, 50)}${post.text.length > 50 ? '...' : ''}" has been published.`
+                        : 'Your scheduled post is now visible.',
+                    url: `${process.env.CLIENT_URL}/post/${post._id}`,
+                }).catch(err => console.error('Push schedule error:', err));
+            }
+
+            console.log(`✅ Published scheduled post ${post._id}`);
+        }
+    } catch (err) {
+        console.error('❌ Error publishing scheduled posts:', err);
+    }
+}, 60_000);
 
 export { app };

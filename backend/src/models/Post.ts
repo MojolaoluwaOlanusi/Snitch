@@ -14,6 +14,9 @@ const PostSchema = new Schema({
 
     url:String,
 
+    scheduledAt: { type: Date, default: null },
+    isPublished: { type: Boolean, default: true },
+
     mediaType:{
         type:String,
         enum:['Audio','Video','Image','None'],
@@ -55,28 +58,37 @@ const PostSchema = new Schema({
 
     createdAt:{type:Date,default:Date.now},
 
+    bookmarkedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    bookmarksCount: { type: Number, default: 0 },
+
     comments: [
         {
-            text: {
-                type: String,
-                required: true,
+            user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+            text: String,
+            media: {
+                url: String,
+                type: { type: String, enum: ['sticker', 'gif'] },
             },
-            user: {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "User",
-                required: true,
-            },
-            userAvatar: {
-                type: String
-            },
-            userDisplayName: {
-                type: String
-            },
-            userUsername: {
-                type: String
-            }
+            userAvatar: String,
+            userDisplayName: String,
+            userUsername: String,
+            createdAt: { type: Date, default: Date.now },
+            replies: [
+                {
+                    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+                    text: String,
+                    media: {
+                        url: String,
+                        type: { type: String, enum: ['sticker', 'gif'] },
+                    },
+                    userAvatar: String,
+                    userDisplayName: String,
+                    userUsername: String,
+                    createdAt: { type: Date, default: Date.now },
+                },
+            ],
         },
-    ]
+    ],
 });
 
 PostSchema.index(

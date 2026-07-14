@@ -138,12 +138,12 @@ router.get('/get-user-profile/:username',authMiddleware, async (req, res) => {
 
 router.put('/update-profile',authMiddleware, async (req, res) => {
     try {
-        const { email, username, displayName, bio, avatarUrl, coverImg, accountType, accountVisibility, link, location } = req.body;
+        const { email, username, gender, socialHandles, theme, displayName, bio, avatarUrl, coverImg, accountType, accountVisibility, link, location } = req.body;
         const user = await User.findById(req.userId).select("-passwordHash");
         const updatedProfile = await User.findByIdAndUpdate(
             // @ts-ignore
             user._id,
-            { email , username, displayName, bio, avatarUrl, accountType, coverImg, link, location, accountVisibility },
+            { email , username, displayName, bio, avatarUrl, gender, socialHandles, theme, accountType, coverImg, link, location, accountVisibility },
             { new: true }
         ).select("-passwordHash");
         res.status(200).json(updatedProfile);
@@ -151,6 +151,21 @@ router.put('/update-profile',authMiddleware, async (req, res) => {
         console.error('Error in getUserProfile:', err.message);
         res.status(500).json({ message: 'Server error', error: err.message });
     }
+});
+
+router.get('/bookmarks', authMiddleware, async (req, res) => {
+    const user = await User.findById(req.userId).populate('bookmarkedPosts');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user.bookmarkedPosts);
+});
+
+router.delete('/account', authMiddleware, async (req, res) => {
+    // Optionally verify password before deletion
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    // Perform cleanup (messages, posts, etc.) as needed
+    await User.findByIdAndDelete(req.userId);
+    res.json({ message: 'Account deleted' });
 });
 
 router.post('/send-verification-code', async (req, res) => {

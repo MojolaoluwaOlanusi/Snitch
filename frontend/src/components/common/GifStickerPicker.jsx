@@ -154,23 +154,23 @@ const GifStickerPicker = ({ onSelect, onClose, isOpen, onOpenStickerEditor }) =>
             className="fixed inset-x-0 bottom-0 z-50 flex justify-center md:absolute md:bottom-12 md:left-0 md:inset-x-auto"
         >
             {/* White card wrapper */}
-            <div className="bg-white rounded-xl shadow-xl border w-[calc(100vw-2rem)] max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:w-[380px] overflow-hidden flex flex-col"
+            <div className="bg-base-100 rounded-xl shadow-xl border w-[calc(100vw-2rem)] max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:w-[380px] overflow-hidden flex flex-col"
                  style={{
                      maxHeight: '70vh',
                      marginBottom: '8px',
                  }}
             >
                 <div className="flex items-center border-b">
-                    <button onClick={() => { setTab('gif'); setSelectedPack(null); }} className={`flex-1 py-3 text-sm font-medium ${tab === 'gif' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-500'}`}>GIF</button>
-                    <button onClick={() => { setTab('sticker'); setSelectedPack(null); }} className={`flex-1 py-3 text-sm font-medium ${tab === 'sticker' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-500'}`}>Stickers</button>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full m-1"><X className="w-4 h-4 text-gray-400" /></button>
+                    <button onClick={() => { setTab('gif'); setSelectedPack(null); }} className={`flex-1 py-3 text-sm font-medium ${tab === 'gif' ? 'text-primary border-b-2 border-blue-400' : 'text-base-content/60'}`}>GIF</button>
+                    <button onClick={() => { setTab('sticker'); setSelectedPack(null); }} className={`flex-1 py-3 text-sm font-medium ${tab === 'sticker' ? 'text-primary border-b-2 border-blue-400' : 'text-base-content/60'}`}>Stickers</button>
+                    <button onClick={onClose} className="p-2 hover:bg-base-200 rounded-full m-1"><X className="w-4 h-4 text-base-content/50" /></button>
                 </div>
 
                 {tab === 'gif' && (
                     <div className="p-2 border-b">
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input type="text" placeholder="Search GIFs..." value={searchQuery} onChange={(e) => handleSearch(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-gray-50 rounded-lg text-sm focus:outline-none" />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/50" />
+                            <input type="text" placeholder="Search GIFs..." value={searchQuery} onChange={(e) => handleSearch(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-base-200 rounded-lg text-sm focus:outline-none" />
                         </div>
                     </div>
                 )}
@@ -179,15 +179,15 @@ const GifStickerPicker = ({ onSelect, onClose, isOpen, onOpenStickerEditor }) =>
                     {/* GIF Grid */}
                     {tab === 'gif' && (
                         <>
-                            {loadingGifs && <div className="text-center py-4 text-gray-400 text-sm">Loading...</div>}
+                            {loadingGifs && <div className="text-center py-4 text-base-content/50 text-sm">Loading...</div>}
                             {!loadingGifs && gifs.length === 0 && (
-                                <div className="text-center py-4 text-gray-400 text-sm">No GIFs found</div>
+                                <div className="text-center py-4 text-base-content/50 text-sm">No GIFs found</div>
                             )}
                             {gifs.length > 0 && (
                                 <>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
                                         {gifs.map(gif => (
-                                            <div key={gif.id} onClick={() => { onSelect({ type: 'gif', url: gif.url, preview: gif.preview }); onClose(); }} className="cursor-pointer rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-400">
+                                            <div key={gif.id} onClick={() => { onSelect({ type: 'gif', url: gif.url, preview: gif.preview }); onClose(); }} className="cursor-pointer rounded-lg overflow-hidden hover:ring-2 hover:ring-primary">
                                                 <img src={gif.preview} alt="" className="w-full h-20 object-cover" loading="lazy" />
                                             </div>
                                         ))}
@@ -199,7 +199,7 @@ const GifStickerPicker = ({ onSelect, onClose, isOpen, onOpenStickerEditor }) =>
                                                 else fetchTrendingGifs(gifOffset, true);
                                             }}
                                             disabled={loadingMoreGifs}
-                                            className="w-full mt-2 py-2 text-sm text-blue-400 hover:bg-blue-50 rounded-lg transition-colors"
+                                            className="w-full mt-2 py-2 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors"
                                         >
                                             {loadingMoreGifs ? 'Loading...' : 'Show More'}
                                         </button>
@@ -212,10 +212,10 @@ const GifStickerPicker = ({ onSelect, onClose, isOpen, onOpenStickerEditor }) =>
                     {/* Sticker tab */}
                     {tab === 'sticker' && (
                         loadingStickers ? (
-                            <div className="text-center py-4 text-gray-400 text-sm">Loading...</div>
+                            <div className="text-center py-4 text-base-content/50 text-sm">Loading...</div>
                         ) : selectedPack ? (
                             <div>
-                                <button onClick={() => setSelectedPack(null)} className="text-sm text-blue-400 hover:text-blue-500 mb-2">← Back</button>
+                                <button onClick={() => setSelectedPack(null)} className="text-sm text-primary hover:text-primary mb-2">← Back</button>
                                 <div className="grid grid-cols-4 gap-2">
                                     {selectedPack.stickers.map(sticker => (
                                         <div key={sticker.id} onClick={() => { onSelect({ type: 'sticker', url: sticker.url }); onClose(); }} className="cursor-pointer hover:scale-110 transition-transform">
@@ -229,9 +229,9 @@ const GifStickerPicker = ({ onSelect, onClose, isOpen, onOpenStickerEditor }) =>
                                 {/* Default packs */}
                                 <div className="grid grid-cols-2 gap-3 mb-4">
                                     {packs.map(pack => (
-                                        <div key={pack.id} onClick={() => setSelectedPack(pack)} className="cursor-pointer rounded-xl hover:bg-gray-50 p-3 text-center transition-all">
+                                        <div key={pack.id} onClick={() => setSelectedPack(pack)} className="cursor-pointer rounded-xl hover:bg-base-200 p-3 text-center transition-all">
                                             <img src={pack.thumbnail} alt={pack.name} className="w-12 h-12 sm:w-16 sm:h-16 object-contain mx-auto mb-2" onError={(e) => { e.target.src = '/sticker-placeholder.png'; }} />
-                                            <p className="text-xs font-medium text-gray-700">{pack.name}</p>
+                                            <p className="text-xs font-medium text-base-content/80">{pack.name}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -239,7 +239,7 @@ const GifStickerPicker = ({ onSelect, onClose, isOpen, onOpenStickerEditor }) =>
                                 {/* Custom Community Stickers */}
                                 {customStickers.length > 0 && (
                                     <div>
-                                        <h4 className="text-xs font-semibold text-gray-500 mb-2 px-1">Community Stickers</h4>
+                                        <h4 className="text-xs font-semibold text-base-content/60 mb-2 px-1">Community Stickers</h4>
                                         <div className="grid grid-cols-4 gap-2">
                                             {customStickers.map(sticker => (
                                                 <div key={sticker.id} onClick={() => { onSelect({ type: 'sticker', url: sticker.url }); onClose(); }} className="cursor-pointer hover:scale-110 transition-transform">
@@ -251,7 +251,7 @@ const GifStickerPicker = ({ onSelect, onClose, isOpen, onOpenStickerEditor }) =>
                                             <button
                                                 onClick={loadMoreCustomStickers}
                                                 disabled={loadingMoreStickers}
-                                                className="w-full mt-2 py-2 text-sm text-blue-400 hover:bg-blue-50 rounded-lg transition-colors"
+                                                className="w-full mt-2 py-2 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors"
                                             >
                                                 {loadingMoreStickers ? 'Loading...' : 'Show More'}
                                             </button>
@@ -266,7 +266,7 @@ const GifStickerPicker = ({ onSelect, onClose, isOpen, onOpenStickerEditor }) =>
                 {/* Create Sticker button */}
                 <button
                     onClick={() => { onClose(); onOpenStickerEditor(); }}
-                    className="w-full py-2 border-t border-gray-100 text-sm text-gray-600 hover:bg-gray-50 flex items-center justify-center gap-2"
+                    className="w-full py-2 border-t border-base-300 text-sm text-base-content/70 hover:bg-base-200 flex items-center justify-center gap-2"
                 >
                     <Camera className="w-4 h-4" /> Create Sticker
                 </button>

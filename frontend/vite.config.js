@@ -31,6 +31,9 @@ export default defineConfig({
         compression({ algorithm: 'brotliCompress' }),
         asyncCssPlugin(),
     ],
+    define: {
+        global: 'window',
+    },
     resolve: {
         alias: {
             '@': path.resolve(__dirname, 'src'),

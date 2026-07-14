@@ -1,37 +1,103 @@
-import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiUsers, FiFileText, FiCalendar, FiSettings } from 'react-icons/fi';
+import {
+    LayoutDashboard,
+    Users,
+    FileText,
+    AlertTriangle,
+    LogOut,
+    Sun,
+    Moon,
+    X,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 
-export default function Sidebar() {
-  const links = [
-    { to: '/', label: 'Dashboard', icon: <FiHome /> },
-    { to: '/users', label: 'Users', icon: <FiUsers /> },
-    { to: '/posts', label: 'Posts', icon: <FiFileText /> },
-    { to: '/events', label: 'Events', icon: <FiCalendar /> },
-    { to: '/settings', label: 'Settings', icon: <FiSettings /> },
-  ];
+const links = [
+    { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/users', label: 'Users', icon: Users },
+    { to: '/posts', label: 'Posts', icon: FileText },
+    { to: '/reports', label: 'Reports', icon: AlertTriangle },
+];
 
-  return (
-    <aside className="w-64 bg-white shadow-md flex flex-col">
-      <div className="p-4 font-bold text-lg text-indigo-600">Snitch Admin</div>
-      <nav className="flex-1 p-2 space-y-1">
-        {links.map((l) => (
-          <NavLink
-            key={l.to}
-            to={l.to}
-            className={({ isActive }) =>
-              `flex items-center gap-2 px-4 py-2 rounded-md transition ${
-                isActive
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-gray-600 hover:bg-indigo-50'
-              }`
-            }
-          >
-            {l.icon}
-            {l.label}
-          </NavLink>
-        ))}
-      </nav>
-    </aside>
-  );
+export default function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+    const [theme, setTheme] = useState(localStorage.getItem('admin-theme') || 'winter');
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('admin-theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme((t) => (t === 'winter' ? 'dark' : 'winter'));
+    };
+
+    return (
+        <aside
+            className={`fixed inset-y-0 left-0 z-30 w-64 bg-base-100 border-r border-base-300 transform transition-transform lg:relative lg:translate-x-0 ${
+                open ? 'translate-x-0' : '-translate-x-full'
+            } flex flex-col`}
+        >
+            <div className="flex items-center justify-between p-4 border-b border-base-300">
+                <span className="font-bold text-xl text-base-content">Snitch Admin</span>
+                <button
+                    onClick={onClose}
+                    className="lg:hidden p-2 hover:bg-base-200 rounded-lg"
+                    aria-label="Close sidebar"
+                    title="Close sidebar"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+            </div>
+
+            <nav className="flex-1 space-y-1 p-2">
+                {links.map(({ to, label, icon: Icon }) => (
+                    <NavLink
+                        key={to}
+                        to={to}
+                        end={to === '/'}
+                        onClick={onClose}
+                        className={({ isActive }) =>
+                            `flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                                isActive ? 'bg-primary text-primary-content' : 'text-base-content hover:bg-base-200'
+                            }`
+                        }
+                        aria-label={label}
+                        title={label}
+                    >
+                        <Icon className="w-5 h-5" />
+                        {label}
+                    </NavLink>
+                ))}
+            </nav>
+
+            <div className="p-4 border-t border-base-300 space-y-2">
+                <button
+                    onClick={toggleTheme}
+                    className="flex w-full items-center gap-3 px-4 py-2 rounded-lg hover:bg-base-200 transition-colors text-base-content"
+                    aria-label="Toggle theme"
+                    title="Switch between light and dark theme"
+                >
+                    {theme === 'winter' ? (
+                        <>
+                            <Moon className="w-5 h-5" /> Dark Mode
+                        </>
+                    ) : (
+                        <>
+                            <Sun className="w-5 h-5" /> Light Mode
+                        </>
+                    )}
+                </button>
+                <button
+                    onClick={() => {
+                        localStorage.removeItem('admin-token');
+                        window.location.href = '/login';
+                    }}
+                    className="flex w-full items-center gap-3 px-4 py-2 rounded-lg text-error hover:bg-error/10 transition-colors"
+                    aria-label="Logout"
+                    title="Logout"
+                >
+                    <LogOut className="w-5 h-5" /> Logout
+                </button>
+            </div>
+        </aside>
+    );
 }

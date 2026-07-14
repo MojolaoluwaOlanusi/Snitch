@@ -8,7 +8,7 @@ const ThemeSelector = () => {
     return (
         <div className="dropdown dropdown-end">
             {/* DROPDOWN TRIGGER */}
-            <button tabIndex={0} className="hover:bg-gray-200 rounded-full">
+            <button tabIndex={0} className="hover:bg-base-300 rounded-full">
                 <PaletteIcon className="size-5" />
             </button>
 

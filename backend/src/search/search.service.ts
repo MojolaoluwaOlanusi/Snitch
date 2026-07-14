@@ -54,6 +54,7 @@ export class SearchService {
     private static async searchPosts(regex: RegExp, limit: number, skip: number) {
         const posts = await Post.find({
             text: regex,
+            isPublished: true
         })
             .skip(skip)
             .limit(limit)
@@ -81,6 +82,7 @@ export class SearchService {
     private static async searchMentions(username: string, limit: number, skip: number) {
         const posts = await Post.find({
             mentions: username,
+            isPublished: true
         })
             .skip(skip)
             .limit(limit)
@@ -95,6 +97,7 @@ export class SearchService {
     private static async searchHashtags(tag: string, limit: number, skip: number) {
         const Hashtags = await Post.find({
             hashtags: tag,
+            isPublished: true
         })
             .skip(skip)
             .limit(limit)

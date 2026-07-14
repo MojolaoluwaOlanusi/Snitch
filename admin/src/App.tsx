@@ -1,45 +1,32 @@
-import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/Login';
+import { Toaster } from 'react-hot-toast';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
+import UserProfile from './pages/UserProfile';
 import Posts from './pages/Posts';
-import Events from './pages/Events';
-import Settings from './pages/Settings';
-import AdminLogin from './pages/AdminLogin';
-import MakeAdmin from './pages/MakeAdmin';
-import Sidebar from './components/Sidebar';
-import Header from './components/Header';
+import Reports from './pages/Reports';
+import Layout from './components/Layout';
 
-function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      <div className="flex-1">
-        <Header />
-        <div className="p-6">{children}</div>
-      </div>
-    </div>
-  );
+function PrivateRoute({ children }: { children: React.ReactNode }) {
+    const token = localStorage.getItem('admin-token');
+    if (!token) return <Navigate to="/login" replace />;
+    return <Layout>{children}</Layout>;
 }
 
 export default function App() {
-  const token = localStorage.getItem('adminToken');
-  return (
-    <Routes>
-      <Route path="/login" element={<AdminLogin />} />
-      <Route path="/make-admin" element={<MakeAdmin />} />
-      {token ? (
-        <>
-          <Route path="/" element={<Layout><Dashboard /></Layout>} />
-          <Route path="/users" element={<Layout><Users /></Layout>} />
-          <Route path="/posts" element={<Layout><Posts /></Layout>} />
-          <Route path="/events" element={<Layout><Events /></Layout>} />
-          <Route path="/settings" element={<Layout><Settings /></Layout>} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </>
-      ) : (
-        <Route path="*" element={<Navigate to="/login" />} />
-      )}
-    </Routes>
-  );
+    return (
+        <div>
+            <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+                <Route path="/users" element={<PrivateRoute><Users /></PrivateRoute>} />
+                <Route path="/users/:id" element={<PrivateRoute><UserProfile /></PrivateRoute>} />
+                <Route path="/posts" element={<PrivateRoute><Posts /></PrivateRoute>} />
+                <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
+            </Routes>
+
+            <Toaster />
+        </div>
+    );
 }

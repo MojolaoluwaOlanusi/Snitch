@@ -52,18 +52,18 @@ const EmojiPicker = ({ inputRef, value, setValue }) => {
     return (
         <div
             ref={pickerRef}
-            className="bg-white rounded-xl shadow-xl border border-gray-100 w-[calc(100vw-2rem)] max-w-xs sm:max-w-sm md:w-80 max-h-96 overflow-hidden flex flex-col"
+            className="bg-base-100 rounded-xl shadow-xl border border-base-300 w-[calc(100vw-2rem)] max-w-xs sm:max-w-sm md:w-80 max-h-96 overflow-hidden flex flex-col"
         >
             {/* Recent emojis */}
             {recent.length > 0 && (
-                <div className="p-2 border-b border-gray-100">
-                    <p className="text-xs text-gray-400 mb-1 px-1">Recent</p>
+                <div className="p-2 border-b border-base-300">
+                    <p className="text-xs text-base-content/50 mb-1 px-1">Recent</p>
                     <div className="flex flex-wrap gap-0.5">
                         {recent.map((emoji, idx) => (
                             <button
                                 key={idx}
                                 onClick={() => handleSelect({ native: emoji })}
-                                className="w-8 h-8 flex items-center justify-center text-lg hover:bg-gray-100 rounded-lg transition-colors"
+                                className="w-8 h-8 flex items-center justify-center text-lg hover:bg-base-200 rounded-lg transition-colors"
                             >
                                 {emoji}
                             </button>
@@ -75,7 +75,7 @@ const EmojiPicker = ({ inputRef, value, setValue }) => {
             {/* Full emoji picker – always 7 per row, emoji size 24 */}
             <div className="flex-1 overflow-y-auto">
                 <Suspense fallback={
-                    <div className="flex items-center justify-center p-8 text-gray-400 text-sm">
+                    <div className="flex items-center justify-center p-8 text-base-content/50 text-sm">
                         Loading emojis...
                     </div>
                 }>

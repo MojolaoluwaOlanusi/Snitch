@@ -13,17 +13,17 @@ function SignUpPage() {
     };
 
     return (
-        <main className="min-h-screen bg-blue-200 flex items-center justify-center px-4 py-8 sm:py-16">
-            <div className="w-full max-w-4xl bg-white rounded-2xl shadow-lg overflow-hidden">
+        <main className="min-h-screen bg-base-200 flex items-center justify-center px-4 py-8 sm:py-16">
+            <div className="w-full max-w-4xl bg-base-100 rounded-2xl shadow-lg overflow-hidden">
                 <div className="flex flex-col md:flex-row">
                     {/* FORM COLUMN – LEFT SIDE */}
-                    <div className="w-full md:w-1/2 p-6 sm:p-10 md:p-12 flex items-center justify-center md:border-r border-blue-600/30">
+                    <div className="w-full md:w-1/2 p-6 sm:p-10 md:p-12 flex items-center justify-center md:border-r border-base-content/30/30">
                         <div className="w-full max-w-md">
                             {/* HEADING TEXT */}
                             <div className="text-center mb-8">
-                                <MessageCircleIcon className="w-12 h-12 mx-auto text-blue-400 mb-4" />
-                                <h2 className="text-2xl font-bold text-blue-600 mb-2">Create Account</h2>
-                                <p className="text-blue-600">Sign up for a new account</p>
+                                <MessageCircleIcon className="w-12 h-12 mx-auto text-primary mb-4" />
+                                <h2 className="text-2xl font-bold text-primary/90 mb-2">Create Account</h2>
+                                <p className="text-primary/90">Sign up for a new account</p>
                             </div>
 
                             {/* FORM */}
@@ -124,7 +124,7 @@ function SignUpPage() {
                                 <Link to="/login" className="auth-link text-sm block">
                                     Already have an account? Login
                                 </Link>
-                                <Link to="/forgotpassword" className="text-blue-600 underline text-sm block">
+                                <Link to="/forgotpassword" className="text-primary/90 underline text-sm block">
                                     Forgot password?
                                 </Link>
                             </div>
@@ -132,7 +132,7 @@ function SignUpPage() {
                     </div>
 
                     {/* ILLUSTRATION – RIGHT SIDE (hidden on mobile) */}
-                    <div className="hidden md:flex md:w-1/2 items-center justify-center p-6 bg-gradient-to-bl from-blue-800/20 to-transparent">
+                    <div className="hidden md:flex md:w-1/2 items-center justify-center p-6 bg-gradient-to-bl from-slate-800/20 to-transparent">
                         <div>
                             <img
                                 src="/signup.webp"
@@ -142,7 +142,7 @@ function SignUpPage() {
                                 decoding="async"
                             />
                             <div className="mt-6 text-center">
-                                <h3 className="text-xl font-medium text-blue-400">Start Your Journey Today</h3>
+                                <h3 className="text-xl font-medium text-primary">Start Your Journey Today</h3>
                                 <div className="mt-4 flex justify-center gap-4">
                                     <span className="auth-badge">Free</span>
                                     <span className="auth-badge">Easy Setup</span>

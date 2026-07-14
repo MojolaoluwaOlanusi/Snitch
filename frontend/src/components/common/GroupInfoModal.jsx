@@ -370,27 +370,27 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                         initial={{ scale: 0.95, y: 20 }}
                         animate={{ scale: 1, y: 0 }}
                         exit={{ scale: 0.95, y: 20 }}
-                        className="bg-white rounded-2xl w-[90%] max-w-md md:w-[420px] max-h-[85vh] overflow-y-auto shadow-xl"
+                        className="bg-base-100 rounded-2xl w-[90%] max-w-md md:w-[420px] max-h-[85vh] overflow-y-auto shadow-xl"
                         onClick={e => e.stopPropagation()}
                     >
                         {loading ? (
-                            <div className="p-8 text-center text-gray-400">Loading...</div>
+                            <div className="p-8 text-center text-base-content/50">Loading...</div>
                         ) : !group ? (
-                            <div className="p-8 text-center text-gray-400">Group not found</div>
+                            <div className="p-8 text-center text-base-content/50">Group not found</div>
                         ) : (
                             <div>
                                 {/* Header */}
-                                <div className="p-6 text-center border-b border-gray-100">
+                                <div className="p-6 text-center border-b border-base-300">
                                     <div className="flex items-center justify-between mb-4">
                                         <h3 className="text-lg font-bold">Group Info</h3>
-                                        <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
-                                            <X className="w-5 h-5 text-gray-500" />
+                                        <button onClick={onClose} className="p-2 hover:bg-base-200 rounded-full">
+                                            <X className="w-5 h-5 text-base-content/60" />
                                         </button>
                                     </div>
 
                                     {/* Group Avatar */}
                                     <div
-                                        className={`w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-3 overflow-hidden cursor-pointer ${
+                                        className={`w-20 h-20 rounded-full flex items-center justify-center text-primary-content text-2xl font-bold mx-auto mb-3 overflow-hidden cursor-pointer ${
                                             !group.groupAvatar ? `bg-gradient-to-br ${group.avatarColor}` : ''
                                         }`}
                                         onClick={() => {
@@ -426,10 +426,10 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                                 type="text"
                                                 value={groupName}
                                                 onChange={(e) => setGroupName(e.target.value)}
-                                                className="text-center px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                                className="text-center px-3 py-1 border border-base-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                                                 autoFocus
                                             />
-                                            <button onClick={handleSaveName} className="p-1 text-green-500 hover:bg-green-50 rounded-full">
+                                            <button onClick={handleSaveName} className="p-1 text-green-500 hover:bg-success/10 rounded-full">
                                                 <Check className="w-4 h-4" />
                                             </button>
                                         </div>
@@ -437,14 +437,14 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                         <h4 className="font-bold text-lg mb-1 flex items-center justify-center gap-2">
                                             {group.groupName}
                                             {isAdmin && (
-                                                <button onClick={() => setEditingName(true)} className="p-1 hover:bg-gray-100 rounded-full">
-                                                    <Edit3 className="w-3.5 h-3.5 text-gray-400" />
+                                                <button onClick={() => setEditingName(true)} className="p-1 hover:bg-base-200 rounded-full">
+                                                    <Edit3 className="w-3.5 h-3.5 text-base-content/50" />
                                                 </button>
                                             )}
                                         </h4>
                                     )}
 
-                                    <p className="text-sm text-gray-500">
+                                    <p className="text-sm text-base-content/60">
                                         Group · {group.participants?.length || 0} members
                                     </p>
 
@@ -456,19 +456,19 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                                 value={groupDescription}
                                                 onChange={(e) => setGroupDescription(e.target.value)}
                                                 placeholder="Add group description"
-                                                className="text-center px-3 py-1 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 w-64"
+                                                className="text-center px-3 py-1 border border-base-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary w-64"
                                                 autoFocus
                                             />
-                                            <button onClick={handleSaveDescription} className="p-1 text-green-500 hover:bg-green-50 rounded-full">
+                                            <button onClick={handleSaveDescription} className="p-1 text-green-500 hover:bg-success/10 rounded-full">
                                                 <Check className="w-4 h-4" />
                                             </button>
                                         </div>
                                     ) : (
-                                        <p className="text-xs text-gray-400 mt-2">
+                                        <p className="text-xs text-base-content/50 mt-2">
                                             {group.groupDescription || 'No description'}
                                             {isAdmin && (
-                                                <button onClick={() => setEditingDescription(true)} className="ml-1 p-1 hover:bg-gray-100 rounded-full inline">
-                                                    <Edit3 className="w-3 h-3 text-gray-400" />
+                                                <button onClick={() => setEditingDescription(true)} className="ml-1 p-1 hover:bg-base-200 rounded-full inline">
+                                                    <Edit3 className="w-3 h-3 text-base-content/50" />
                                                 </button>
                                             )}
                                         </p>
@@ -481,14 +481,14 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                     {isAdmin && (
                                         <button
                                             onClick={handleToggleAdminOnly}
-                                            className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center justify-between text-sm text-gray-600"
+                                            className="w-full px-4 py-3 hover:bg-base-200 rounded-xl flex items-center justify-between text-sm text-base-content/70"
                                         >
                                             <div className="flex items-center gap-3">
                                                 <Shield className="w-4 h-4" />
                                                 <span>Only admins can send messages</span>
                                             </div>
-                                            <div className={`w-10 h-6 rounded-full transition-colors ${adminOnlyMessages ? 'bg-blue-400' : 'bg-gray-300'}`}>
-                                                <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${adminOnlyMessages ? 'translate-x-5' : 'translate-x-0.5'} mt-0.5`} />
+                                            <div className={`w-10 h-6 rounded-full transition-colors ${adminOnlyMessages ? 'bg-primary/80' : 'bg-gray-300'}`}>
+                                                <div className={`w-5 h-5 bg-base-100 rounded-full shadow transition-transform ${adminOnlyMessages ? 'translate-x-5' : 'translate-x-0.5'} mt-0.5`} />
                                             </div>
                                         </button>
                                     )}
@@ -496,17 +496,17 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                     <button onClick={() => {
                                         setShowAddMembers(true);
                                         fetchContacts();
-                                    }} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                    }} className="w-full px-4 py-3 hover:bg-base-200 rounded-xl flex items-center gap-3 text-sm text-base-content/70">
                                         <UserPlus className="w-4 h-4" /> Add Members
                                     </button>
 
-                                    <button onClick={handleToggleMute} className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600">
+                                    <button onClick={handleToggleMute} className="w-full px-4 py-3 hover:bg-base-200 rounded-xl flex items-center gap-3 text-sm text-base-content/70">
                                         {muted ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
                                         {muted ? 'Unmute Notifications' : 'Mute Notifications'}
                                     </button>
 
                                     <button
-                                        className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                        className="w-full px-4 py-3 hover:bg-base-200 rounded-xl flex items-center gap-3 text-sm text-base-content/70"
                                         onClick={() => {
                                             handleOpenMedia();
                                         }}
@@ -518,7 +518,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                         onClick={() => {
                                             handleOpenStarred();
                                         }}
-                                        className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                        className="w-full px-4 py-3 hover:bg-base-200 rounded-xl flex items-center gap-3 text-sm text-base-content/70"
                                     >
                                         <Star className="w-4 h-4" />
                                         Starred Messages
@@ -527,7 +527,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                         onClick={() => {
                                             handleOpenBookmarked();
                                         }}
-                                        className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                        className="w-full px-4 py-3 hover:bg-base-200 rounded-xl flex items-center gap-3 text-sm text-base-content/70"
                                     >
                                         <Bookmark className="w-4 h-4" />
                                         Bookmarked Messages
@@ -536,14 +536,14 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                         onClick={() => {
                                             setShowWallpaperModal(true);
                                         }}
-                                        className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                        className="w-full px-4 py-3 hover:bg-base-200 rounded-xl flex items-center gap-3 text-sm text-base-content/70"
                                     >
                                         <ImageIcon className="w-4 h-4" />
                                         Wallpaper
                                     </button>
                                     <button
                                         onClick={() => setShowThemeModal(true)}
-                                        className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                        className="w-full px-4 py-3 hover:bg-base-200 rounded-xl flex items-center gap-3 text-sm text-base-content/70"
                                     >
                                         <Palette className="w-4 h-4" />
                                         Chat Theme
@@ -553,7 +553,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                         onClick={() => {
                                             setShowDisappearingModal(true);
                                         }}
-                                        className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                        className="w-full px-4 py-3 hover:bg-base-200 rounded-xl flex items-center gap-3 text-sm text-base-content/70"
                                     >
                                         <Clock className="w-4 h-4" />
                                         Disappearing Messages
@@ -564,7 +564,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                             onClick={() => {
                                                 handleUnlockChat();
                                             }}
-                                            className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                            className="w-full px-4 py-3 hover:bg-base-200 rounded-xl flex items-center gap-3 text-sm text-base-content/70"
                                         >
                                             <Unlock className="w-4 h-4" />
                                             Unlock Chat
@@ -574,7 +574,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                             onClick={() => {
                                                 handleLockChatOpen();
                                             }}
-                                            className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                            className="w-full px-4 py-3 hover:bg-base-200 rounded-xl flex items-center gap-3 text-sm text-base-content/70"
                                         >
                                             <Lock className="w-4 h-4" />
                                             Lock Chat
@@ -586,10 +586,10 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                             handleAddToFavorites();
                                             toast.success(group?.favoritedBy?.includes(authUser?._id));
                                         }}
-                                        className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                        className="w-full px-4 py-3 hover:bg-base-200 rounded-xl flex items-center gap-3 text-sm text-base-content/70"
                                     >
                                         <Heart
-                                            className={`w-4 h-4 ${group?.favoritedBy?.includes(authUser?._id) ? 'fill-red-400 text-red-400' : ''}`}
+                                            className={`w-4 h-4 ${group?.favoritedBy?.includes(authUser?._id) ? 'fill-red-400 text-error' : ''}`}
                                         />
                                         {group?.favoritedBy?.includes(authUser?._id) ? 'Remove from Favorites' : 'Add to Favorites'}
                                     </button>
@@ -607,23 +607,23 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                                 toast.error('Failed to generate invite link');
                                             }
                                         }}
-                                        className="w-full px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm text-gray-600"
+                                        className="w-full px-4 py-3 hover:bg-base-200 rounded-xl flex items-center gap-3 text-sm text-base-content/70"
                                     >
                                         <LinkIcon className="w-4 h-4" /> Invite via Link
                                     </button>
 
-                                    <button onClick={() => setShowReportModal(true)} className="w-full px-4 py-3 hover:bg-red-50 rounded-xl flex items-center gap-3 text-sm text-red-500">
+                                    <button onClick={() => setShowReportModal(true)} className="w-full px-4 py-3 hover:bg-error/10 rounded-xl flex items-center gap-3 text-sm text-error">
                                         <Flag className="w-4 h-4" /> Report Group
                                     </button>
 
-                                    <button onClick={handleLeaveGroup} className="w-full px-4 py-3 hover:bg-red-50 rounded-xl flex items-center gap-3 text-sm text-red-500">
+                                    <button onClick={handleLeaveGroup} className="w-full px-4 py-3 hover:bg-error/10 rounded-xl flex items-center gap-3 text-sm text-error">
                                         <LogOut className="w-4 h-4" /> Leave Group
                                     </button>
                                 </div>
 
                                 {/* Members List */}
-                                <div className="border-t border-gray-100 p-4">
-                                    <h4 className="text-sm font-semibold text-gray-500 mb-3">
+                                <div className="border-t border-base-300 p-4">
+                                    <h4 className="text-sm font-semibold text-base-content/60 mb-3">
                                         Members ({group.participants?.length || 0})
                                     </h4>
                                     <div className="space-y-1">
@@ -631,14 +631,14 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                             <div
                                                 key={member._id}
                                                 onClick={() => onMemberClick(member._id)}
-                                                className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer"
+                                                className="flex items-center justify-between p-2 hover:bg-base-200 rounded-lg cursor-pointer"
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
+                                                    <div className="w-8 h-8 rounded-full bg-base-300 overflow-hidden">
                                                         {member.avatarUrl ? (
                                                             <img src={member.avatarUrl} alt="" className="w-full h-full object-cover" />
                                                         ) : (
-                                                            <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                                                            <div className="w-full h-full bg-gradient-to-br from-primary to-primary/90 flex items-center justify-center text-primary-content text-xs font-bold">
                                                                 {member.displayName?.charAt(0) || '?'}
                                                             </div>
                                                         )}
@@ -647,13 +647,13 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                                         <p className="text-sm font-medium flex items-center gap-1">
                                                             {member.displayName}
                                                             {member._id === group.admin?._id && (
-                                                                <Crown className="w-3 h-3 text-yellow-400" title="Admin" />
+                                                                <Crown className="w-3 h-3 text-warning" title="Admin" />
                                                             )}
                                                         </p>
-                                                        <p className="text-xs text-gray-400">@{member.username}</p>
+                                                        <p className="text-xs text-base-content/50">@{member.username}</p>
                                                     </div>
                                                     {onlineUsers?.includes(member._id) && (
-                                                        <div className="w-2 h-2 bg-green-500 rounded-full" />
+                                                        <div className="w-2 h-2 bg-success rounded-full" />
                                                     )}
                                                 </div>
                                                 {isAdmin && member._id !== authUser?._id && (
@@ -662,7 +662,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                                             e.stopPropagation();
                                                             handleRemoveMember(member._id);
                                                         }}
-                                                        className="p-1.5 hover:bg-red-50 rounded-full text-red-400 hover:text-red-500"
+                                                        className="p-1.5 hover:bg-error/10 rounded-full text-error hover:text-error"
                                                         title="Remove member"
                                                     >
                                                         <UserX className="w-4 h-4" />
@@ -690,18 +690,18 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                     initial={{ scale: 0.95 }}
                                     animate={{ scale: 1 }}
                                     exit={{ scale: 0.95 }}
-                                    className="bg-white rounded-2xl p-6 w-[90%] max-w-md md:w-96 max-h-[70vh] overflow-y-auto shadow-xl"
+                                    className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-md md:w-96 max-h-[70vh] overflow-y-auto shadow-xl"
                                     onClick={e => e.stopPropagation()}
                                 >
                                     <div className="flex items-center justify-between mb-4">
                                         <h3 className="text-lg font-bold">Add Members</h3>
-                                        <button onClick={() => setShowAddMembers(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                                        <button onClick={() => setShowAddMembers(false)} className="p-2 hover:bg-base-200 rounded-full">
                                             <X className="w-5 h-5" />
                                         </button>
                                     </div>
                                     <div className="max-h-48 overflow-y-auto mb-4">
                                         {contacts.length === 0 ? (
-                                            <p className="text-center text-gray-400 py-8">No users to add</p>
+                                            <p className="text-center text-base-content/50 py-8">No users to add</p>
                                         ) : (
                                             contacts.map(user => (
                                                 <div
@@ -710,15 +710,15 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                                         prev.includes(user._id) ? prev.filter(id => id !== user._id) : [...prev, user._id]
                                                     )}
                                                     className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer ${
-                                                        selectedUsers.includes(user._id) ? 'bg-blue-50' : 'hover:bg-gray-50'
+                                                        selectedUsers.includes(user._id) ? 'bg-primary/10' : 'hover:bg-base-200'
                                                     }`}
                                                 >
-                                                    <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
+                                                    <div className="w-8 h-8 rounded-full bg-base-300 overflow-hidden">
                                                         <img src={user.avatarUrl || '/avatar.png'} alt="" className="w-full h-full object-cover" />
                                                     </div>
                                                     <div>
                                                         <p className="text-sm font-medium">{user.displayName}</p>
-                                                        <p className="text-xs text-gray-400">@{user.username}</p>
+                                                        <p className="text-xs text-base-content/50">@{user.username}</p>
                                                     </div>
                                                 </div>
                                             ))
@@ -728,13 +728,13 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                         <button
                                             onClick={handleAddMembers}
                                             disabled={selectedUsers.length === 0}
-                                            className="flex-1 py-2.5 bg-blue-400 text-white rounded-xl font-medium hover:bg-blue-500 disabled:bg-gray-200 disabled:text-gray-400"
+                                            className="flex-1 py-2.5 bg-primary/80 text-primary-content rounded-xl font-medium hover:bg-primary disabled:bg-base-300 disabled:text-base-content/50"
                                         >
                                             Add ({selectedUsers.length})
                                         </button>
                                         <button
                                             onClick={() => setShowAddMembers(false)}
-                                            className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200"
+                                            className="flex-1 py-2.5 bg-base-200 rounded-xl font-medium hover:bg-base-300"
                                         >
                                             Cancel
                                         </button>
@@ -758,21 +758,21 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                     initial={{ scale: 0.95 }}
                                     animate={{ scale: 1 }}
                                     exit={{ scale: 0.95 }}
-                                    className="bg-white rounded-2xl p-6 w-[90%] max-w-xs text-center shadow-xl"
+                                    className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-xs text-center shadow-xl"
                                     onClick={e => e.stopPropagation()}
                                 >
-                                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                        <Flag className="w-6 h-6 text-red-400" />
+                                    <div className="w-12 h-12 bg-error/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                                        <Flag className="w-6 h-6 text-error" />
                                     </div>
                                     <h3 className="font-bold mb-2">Report Group</h3>
-                                    <p className="text-sm text-gray-500 mb-4">
+                                    <p className="text-sm text-base-content/60 mb-4">
                                         Are you sure you want to report this group? This action cannot be undone.
                                     </p>
                                     <div className="flex gap-2">
-                                        <button onClick={handleReportGroup} className="flex-1 py-2.5 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600">
+                                        <button onClick={handleReportGroup} className="flex-1 py-2.5 bg-error text-primary-content rounded-xl font-medium hover:bg-red-600">
                                             Report
                                         </button>
-                                        <button onClick={() => setShowReportModal(false)} className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">
+                                        <button onClick={() => setShowReportModal(false)} className="flex-1 py-2.5 bg-base-200 rounded-xl font-medium hover:bg-base-300">
                                             Cancel
                                         </button>
                                     </div>
@@ -799,7 +799,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-white rounded-2xl p-6 w-[90%] max-w-xl md:w-[500px] max-h-[80vh] overflow-y-auto shadow-xl"
+                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-xl md:w-[500px] max-h-[80vh] overflow-y-auto shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between mb-4">
@@ -808,20 +808,20 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                     </h3>
                                     <button
                                         onClick={() => setShowMediaModal(false)}
-                                        className="p-2 hover:bg-gray-100 rounded-full"
+                                        className="p-2 hover:bg-base-200 rounded-full"
                                     >
                                         <X className="w-5 h-5" />
                                     </button>
                                 </div>
                                 {mediaItems.length === 0 ?
-                                    <p className="text-center text-gray-400 py-8">
+                                    <p className="text-center text-base-content/50 py-8">
                                         No media shared yet
                                     </p> : (
                                         <div className="grid grid-cols-3 gap-2">
                                             {mediaItems.map((item, i) => (
                                                 <div
                                                     key={i}
-                                                    className="aspect-square rounded-lg overflow-hidden cursor-pointer bg-gray-100"
+                                                    className="aspect-square rounded-lg overflow-hidden cursor-pointer bg-base-200"
                                                     onClick={() => {
                                                         setShowMediaModal(false);
                                                         setShowMediaViewer(item);
@@ -839,7 +839,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                                                 className="w-full h-full object-cover"
                                                             /> :
                                                             <div className="w-full h-full flex items-center justify-center">
-                                                                <FileText className="w-8 h-8 text-gray-400" />
+                                                                <FileText className="w-8 h-8 text-base-content/50" />
                                                             </div>
                                                     }</div>
                                             ))}
@@ -866,7 +866,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                         >
                             <button
                                 onClick={() => setShowMediaViewer(null)}
-                                className="absolute top-4 right-4 p-2 bg-white/20 rounded-full text-white hover:bg-white/40 z-10"
+                                className="absolute top-4 right-4 p-2 bg-base-100/20 rounded-full text-primary-content hover:bg-base-100/40 z-10"
                             >
                                 <X className="w-6 h-6" />
                             </button>
@@ -885,16 +885,16 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                         onClick={e => e.stopPropagation()}
                                     /> :
                                     <div
-                                        className="bg-white rounded-xl p-8 text-center"
+                                        className="bg-base-100 rounded-xl p-8 text-center"
                                         onClick={e => e.stopPropagation()}
                                     >
-                                        <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                                        <FileText className="w-16 h-16 text-base-content/50 mx-auto mb-4" />
                                         <p className="text-lg font-medium">
                                             {showMediaViewer.filename || 'File'}
                                         </p>
                                         <a
                                             href={showMediaViewer.url}
-                                            download className="text-blue-400 hover:text-blue-500 mt-2 inline-block"
+                                            download className="text-primary hover:text-primary mt-2 inline-block"
                                         >
                                             <Download className="w-5 h-5 inline mr-1" />
                                             Download
@@ -922,7 +922,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-white rounded-2xl p-6 w-[90%] max-w-xl md:w-[500px] max-h-[80vh] overflow-y-auto shadow-xl"
+                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-xl md:w-[500px] max-h-[80vh] overflow-y-auto shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between mb-4">
@@ -931,19 +931,19 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                     </h3>
                                     <button
                                         onClick={() => setShowStarredModal(false)}
-                                        className="p-2 hover:bg-gray-100 rounded-full"
+                                        className="p-2 hover:bg-base-200 rounded-full"
                                     >
                                         <X className="w-5 h-5" />
                                     </button>
                                 </div>
                                 {starredMessages.length === 0 ?
-                                    <p className="text-center text-gray-400 py-8">
+                                    <p className="text-center text-base-content/50 py-8">
                                         No starred messages
                                     </p> :
                                     starredMessages.map(msg => (
                                         <div
                                             key={msg._id}
-                                            className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer"
+                                            className="p-3 hover:bg-base-200 rounded-lg cursor-pointer"
                                             onClick={() => {
                                                 setShowStarredModal(false);
                                                 onClose();
@@ -951,12 +951,12 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                             }}
                                         >
                                             <div className="flex items-center gap-2 mb-1">
-                                                <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                                                <span className="text-xs text-gray-400">
+                                                <Star className="w-3 h-3 text-warning fill-yellow-400" />
+                                                <span className="text-xs text-base-content/50">
                                                     {formatMessageTime(msg.createdAt)}
                                                 </span>
                                             </div>
-                                            <p className="text-sm text-gray-600">
+                                            <p className="text-sm text-base-content/70">
                                                 {msg.text?.substring(0, 100)}
                                             </p>
                                         </div>
@@ -984,7 +984,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-white rounded-2xl p-6 w-[90%] max-w-xl md:w-[500px] max-h-[80vh] overflow-y-auto shadow-xl"
+                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-xl md:w-[500px] max-h-[80vh] overflow-y-auto shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between mb-4">
@@ -993,19 +993,19 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                     </h3>
                                     <button
                                         onClick={() => setShowBookmarkedModal(false)}
-                                        className="p-2 hover:bg-gray-100 rounded-full"
+                                        className="p-2 hover:bg-base-200 rounded-full"
                                     >
                                         <X className="w-5 h-5" />
                                     </button>
                                 </div>
                                 {bookmarkedMessages.length === 0 ?
-                                    <p className="text-center text-gray-400 py-8">
+                                    <p className="text-center text-base-content/50 py-8">
                                         No bookmarked messages
                                     </p> :
                                     bookmarkedMessages.map(msg => (
                                         <div
                                             key={msg._id}
-                                            className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer"
+                                            className="p-3 hover:bg-base-200 rounded-lg cursor-pointer"
                                             onClick={() => {
                                                 setShowBookmarkedModal(false);
                                                 onClose();
@@ -1013,12 +1013,12 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                             }}
                                         >
                                             <div className="flex items-center gap-2 mb-1">
-                                                <Bookmark className="w-3 h-3 text-blue-400 fill-blue-400" />
-                                                <span className="text-xs text-gray-400">
+                                                <Bookmark className="w-3 h-3 text-primary fill-primary" />
+                                                <span className="text-xs text-base-content/50">
                                                     {formatMessageTime(msg.createdAt)}
                                                 </span>
                                             </div>
-                                            <p className="text-sm text-gray-600">
+                                            <p className="text-sm text-base-content/70">
                                                 {msg.text?.substring(0, 100)}
                                             </p>
                                         </div>
@@ -1039,17 +1039,17 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                     >
                         <motion.div
                             initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-md md:w-[420px] max-h-[80vh] overflow-y-auto shadow-xl"
+                            className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-md md:w-[420px] max-h-[80vh] overflow-y-auto shadow-xl"
                             onClick={e => e.stopPropagation()}
                         >
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-bold">Chat Wallpaper</h3>
-                                <button onClick={() => setShowWallpaperModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                                <button onClick={() => setShowWallpaperModal(false)} className="p-2 hover:bg-base-200 rounded-full">
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
 
-                            <p className="text-sm text-gray-500 mb-4">Choose a preset or upload your own image.</p>
+                            <p className="text-sm text-base-content/60 mb-4">Choose a preset or upload your own image.</p>
 
                             <div className="grid grid-cols-3 gap-3 mb-4">
                                 {[
@@ -1070,27 +1070,27 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                             handleSetWallpaper(url);
                                             setShowWallpaperModal(false);
                                         }}
-                                        className="aspect-square rounded-lg cursor-pointer border-2 hover:border-blue-400 transition-colors overflow-hidden"
+                                        className="aspect-square rounded-lg cursor-pointer border-2 hover:border-primary transition-colors overflow-hidden"
                                     >
                                         <img src={url} alt="" className="w-full h-full object-cover" />
                                     </div>
                                 ))}
                             </div>
 
-                            <div className="border-t border-gray-100 pt-4">
-                                <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-3 rounded-xl">
-                                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <div className="border-t border-base-300 pt-4">
+                                <label className="flex items-center gap-3 cursor-pointer hover:bg-base-200 p-3 rounded-xl">
+                                    <div className="w-10 h-10 bg-base-200 rounded-lg flex items-center justify-center">
                                         {wallpaperUploading ? (
-                                            <Clock className="w-5 h-5 text-gray-500 animate-spin" />
+                                            <Clock className="w-5 h-5 text-base-content/60 animate-spin" />
                                         ) : (
-                                            <Upload className="w-5 h-5 text-gray-500" />
+                                            <Upload className="w-5 h-5 text-base-content/60" />
                                         )}
                                     </div>
                                     <div>
-                                        <p className="text-sm font-medium text-gray-700">
+                                        <p className="text-sm font-medium text-base-content/80">
                                             {wallpaperUploading ? 'Uploading...' : 'Upload from device'}
                                         </p>
-                                        <p className="text-xs text-gray-400">JPEG, PNG, or GIF</p>
+                                        <p className="text-xs text-base-content/50">JPEG, PNG, or GIF</p>
                                     </div>
                                     <input
                                         type="file"
@@ -1105,18 +1105,18 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                     />
                                 </label>
                             </div>
-                            <div className="border-t border-gray-100 group pt-4">
-                                <label className="flex items-center gap-3 cursor-pointer group-hover:bg-red-100 p-3 rounded-xl"
+                            <div className="border-t border-base-300 group pt-4">
+                                <label className="flex items-center gap-3 cursor-pointer group-hover:bg-error/10 p-3 rounded-xl"
                                        onClick={() => {
                                            handleSetWallpaper("");
                                            setShowWallpaperModal(false);
                                        }}
                                 >
-                                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                                        <Trash className="w-5 h-5 group-hover:text-red-500 text-gray-400"/>
+                                    <div className="w-10 h-10 bg-base-200 rounded-lg flex items-center justify-center">
+                                        <Trash className="w-5 h-5 group-hover:text-error text-base-content/50"/>
                                     </div>
                                     <div>
-                                        <p className="text-sm font-medium text-gray-700 group-hover:text-red-500">
+                                        <p className="text-sm font-medium text-base-content/80 group-hover:text-error">
                                             Remove Wallpaper
                                         </p>
                                     </div>
@@ -1136,11 +1136,11 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                     >
                         <motion.div
                             initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-xs shadow-xl"
+                            className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-xs shadow-xl"
                             onClick={e => e.stopPropagation()}
                         >
                             <h3 className="text-lg font-bold mb-4">Disappearing Messages</h3>
-                            <p className="text-sm text-gray-500 mb-4">
+                            <p className="text-sm text-base-content/60 mb-4">
                                 Messages will be automatically deleted after the selected time.
                             </p>
                             <div className="space-y-2">
@@ -1172,8 +1172,8 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                         }}
                                         className={`w-full py-2.5 rounded-xl text-sm font-medium ${
                                             group?.disappearingTimer === option.value
-                                                ? 'bg-blue-50 text-blue-500'
-                                                : 'hover:bg-gray-50 text-gray-600'
+                                                ? 'bg-primary/10 text-primary'
+                                                : 'hover:bg-base-200 text-base-content/70'
                                         }`}
                                     >
                                         {option.label}
@@ -1182,7 +1182,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                             </div>
                             <button
                                 onClick={() => setShowDisappearingModal(false)}
-                                className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200"
+                                className="w-full mt-4 py-2.5 bg-base-200 rounded-xl font-medium hover:bg-base-300"
                             >
                                 Cancel
                             </button>
@@ -1207,7 +1207,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-white rounded-2xl p-6 w-[90%] max-w-xs shadow-xl"
+                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-xs shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between mb-4">
@@ -1216,18 +1216,18 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                     </h3>
                                     <button
                                         onClick={() => setShowUnlockModal(false)}
-                                        className="p-2 hover:bg-gray-100 rounded-full"
+                                        className="p-2 hover:bg-base-200 rounded-full"
                                     >
                                         <X className="w-5 h-5" />
                                     </button>
                                 </div>
-                                <p className="text-sm text-gray-500 mb-4">
+                                <p className="text-sm text-base-content/60 mb-4">
                                     Enter your login password to access locked chats.
                                 </p>
                                 <input
                                     type="password"
                                     placeholder="Enter password"
-                                    className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-4"
+                                    className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-4"
                                     value={unlockPassword}
                                     onChange={(e) => setUnlockPassword(e.target.value)}
                                     autoFocus
@@ -1235,13 +1235,13 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                 <div className="flex gap-2">
                                     <button
                                         onClick={handleUnlockChat}
-                                        className="flex-1 py-2.5 bg-blue-400 text-white rounded-xl font-medium hover:bg-blue-500"
+                                        className="flex-1 py-2.5 bg-primary/80 text-primary-content rounded-xl font-medium hover:bg-primary"
                                     >
                                         Unlock
                                     </button>
                                     <button
                                         onClick={() => setShowUnlockModal(false)}
-                                        className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200"
+                                        className="flex-1 py-2.5 bg-base-200 rounded-xl font-medium hover:bg-base-300"
                                     >
                                         Cancel
                                     </button>
@@ -1268,7 +1268,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-white rounded-2xl p-6 w-[90%] max-w-xs shadow-xl"
+                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-xs shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between mb-4">
@@ -1277,18 +1277,18 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                     </h3>
                                     <button
                                         onClick={() => setShowLockChatModal(false)}
-                                        className="p-2 hover:bg-gray-100 rounded-full"
+                                        className="p-2 hover:bg-base-200 rounded-full"
                                     >
                                         <X className="w-5 h-5" />
                                     </button>
                                 </div>
-                                <p className="text-sm text-gray-500 mb-4">
+                                <p className="text-sm text-base-content/60 mb-4">
                                     Enter your login password to lock this chat.
                                 </p>
                                 <input
                                     type="password"
                                     placeholder="Enter password"
-                                    className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 mb-4"
+                                    className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-4"
                                     value={lockPassword}
                                     onChange={(e) => setLockPassword(e.target.value)}
                                     autoFocus
@@ -1296,13 +1296,13 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                 <div className="flex gap-2">
                                     <button
                                         onClick={handleLockChatConfirm}
-                                        className="flex-1 py-2.5 bg-blue-400 text-white rounded-xl font-medium hover:bg-blue-500"
+                                        className="flex-1 py-2.5 bg-primary/80 text-primary-content rounded-xl font-medium hover:bg-primary"
                                     >
                                         Lock Chat
                                     </button>
                                     <button
                                         onClick={() => setShowLockChatModal(false)}
-                                        className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200"
+                                        className="flex-1 py-2.5 bg-base-200 rounded-xl font-medium hover:bg-base-300"
                                     >
                                         Cancel
                                     </button>
@@ -1322,7 +1322,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                     >
                         <motion.div
                             initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-[90%] max-w-xs shadow-xl"
+                            className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-xs shadow-xl"
                             onClick={e => e.stopPropagation()}
                         >
                             <h3 className="text-lg font-bold mb-4">Chat Theme</h3>
@@ -1361,7 +1361,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                                 toast.error('Failed');
                                             }
                                         }}
-                                        className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-gray-100 transition-colors"
+                                        className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-base-200 transition-colors"
                                     >
                                         <div
                                             className={`w-10 h-10 rounded-full border-2 ${
@@ -1375,7 +1375,7 @@ const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMember
                                     </button>
                                 ))}
                             </div>
-                            <button onClick={() => setShowThemeModal(false)} className="w-full mt-4 py-2.5 bg-gray-100 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
+                            <button onClick={() => setShowThemeModal(false)} className="w-full mt-4 py-2.5 bg-base-200 rounded-xl font-medium hover:bg-base-300">Cancel</button>
                         </motion.div>
                     </motion.div>
                 )}

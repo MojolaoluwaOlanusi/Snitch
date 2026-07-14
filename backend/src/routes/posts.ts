@@ -25,7 +25,7 @@ router.post('/', async (req,res)=>{
     res.status(201).json(p);
 });
 
-router.get('/', async (_req,res)=>{ const posts = await Post.find().sort({ createdAt:-1 }).limit(50).populate('author','username displayName avatarUrl'); res.json(posts); });
+router.get('/', async (_req,res)=>{ const posts = await Post.find({ isPublished: true }).sort({ createdAt:-1 }).limit(50).populate('author','username displayName avatarUrl'); res.json(posts); });
 
 router.get('/trending', async (req,res)=>{
     const parsedLimit = Number(req.query.limit);
@@ -38,7 +38,7 @@ router.get('/trending', async (req,res)=>{
             : 0;
 
 
-    const trendingPosts = await Post.find()
+    const trendingPosts = await Post.find({ isPublished: true })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -160,6 +160,80 @@ router.put('/edit-post/:id', async (req, res) => {
     }
 });
 
+// Get user's bookmarked posts
+router.get('/bookmarks', async (req, res) => {
+    try {
+        const user = await User.findById(req.userId).populate('bookmarkedPosts');
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        res.json(user.bookmarkedPosts || []);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Toggle bookmark
+router.post('/:postId/bookmark', async (req, res) => {
+    try {
+        const postId = new mongoose.Types.ObjectId(req.params.postId);
+        const post = await Post.findById(postId);
+        if (!post) return res.status(404).json({ error: 'Post not found' });
+        if (!req.userId) return res.status(401).json({ error: 'unauthorized' });
+        const userId = req.user._id;
+
+        const user = await User.findById(req.userId);
+
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Check if already bookmarked
+        const alreadyBookmarked = user.bookmarkedPosts.some(
+            (p: any) => p.toString() === postId.toString()
+        );
+
+        if (alreadyBookmarked) {
+            // Remove bookmark
+            user.bookmarkedPosts = user.bookmarkedPosts.filter(
+                (p: any) => p.toString() !== postId.toString()
+            );
+            // Remove user from post's bookmarkedBy
+            post.bookmarkedBy = (post.bookmarkedBy || []).filter(
+                (uid: any) => uid.toString() !== req.userId
+            );
+        } else {
+            // Add bookmark
+            user.bookmarkedPosts.push(postId);
+            // Add user to post's bookmarkedBy
+            if (!post.bookmarkedBy) post.bookmarkedBy = [];
+            post.bookmarkedBy.push(new mongoose.Types.ObjectId(req.userId));
+            const notification = new Notification({
+                from: userId,
+                to: post.author,
+                type: "bookmark",
+                fromAvatarUrl: user.avatarUrl,
+            });
+            await notification.save();
+            // @ts-ignore
+            sendPushNotification(post.author.toString(), {
+                title: 'New Bookmark',
+                body: `${user.displayName} bookmarked your post`,
+                url: `${process.env.CLIENT_URL}/post/${post._id}`,
+            }).catch(err => console.error('Push bookmark error:', err));
+        }
+
+        post.bookmarksCount = post.bookmarkedBy.length;
+        await user.save();
+        await post.save();
+
+        res.json({
+            bookmarked: !alreadyBookmarked,
+            bookmarksCount: post.bookmarksCount,
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 router.get('/get-post/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -212,6 +286,7 @@ router.post('/like/:id', async (req, res) => {
                 fromAvatarUrl: currentUser.avatarUrl,
             });
             await notification.save();
+            // @ts-ignore
             sendPushNotification(post.author.toString(), {
                 title: 'New Like',
                 body: `${currentUser.displayName} liked your post`,
@@ -233,7 +308,7 @@ router.get('/liked-posts/:id', async (req, res) => {
         const user = await User.findById(id);
         if (!user) return res.status(404).json({ error: "User not found" });
 
-        const likedPosts = await Post.find({ _id: { $in: user.likedPosts } })
+        const likedPosts = await Post.find({ _id: { $in: user.likedPosts }, isPublished: true })
             .populate({
                 path: "author",
                 select: "-passwordHash",
@@ -256,7 +331,7 @@ router.get('/get-user-posts/:id', async (req, res) => {
         const user = await User.findById(id);
         if (!user) return res.status(404).json({ error: "User not found", message: "User not found" });
 
-        const posts = await Post.find({ author: user._id })
+        const posts = await Post.find({ author: user._id, isPublished: true })
             .sort({ createdAt: -1 })
             .populate({
                 path: "author",
@@ -280,7 +355,7 @@ router.get('/get-truncated-posts/:id', async (req, res) => {
         const user = await User.findById(id);
         if (!user) return res.status(404).json({ error: "User not found", message: "User not found" });
 
-        const posts = await Post.find({ author: user._id })
+        const posts = await Post.find({ author: user._id, isPublished: true })
             .sort({ createdAt: -1 })
             .populate({
                 path: "author",
@@ -305,7 +380,7 @@ router.get('/get-following-posts', async (req, res) => {
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ error: "User not found" });
 
-        const followingPosts = await Post.find({ author: { $in: user.following } })
+        const followingPosts = await Post.find({ author: { $in: user.following }, isPublished: true })
             .sort({ createdAt: -1 })
             .populate({
                 path: "author",
@@ -350,6 +425,7 @@ router.post('/react', async (req, res) => {
             fromAvatarUrl: currentUser.avatarUrl,
         });
         await notification.save();
+        // @ts-ignore
         sendPushNotification(post.author.toString(), {
             title: 'New Reaction',
             body: `${currentUser.displayName} reacted to your post`,
@@ -361,42 +437,114 @@ router.post('/react', async (req, res) => {
         res.status(500).json({ message: 'Server error', error: err.message });
     }});
 
+// POST /comment – add a comment (with optional media)
 router.post('/comment', async (req, res) => {
     try {
-        const { text,postId } = req.body;
+        const { text, postId, media } = req.body;
         const userId = req.userId;
 
-
-
-        if (!text) {
-            return res.status(400).json({ error: "Text field is required" });
+        if (!text && !media) {
+            return res.status(400).json({ error: "Text or media is required" });
         }
 
         const post = await Post.findById(postId);
-
-        if (!post) {
-            return res.status(404).json({ error: "Post not found" });
-        }
+        if (!post) return res.status(404).json({ error: "Post not found" });
 
         const person = await User.findById(userId).select("-passwordHash");
+        if (!person) return res.status(404).json({ error: "User not found" });
 
-        if (!person) {
-            return res.status(404).json({error: "Commenter not found!"})
-        }
-
-        const comment = { user: userId, text, userAvatar: person.avatarUrl, userDisplayName: person.displayName, userUsername: person.username };
+        const comment = {
+            user: userId,
+            text: text || '',
+            media: media || null,
+            userAvatar: person.avatarUrl,
+            userDisplayName: person.displayName,
+            userUsername: person.username,
+        };
 
         // @ts-ignore
         post.comments.push(comment);
         await post.save();
 
-        const commentedPost = await Post.findById(postId);
-
-        res.status(200).json(commentedPost);
+        const populated = await Post.findById(postId)
+            .populate('author', 'username displayName avatarUrl')
+            .populate('comments.user', 'username displayName avatarUrl');
+        res.status(200).json(populated);
     } catch (error) {
-        console.log("Error in commentOnPost controller: ", error);
+        console.error("Error posting comment:", error);
         res.status(500).json({ error: "Internal server error" });
     }
+});
+
+// POST /comment/:commentId/reply – reply to a comment
+router.post('/comment/:commentId/reply', async (req, res) => {
+    try {
+        const { commentId } = req.params;
+        const { text, media } = req.body;
+        const userId = req.userId;
+
+        if (!text && !media) {
+            return res.status(400).json({ error: "Text or media is required" });
+        }
+
+        const post = await Post.findOne({ 'comments._id': commentId });
+        if (!post) return res.status(404).json({ error: "Post not found" });
+
+        const person = await User.findById(userId).select("-passwordHash");
+        if (!person) return res.status(404).json({ error: "User not found" });
+
+        // @ts-ignore
+        const comment = post.comments.id(commentId);
+        if (!comment) return res.status(404).json({ error: "Comment not found" });
+
+        const reply = {
+            user: userId,
+            text: text || '',
+            media: media || null,
+            userAvatar: person.avatarUrl,
+            userDisplayName: person.displayName,
+            userUsername: person.username,
+        };
+
+        comment.replies.push(reply);
+        await post.save();
+
+        const populated = await Post.findById(post._id)
+            .populate('author', 'username displayName avatarUrl')
+            .populate('comments.user', 'username displayName avatarUrl');
+        res.status(200).json(populated);
+    } catch (error) {
+        console.error("Error replying to comment:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+// POST /api/posts/schedule
+router.post('/schedule', async (req, res) => {
+    if (!req.user) return res.status(401).json({ error: 'unauthorized' });
+    const { text, url, isWarp, mediaType, mentions, hashtags, scheduledAt } = req.body;
+
+    if (!text && !url) return res.status(400).json({ message: "Post content is required" });
+
+    const scheduledDate = new Date(scheduledAt);
+    if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
+        return res.status(400).json({ message: "Scheduled time must be in the future" });
+    }
+
+    const post = await Post.create({
+        author: req.user._id,
+        text,
+        url,
+        isWarp,
+        mediaType: mediaType || "None",
+        mentions,
+        hashtags,
+        scheduledAt: scheduledDate,   // ← Must be present
+        isPublished: false,           // ← Must be present
+        createdAt: new Date(),
+    });
+
+    res.status(201).json(post);
 });
 
 export default router;

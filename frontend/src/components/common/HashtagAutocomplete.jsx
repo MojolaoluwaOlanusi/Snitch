@@ -137,12 +137,12 @@ const HashtagAutocomplete = ({ value, onChange, placeholder = "Add hashtags..." 
 
     return (
         <div className="relative w-full" ref={containerRef}>
-            <div className="border-2 border-gray-300 rounded-lg p-3 focus-within:ring-2 focus-within:ring-blue-200 focus-within:border-blue-200 transition-all duration-200">
+            <div className="border-2 border-base-300 rounded-lg p-3 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/20 transition-all duration-200">
                 <div className="flex flex-wrap gap-2 mb-2">
                     {hashtags.map((hashtag, index) => (
                         <div
                             key={index}
-                            className="flex items-center gap-1 px-3 py-1 bg-gray-200 rounded-full text-sm text-gray-700"
+                            className="flex items-center gap-1 px-3 py-1 bg-base-300 rounded-full text-sm text-base-content/80"
                         >
                             <span>#{hashtag}</span>
                             <button
@@ -156,7 +156,7 @@ const HashtagAutocomplete = ({ value, onChange, placeholder = "Add hashtags..." 
                     ))}
                 </div>
                 <div className="relative">
-                    <span className="absolute left-0 top-1/2 transform -translate-y-1/2 text-gray-500 font-semibold">#</span>
+                    <span className="absolute left-0 top-1/2 transform -translate-y-1/2 text-base-content/60 font-semibold">#</span>
                     <input
                         ref={inputRef}
                         type="text"
@@ -175,14 +175,14 @@ const HashtagAutocomplete = ({ value, onChange, placeholder = "Add hashtags..." 
             </div>
             
             {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute z-50 w-full mb-1 bg-white border-2 border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto bottom-full">
+                <div className="absolute z-50 w-full mb-1 bg-base-100 border-2 border-base-300 rounded-lg shadow-lg max-h-60 overflow-auto bottom-full">
                     {suggestions.map((hashtag, index) => (
                         <div
                             key={index}
                             className={`p-3 cursor-pointer transition-colors duration-150 ${
                                 index === selectedIndex 
-                                    ? 'bg-blue-100 text-blue-700' 
-                                    : 'hover:bg-gray-100 text-gray-700'
+                                    ? 'bg-primary/10 text-primary' 
+                                    : 'hover:bg-base-200 text-base-content/80'
                             }`}
                             onClick={(e) => handleSuggestionClick(e, hashtag)}
                         >

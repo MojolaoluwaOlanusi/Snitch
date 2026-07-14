@@ -366,10 +366,10 @@ const StickerEditor = ({ onClose, onSave }) => {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 sm:p-4"
         >
-            <div className="bg-white rounded-2xl p-4 w-full max-w-[520px] max-h-[90vh] overflow-y-auto overflow-x-hidden shadow-xl" ref={containerRef}>
+            <div className="bg-base-100 rounded-2xl p-4 w-full max-w-[520px] max-h-[90vh] overflow-y-auto overflow-x-hidden shadow-xl" ref={containerRef}>
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-bold">Sticker Editor</h3>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+                    <button onClick={onClose} className="p-2 hover:bg-base-200 rounded-full"><X className="w-5 h-5" /></button>
                 </div>
 
                 {/* Canvas */}
@@ -449,14 +449,14 @@ const StickerEditor = ({ onClose, onSave }) => {
                 {/* Image selection */}
                 {!hasImage && (
                     <div className="flex flex-col items-center gap-4 py-8">
-                        <button onClick={loadTestImage} className="px-6 py-3 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 flex items-center gap-2 w-full sm:w-auto justify-center">
+                        <button onClick={loadTestImage} className="px-6 py-3 bg-success text-primary-content rounded-xl font-medium hover:bg-green-600 flex items-center gap-2 w-full sm:w-auto justify-center">
                             <Camera className="w-5 h-5" /> Load Test Image
                         </button>
-                        <div className="text-sm text-gray-400">— or —</div>
-                        <button onClick={() => fileInputRef.current?.click()} className="px-6 py-3 bg-gray-100 rounded-xl font-medium hover:bg-gray-200 flex items-center gap-2 w-full sm:w-auto justify-center">
+                        <div className="text-sm text-base-content/50">— or —</div>
+                        <button onClick={() => fileInputRef.current?.click()} className="px-6 py-3 bg-base-200 rounded-xl font-medium hover:bg-base-300 flex items-center gap-2 w-full sm:w-auto justify-center">
                             <Camera className="w-5 h-5" /> Choose Photo
                         </button>
-                        <button onClick={() => cameraInputRef.current?.click()} className="px-6 py-3 bg-blue-400 text-white rounded-xl font-medium hover:bg-blue-500 flex items-center gap-2 w-full sm:w-auto justify-center">
+                        <button onClick={() => cameraInputRef.current?.click()} className="px-6 py-3 bg-primary/80 text-primary-content rounded-xl font-medium hover:bg-primary flex items-center gap-2 w-full sm:w-auto justify-center">
                             <Camera className="w-5 h-5" /> Take Photo
                         </button>
                         <input type="file" ref={fileInputRef} accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) loadImage(f); }} className="hidden" />
@@ -466,12 +466,12 @@ const StickerEditor = ({ onClose, onSave }) => {
 
                 {/* Text editing input */}
                 {editingTextId && (
-                    <div className="mb-3 p-3 bg-gray-50 rounded-lg border">
-                        <p className="text-xs text-gray-500 mb-2">Edit text:</p>
+                    <div className="mb-3 p-3 bg-base-200 rounded-lg border">
+                        <p className="text-xs text-base-content/60 mb-2">Edit text:</p>
                         <div className="flex gap-2">
-                            <input type="text" value={editingTextValue} onChange={(e) => setEditingTextValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') finishEditingText(); if (e.key === 'Escape') setEditingTextId(null); }} className="flex-1 px-3 py-2 bg-white rounded-lg text-sm focus:outline-none border" autoFocus />
-                            <button onClick={finishEditingText} className="px-4 py-2 bg-blue-400 text-white rounded-lg text-sm font-medium hover:bg-blue-500">Save</button>
-                            <button onClick={() => setEditingTextId(null)} className="px-4 py-2 bg-gray-100 rounded-lg text-sm hover:bg-gray-200">Cancel</button>
+                            <input type="text" value={editingTextValue} onChange={(e) => setEditingTextValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') finishEditingText(); if (e.key === 'Escape') setEditingTextId(null); }} className="flex-1 px-3 py-2 bg-base-100 rounded-lg text-sm focus:outline-none border" autoFocus />
+                            <button onClick={finishEditingText} className="px-4 py-2 bg-primary/80 text-primary-content rounded-lg text-sm font-medium hover:bg-primary">Save</button>
+                            <button onClick={() => setEditingTextId(null)} className="px-4 py-2 bg-base-200 rounded-lg text-sm hover:bg-base-300">Cancel</button>
                         </div>
                     </div>
                 )}
@@ -480,26 +480,26 @@ const StickerEditor = ({ onClose, onSave }) => {
                 {hasImage && (
                     <>
                         <div className="flex items-center gap-1 sm:gap-2 mb-3 flex-wrap">
-                            <button onClick={() => setMode('move')} className={`p-1.5 sm:p-2 rounded-lg ${mode === 'move' ? 'bg-blue-100 text-blue-500' : 'bg-gray-100'}`} title="Move"><Move className="w-4 h-4" /></button>
-                            <button onClick={() => setMode('pen')} className={`p-1.5 sm:p-2 rounded-lg ${mode === 'pen' ? 'bg-blue-100 text-blue-500' : 'bg-gray-100'}`} title="Draw"><Pen className="w-4 h-4" /></button>
-                            <button onClick={() => { setMode('text'); addText(); }} className={`p-1.5 sm:p-2 rounded-lg ${mode === 'text' ? 'bg-blue-100 text-blue-500' : 'bg-gray-100'}`} title="Add Text"><Type className="w-4 h-4" /></button>
-                            <button onClick={() => setMode('shape')} className={`p-1.5 sm:p-2 rounded-lg ${mode === 'shape' ? 'bg-blue-100 text-blue-500' : 'bg-gray-100'}`} title="Add Shape"><Square className="w-4 h-4" /></button>
+                            <button onClick={() => setMode('move')} className={`p-1.5 sm:p-2 rounded-lg ${mode === 'move' ? 'bg-primary/10 text-primary' : 'bg-base-200'}`} title="Move"><Move className="w-4 h-4" /></button>
+                            <button onClick={() => setMode('pen')} className={`p-1.5 sm:p-2 rounded-lg ${mode === 'pen' ? 'bg-primary/10 text-primary' : 'bg-base-200'}`} title="Draw"><Pen className="w-4 h-4" /></button>
+                            <button onClick={() => { setMode('text'); addText(); }} className={`p-1.5 sm:p-2 rounded-lg ${mode === 'text' ? 'bg-primary/10 text-primary' : 'bg-base-200'}`} title="Add Text"><Type className="w-4 h-4" /></button>
+                            <button onClick={() => setMode('shape')} className={`p-1.5 sm:p-2 rounded-lg ${mode === 'shape' ? 'bg-primary/10 text-primary' : 'bg-base-200'}`} title="Add Shape"><Square className="w-4 h-4" /></button>
                             <div className="w-px h-6 bg-gray-300 mx-1 hidden sm:block" />
-                            <button onClick={undo} className="p-1.5 sm:p-2 rounded-lg bg-gray-100" disabled={historyIndex === 0} title="Undo (Ctrl+Z)"><Undo className="w-4 h-4" /></button>
+                            <button onClick={undo} className="p-1.5 sm:p-2 rounded-lg bg-base-200" disabled={historyIndex === 0} title="Undo (Ctrl+Z)"><Undo className="w-4 h-4" /></button>
                             <button onClick={redoAction} className="p-1.5 sm:p-2 rounded-lg-gray-100" disabled={historyIndex === history.length - 1} title="Redo (Ctrl+Y)"><Redo className="w-4 h-4" /></button>
-                            <button onClick={deleteSelected} className="p-1.5 sm:p-2 rounded-lg bg-gray-100" title="Delete (Del)"><Trash2 className="w-4 h-4" /></button>
-                            <button onClick={() => { if (selectedId) { const obj = objects.find(o => o.id === selectedId); if (obj) setClipboard({ ...obj }); } }} className="p-1.5 sm:p-2 rounded-lg bg-gray-100" title="Copy (Ctrl+C)"><Copy className="w-4 h-4" /></button>
-                            <button onClick={() => { if (clipboard) { const newId = `${clipboard.type}-${Date.now()}`; const newObjects = [...objects, { ...clipboard, id: newId, x: clipboard.x + 20, y: clipboard.y + 20 }]; setObjects(newObjects); pushHistory(newObjects, lines); setSelectedId(newId); setTimeout(checkTransformer, 50); } }} className="p-1.5 sm:p-2 rounded-lg bg-gray-100" title="Paste (Ctrl+V)"><ClipboardPaste className="w-4 h-4" /></button>
-                            <button onClick={sendForward} className="p-1.5 sm:p-2 rounded-lg bg-gray-100 disabled:opacity-40" disabled={!selectedId || objects.findIndex(o => o.id === selectedId) === objects.length - 1} title="Send Forward"><ArrowUp className="w-4 h-4" /></button>
-                            <button onClick={sendBackward} className="p-1.5 sm:p-2 rounded-lg bg-gray-100 disabled:opacity-40" disabled={!selectedId || objects.findIndex(o => o.id === selectedId) === 0} title="Send Backward"><ArrowDown className="w-4 h-4" /></button>
+                            <button onClick={deleteSelected} className="p-1.5 sm:p-2 rounded-lg bg-base-200" title="Delete (Del)"><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={() => { if (selectedId) { const obj = objects.find(o => o.id === selectedId); if (obj) setClipboard({ ...obj }); } }} className="p-1.5 sm:p-2 rounded-lg bg-base-200" title="Copy (Ctrl+C)"><Copy className="w-4 h-4" /></button>
+                            <button onClick={() => { if (clipboard) { const newId = `${clipboard.type}-${Date.now()}`; const newObjects = [...objects, { ...clipboard, id: newId, x: clipboard.x + 20, y: clipboard.y + 20 }]; setObjects(newObjects); pushHistory(newObjects, lines); setSelectedId(newId); setTimeout(checkTransformer, 50); } }} className="p-1.5 sm:p-2 rounded-lg bg-base-200" title="Paste (Ctrl+V)"><ClipboardPaste className="w-4 h-4" /></button>
+                            <button onClick={sendForward} className="p-1.5 sm:p-2 rounded-lg bg-base-200 disabled:opacity-40" disabled={!selectedId || objects.findIndex(o => o.id === selectedId) === objects.length - 1} title="Send Forward"><ArrowUp className="w-4 h-4" /></button>
+                            <button onClick={sendBackward} className="p-1.5 sm:p-2 rounded-lg bg-base-200 disabled:opacity-40" disabled={!selectedId || objects.findIndex(o => o.id === selectedId) === 0} title="Send Backward"><ArrowDown className="w-4 h-4" /></button>
                         </div>
 
                         {/* Pen options */}
                         {mode === 'pen' && (
                             <div className="flex items-center gap-2 mb-3 flex-wrap">
-                                <span className="text-xs text-gray-500">Color:</span>
+                                <span className="text-xs text-base-content/60">Color:</span>
                                 <input type="color" value={penColor} onChange={(e) => setPenColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer" />
-                                <span className="text-xs text-gray-500 ml-2">Size:</span>
+                                <span className="text-xs text-base-content/60 ml-2">Size:</span>
                                 <input type="range" min="1" max="20" value={penSize} onChange={(e) => setPenSize(Number(e.target.value))} className="w-24" />
                                 <span className="text-xs">{penSize}px</span>
                             </div>
@@ -508,17 +508,17 @@ const StickerEditor = ({ onClose, onSave }) => {
                         {/* Shape mode */}
                         {mode === 'shape' && (
                             <div className="flex items-center gap-3 mb-3 flex-wrap">
-                                <span className="text-xs text-gray-500">Shape:</span>
+                                <span className="text-xs text-base-content/60">Shape:</span>
                                 <select
                                     value={selectedShape}
                                     onChange={(e) => setSelectedShape(e.target.value)}
-                                    className="px-3 py-2 bg-gray-50 rounded-lg text-sm border focus:outline-none"
+                                    className="px-3 py-2 bg-base-200 rounded-lg text-sm border focus:outline-none"
                                 >
                                     {SHAPES.map(s => (
                                         <option key={s.id} value={s.id}>{s.label}</option>
                                     ))}
                                 </select>
-                                <button onClick={addShape} className="px-4 py-2 bg-blue-400 text-white rounded-lg text-sm font-medium hover:bg-blue-500">
+                                <button onClick={addShape} className="px-4 py-2 bg-primary/80 text-primary-content rounded-lg text-sm font-medium hover:bg-primary">
                                     Add Shape
                                 </button>
                             </div>
@@ -528,7 +528,7 @@ const StickerEditor = ({ onClose, onSave }) => {
                         {mode !== 'pen' && (
                             <div className="flex items-center gap-4 mb-3 flex-wrap">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-xs text-gray-500">Fill:</span>
+                                    <span className="text-xs text-base-content/60">Fill:</span>
                                     <input
                                         type="color"
                                         value={textColor}
@@ -541,7 +541,7 @@ const StickerEditor = ({ onClose, onSave }) => {
                                     />
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-xs text-gray-500">Background:</span>
+                                    <span className="text-xs text-base-content/60">Background:</span>
                                     <input
                                         type="color"
                                         value={textBgColor === 'transparent' ? '#ffffff' : textBgColor}
@@ -566,14 +566,14 @@ const StickerEditor = ({ onClose, onSave }) => {
                                                 if (obj && obj.type === 'text') updateObject(selectedId, { backgroundColor: undefined });
                                             }
                                         }}
-                                        className={`text-xs px-2 py-1 rounded ${textBgColor === 'transparent' ? 'bg-blue-100 text-blue-500' : 'bg-gray-100'}`}
+                                        className={`text-xs px-2 py-1 rounded ${textBgColor === 'transparent' ? 'bg-primary/10 text-primary' : 'bg-base-200'}`}
                                     >
                                         None
                                     </button>
                                 </div>
                                 {selectedId && objects.find(o => o.id === selectedId)?.type !== 'text' && (
                                     <div className="flex items-center gap-2 ml-2">
-                                        <span className="text-xs text-gray-500">Stroke:</span>
+                                        <span className="text-xs text-base-content/60">Stroke:</span>
                                         <input
                                             type="range"
                                             min="1"
@@ -592,7 +592,7 @@ const StickerEditor = ({ onClose, onSave }) => {
                             </div>
                         )}
 
-                        <button onClick={handleSave} className="w-full py-2.5 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 flex items-center justify-center gap-2">
+                        <button onClick={handleSave} className="w-full py-2.5 bg-success/100 text-primary-content rounded-xl font-medium hover:bg-success/90 flex items-center justify-center gap-2">
                             <Save className="w-4 h-4" /> Save Sticker
                         </button>
                     </>

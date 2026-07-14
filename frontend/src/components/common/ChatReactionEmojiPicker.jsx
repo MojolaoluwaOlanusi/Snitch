@@ -41,10 +41,10 @@ const ReactionEmojiPicker = ({ postId, onReact, onClose, isOpen }) => {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.9 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute bottom-full mb-1 z-50 bg-white rounded-xl shadow-xl border border-gray-100"
+                    className="absolute bottom-full mb-1 z-50 bg-base-100 rounded-xl shadow-xl border border-base-300"
                 >
                     <Suspense fallback={
-                        <div className="text-center p-4 text-gray-400 text-sm">Loading...</div>
+                        <div className="text-center p-4 text-base-content/50 text-sm">Loading...</div>
                     }>
                         <LazyPicker
                             data={data}

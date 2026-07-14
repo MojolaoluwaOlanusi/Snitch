@@ -55,7 +55,7 @@ const MessageReactionEmojiPicker = ({ postId, onReact, onClose, isOpen, position
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.9 }}
             transition={{ duration: 0.15 }}
-            className="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-100"
+            className="fixed z-50 bg-base-100 rounded-xl shadow-xl border border-base-300"
             style={
                 isMobile
                     ? {
@@ -71,8 +71,8 @@ const MessageReactionEmojiPicker = ({ postId, onReact, onClose, isOpen, position
                     <button
                         key={idx}
                         onClick={() => handleQuickReact(emoji)}
-                        className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-lg sm:text-xl hover:bg-gray-100 rounded-lg transition-colors hover:scale-125 transform ${
-                            currentUserReaction === emoji ? "bg-blue-100 ring-2 ring-blue-400" : ""
+                        className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-lg sm:text-xl hover:bg-base-200 rounded-lg transition-colors hover:scale-125 transform ${
+                            currentUserReaction === emoji ? "bg-primary/10 ring-2 ring-primary" : ""
                         }`}
                     >
                         {emoji}
@@ -80,7 +80,7 @@ const MessageReactionEmojiPicker = ({ postId, onReact, onClose, isOpen, position
                 ))}
                 <button
                     onClick={() => setShowFullPicker(true)}
-                    className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-lg sm:text-xl hover:bg-gray-100 rounded-lg transition-colors"
+                    className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-lg sm:text-xl hover:bg-base-200 rounded-lg transition-colors"
                 >
                     <PlusCircle className="w-5 h-5 sm:w-auto sm:h-auto" />
                 </button>
@@ -96,22 +96,22 @@ const MessageReactionEmojiPicker = ({ postId, onReact, onClose, isOpen, position
             animate={{ scale: 1 }}
             exit={{ scale: 0.9 }}
             transition={{ duration: 0.15 }}
-            className="bg-white rounded-xl shadow-xl border border-gray-100 w-[90vw] max-w-xs sm:max-w-sm md:w-72 max-h-80 overflow-auto"
+            className="bg-base-100 rounded-xl shadow-xl border border-base-300 w-[90vw] max-w-xs sm:max-w-sm md:w-72 max-h-80 overflow-auto"
             onClick={e => e.stopPropagation()}
         >
             <div className="p-2">
                 <div className="flex items-center justify-between mb-2 px-2">
                     <button
                         onClick={() => setShowFullPicker(false)}
-                        className="text-xs text-blue-400 hover:text-blue-500 shrink-0"
+                        className="text-xs text-primary hover:text-primary shrink-0"
                     >
                         ← Quick
                     </button>
-                    <span className="text-[10px] sm:text-xs text-gray-400 truncate ml-2">
+                    <span className="text-[10px] sm:text-xs text-base-content/50 truncate ml-2">
                         Choose a reaction
                     </span>
                 </div>
-                <Suspense fallback={<div className="text-center p-4 text-gray-400 text-sm">Loading...</div>}>
+                <Suspense fallback={<div className="text-center p-4 text-base-content/50 text-sm">Loading...</div>}>
                     <LazyPicker
                         data={data}
                         onEmojiSelect={handleSelect}

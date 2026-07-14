@@ -47,10 +47,10 @@ const MediaSelector = ({
         </div>
       ) : (
         // fixed preview container so it doesn't stretch the layout
-        <div className="relative rounded h-72 w-full overflow-hidden border border-gray-200 bg-gray-50">
+        <div className="relative rounded h-72 w-full overflow-hidden border border-base-200 bg-base-200">
           {/* preview */}
           {file?.type?.startsWith('image') || (!file && previewUrl?.match(/\.(jpeg|jpg|gif|png|webp)$/i)) ? (
-            <img src={previewUrl} alt="preview" className="h-full w-full object-contain bg-white" />
+            <img src={previewUrl} alt="preview" className="h-full w-full object-contain bg-base-100" />
           ) : (file?.type?.startsWith('video') || previewUrl?.match(/\.(mp4|webm|ogg)$/i)) ? (
             <video src={previewUrl} controls className="h-full w-full object-contain bg-black" />
           ) : (

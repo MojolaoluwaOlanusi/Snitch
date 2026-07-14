@@ -8,13 +8,13 @@
     ],
     "jsx": "react-jsx",
     "module": "ESNext",
-    "moduleResolution": "Bundler",
     "strict": true,
-    "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "bundler",
+    "esModuleInterop": true
   },
   "include": [
     "src"

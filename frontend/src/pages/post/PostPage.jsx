@@ -3,8 +3,8 @@ import { useUserStore } from "../../store/useUserStore";
 import { FaArrowLeft, FaRegComment, FaRegHeart, FaTrash } from "react-icons/fa";
 import { BiRepost } from "react-icons/bi";
 import { MdAddReaction, MdReportProblem } from "react-icons/md";
-import { MoreHorizontal, Hash } from "lucide-react";
-import { useEffect, useState } from "react";
+import {MoreHorizontal, Hash, Sticker, ChevronUp, ChevronDown} from "lucide-react";
+import {Suspense, useEffect, useState} from "react";
 import PostPageSkeleton from "../../components/skeletons/PostPageSkeleton";
 import Sidebar from "../../components/common/Sidebar";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -14,11 +14,21 @@ import EditPostModal from "../../components/common/EditPostModal";
 import ReactionEmojiPicker from "../../components/common/ReactionEmojiPicker.tsx";
 import ReactionsDisplay from "../../components/common/ReactionsDisplay";
 import axiosInstance from "../../lib/axios";
+import {AnimatePresence} from "framer-motion";
+import GifStickerPicker from "../../components/common/GifStickerPicker.jsx";
+import {toast} from "sonner";
 
 const PostPage = () => {
     const { postId } = useParams();
     const navigate = useNavigate();
     const { authUserId, authUser } = useAuthStore();
+    const [replyToCommentId, setReplyToCommentId] = useState(null);
+    const [replyText, setReplyText] = useState("");
+    const [replyMedia, setReplyMedia] = useState(null);
+    const [showReplies, setShowReplies] = useState(false);
+    const [showCommentStickerPicker, setShowCommentStickerPicker] = useState(false);
+    const [showReplyStickerPicker, setShowReplyStickerPicker] = useState(false);
+
 
     const {
         getPostById,
@@ -100,13 +110,95 @@ const PostPage = () => {
         }
     };
 
-    const handlePostComment = (e) => {
+    const handlePostComment = async (e) => {
         e.preventDefault();
-        commentPost({ ...commentData, postId: singlePost._id }).then(() => {
-            getPostById(postId);
-        });
-        setCommentData({ text: "", postId: "" });
+        if (!commentData.text.trim() && !commentData.media) return;
+
+        // Optimistic UI – immediately add a temporary comment
+        const tempComment = {
+            _id: `temp-${Date.now()}`,
+            user: authUserId,
+            text: commentData.text,
+            media: commentData.media || null,
+            userAvatar: authUser?.avatarUrl || "/avatar-placeholder.png",
+            userDisplayName: authUser?.displayName,
+            userUsername: authUser?.username,
+            createdAt: new Date().toISOString(),
+        };
+        // Update local post state (if you have a setPosts or similar)
+        // Example for a local state: setPost(prev => ({...prev, comments: [...prev.comments, tempComment]}));
+        // Or if you're using the global store, you can push to it:
+        const updatedComments = [...(singlePost?.comments || []), tempComment];
+        // We need to update the post in the store. This depends on your store structure.
+        // For simplicity, we'll refetch the post after a successful request.
+
+        try {
+            const token = localStorage.getItem("access-token");
+            const res = await axiosInstance.post(
+                "/posts/comment",
+                {
+                    postId: singlePost._id,
+                    text: commentData.text,
+                    media: commentData.media || null,
+                },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            // Remove the temp comment and replace with the real one from the server
+            const updatedPost = res.data;   // assuming API returns the full updated post
+            // Now update the post in your state/store.
+            // If you have a function like updatePost in your store:
+            useUserStore.getState().updatePost(singlePost._id, updatedPost);
+            // Or if you maintain a local posts array:
+            // setPosts(prev => prev.map(p => p._id === post._id ? updatedPost : p));
+
+            // Clear comment input
+            setCommentData({ text: "", postId: "", media: null });
+        } catch (error) {
+            // Remove the temp comment if the request fails
+            // Revert the optimistic update
+            useUserStore.getState().updatePost(singlePost._id, { ...singlePost, comments: singlePost.comments });
+            console.error("Failed to comment:", error);
+            toast.error("Failed to comment");
+        }
     };
+
+    const handleReplyComment = async (commentId, replyText, replyMedia = null) => {
+        if (!replyText.trim() && !replyMedia) return;
+
+        // Optimistic UI – add a temp reply
+        const tempReply = {
+            _id: `temp-${Date.now()}`,
+            user: authUserId,
+            text: replyText,
+            media: replyMedia,
+            userAvatar: authUser?.avatarUrl || "/avatar-placeholder.png",
+            userDisplayName: authUser?.displayName,
+            userUsername: authUser?.username,
+            createdAt: new Date().toISOString(),
+        };
+
+        try {
+            const token = localStorage.getItem("access-token");
+            const res = await axiosInstance.post(
+                `/posts/comment/${commentId}/reply`,
+                { text: replyText, media: replyMedia },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            // API returns the full updated post
+            const updatedPost = res.data;
+            useUserStore.getState().updatePost(singlePost._id, updatedPost);
+            // Clear reply state
+            setReplyToCommentId(null);
+            setReplyText("");
+        } catch (error) {
+            // Revert optimistic reply
+            useUserStore.getState().updatePost(singlePost._id, singlePost);
+            console.error("Failed to reply:", error);
+            toast.error("Failed to reply");
+        }
+    };
+
 
     const reportFunction = (e) => {
         reportPost({
@@ -137,9 +229,9 @@ const PostPage = () => {
 
     if (isGettingSinglePost) {
         return (
-            <div className="w-full flex flex-col md:flex-row h-screen">
+            <div className="w-full flex flex-col md:flex-row h-screen bg-base-200">
                 <Sidebar />
-                <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-blue-50 to-white">
+                <div className="flex-1 flex items-center justify-center bg-base-100">
                     <PostPageSkeleton />
                 </div>
             </div>
@@ -148,31 +240,33 @@ const PostPage = () => {
 
     if (!singlePost) {
         return (
-            <div className="w-full flex flex-col md:flex-row h-screen">
+            <div className="w-full flex flex-col md:flex-row h-screen bg-base-200">
                 <Sidebar />
-                <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-blue-50 to-white">
-                    <p className="text-gray-500">Post not found</p>
+                <div className="flex-1 flex items-center justify-center bg-base-100">
+                    <p className="text-base-content/60">Post not found</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="w-full flex flex-col md:flex-row h-screen">
+        <div className="w-full flex flex-col md:flex-row h-screen bg-base-200">
             <Sidebar />
-            <main className="flex-1 flex flex-col bg-gradient-to-br from-blue-50 to-white overflow-auto">
+            <main className="flex-1 flex flex-col bg-base-100 overflow-auto">
                 {/* Hamburger spacer */}
                 <div className="h-14 lg:hidden" />
 
                 {/* Header */}
-                <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-4">
+                <div className="sticky top-0 z-10 bg-base-100 border-b border-base-200 px-4 py-3 flex items-center justify-between">
+                    <div className="w-5 h-5"/>
+                    <h1 className="text-xl font-bold text-base-content/80">Post</h1>
                     <button
                         onClick={() => navigate(-1)}
-                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                        className="p-2 hover:bg-base-200 rounded-full transition-colors"
+                        aria-label="Go back"
                     >
-                        <FaArrowLeft className="w-5 h-5 text-gray-700" />
+                        <FaArrowLeft className="w-5 h-5 text-base-content/80" />
                     </button>
-                    <h1 className="text-xl font-bold text-gray-900">Post</h1>
                 </div>
 
                 {/* Post Content */}
@@ -183,7 +277,7 @@ const PostPage = () => {
                             to={`/profile/${authorData?.username || "#"}`}
                             className="flex-shrink-0"
                         >
-                            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-blue-200">
+                            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20">
                                 <img
                                     src={
                                         authorData?.avatarUrl || "/avatar-placeholder.png"
@@ -196,18 +290,18 @@ const PostPage = () => {
                         <div className="flex-1">
                             <Link
                                 to={`/profile/${authorData?.username || "#"}`}
-                                className="font-bold text-gray-900 hover:underline"
+                                className="font-bold text-base-content/80 hover:underline"
                             >
                                 {authorData?.displayName || "Unknown User"}
                             </Link>
-                            <p className="text-gray-500 text-sm">
+                            <p className="text-base-content/60 text-sm">
                                 @{authorData?.username || "unknown"} ·{" "}
                                 {formatPostDate(singlePost?.createdAt)}
                             </p>
                         </div>
                         <div className="relative">
                             <button
-                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                className="p-2 hover:bg-base-200 rounded-full transition-colors"
                                 onClick={() =>
                                     setReportSelectVisible(!reportSelectVisible)
                                 }
@@ -224,13 +318,13 @@ const PostPage = () => {
                                 {!(
                                     editingPostId === singlePost?._id
                                 ) && !(deletingPostId === singlePost?._id) && !(reportingPostId === singlePost?._id) && (
-                                    <MoreHorizontal className="h-5 w-5 text-gray-700" />
+                                    <MoreHorizontal className="h-5 w-5 text-base-content/80" />
                                 )}
                             </button>
 
                             {/* Dropdown Menu */}
                             {reportSelectVisible && (
-                                <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
+                                <div className="absolute right-0 mt-2 w-52 bg-base-100 rounded-xl shadow-lg border border-base-200 z-50">
                                     <div className="p-2">
                                         {isPostOwner && (
                                             <button
@@ -238,13 +332,13 @@ const PostPage = () => {
                                                     setActionPostId(singlePost._id);
                                                     deletePost(singlePost._id);
                                                 }}
-                                                className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-100 rounded-lg transition-colors text-red-500"
+                                                className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-base-200 rounded-lg transition-colors text-error"
                                             >
                                                 <div className="flex flex-row group w-40 justify-between items-center">
-                                                    <p className="group-hover:text-blue-500 font-medium">
+                                                    <p className="group-hover:text-primary font-medium">
                                                         Delete post
                                                     </p>
-                                                    <FaTrash className="h-4 w-4 group-hover:text-red-500" />
+                                                    <FaTrash className="h-4 w-4 group-hover:text-error" />
                                                 </div>
                                             </button>
                                         )}
@@ -258,7 +352,7 @@ const PostPage = () => {
                                                 onClick={() =>
                                                     setReportSelectVisible(true)
                                                 }
-                                                className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-100 rounded-lg transition-colors text-gray-700"
+                                                className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-base-200 rounded-lg transition-colors text-base-content/80"
                                             >
                                                 <MdReportProblem className="w-4 h-4" />
                                                 <span>Report post</span>
@@ -270,7 +364,7 @@ const PostPage = () => {
                                                     onChange={(e) =>
                                                         reportFunction(e)
                                                     }
-                                                    className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                                                    className="w-full p-2 border border-base-300 rounded-lg text-sm"
                                                 >
                                                     <option value="">
                                                         Select Reason
@@ -298,7 +392,7 @@ const PostPage = () => {
                                         )}
                                         <button
                                             onClick={setReportSelectFalse}
-                                            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-left hover:bg-gray-100 rounded-lg transition-colors text-gray-700"
+                                            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-left hover:bg-base-200 rounded-lg transition-colors text-base-content/80"
                                         >
                                             <span>Cancel</span>
                                         </button>
@@ -310,7 +404,7 @@ const PostPage = () => {
 
                     {/* Post Text */}
                     <div className="mb-4">
-                        <p className="text-gray-900 text-lg leading-relaxed whitespace-pre-wrap">
+                        <p className="text-base-content/80 text-lg leading-relaxed whitespace-pre-wrap">
                             {singlePost?.text}
                         </p>
 
@@ -327,7 +421,7 @@ const PostPage = () => {
                                                         hashtag
                                                     )
                                                 }
-                                                className="flex items-center gap-1 px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded-full text-sm text-blue-700 hover:text-blue-800 transition-all duration-200"
+                                                className="flex items-center gap-1 px-3 py-1 bg-primary/10 hover:bg-primary/20 rounded-full text-sm text-primary hover:text-primary transition-all duration-200"
                                             >
                                                 <Hash className="w-3 h-3" />
                                                 <span>{hashtag}</span>
@@ -350,7 +444,7 @@ const PostPage = () => {
                                                         mention
                                                     )
                                                 }
-                                                className="text-blue-500 hover:underline cursor-pointer"
+                                                className="text-primary hover:underline cursor-pointer"
                                             >
                                                 @{mention}
                                             </button>
@@ -362,7 +456,7 @@ const PostPage = () => {
 
                     {/* Media */}
                     {singlePost?.mediaType === "Image" && (
-                        <div className="mb-4 rounded-2xl overflow-hidden border-2 border-gray-200">
+                        <div className="mb-4 rounded-2xl overflow-hidden border-2 border-base-200">
                             <img
                                 src={singlePost?.url}
                                 className="w-full h-auto object-contain max-h-[500px]"
@@ -371,7 +465,7 @@ const PostPage = () => {
                         </div>
                     )}
                     {singlePost?.mediaType === "Video" && (
-                        <div className="mb-4 rounded-2xl overflow-hidden border-2 border-gray-200">
+                        <div className="mb-4 rounded-2xl overflow-hidden border-2 border-base-200">
                             <video
                                 src={singlePost?.url}
                                 className="w-full max-h-[500px]"
@@ -380,9 +474,9 @@ const PostPage = () => {
                         </div>
                     )}
                     {singlePost?.mediaType === "Audio" && (
-                        <div className="mb-4 rounded-2xl overflow-hidden border-2 border-gray-200 bg-gray-100 p-4">
+                        <div className="mb-4 rounded-2xl overflow-hidden border-2 border-base-200 bg-base-200 p-4">
                             <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 bg-blue-200 rounded-full flex items-center justify-center">
+                                <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
                                     <span className="text-2xl">🎵</span>
                                 </div>
                                 <audio
@@ -405,10 +499,10 @@ const PostPage = () => {
                         )}
 
                     {/* Action Buttons */}
-                    <div className="flex items-center justify-between py-3 border-y border-gray-200 mb-4">
+                    <div className="flex items-center justify-between py-3 border-y border-base-200 mb-4">
                         <div className="flex items-center justify-between w-full gap-2">
                             {/* Comment */}
-                            <button className="flex items-center justify-center gap-2 text-gray-500 hover:text-sky-500 transition-colors group flex-1 py-2 hover:bg-gray-100 rounded-lg">
+                            <button className="flex items-center justify-center gap-2 text-base-content/60 hover:text-sky-500 transition-colors group flex-1 py-2 hover:bg-base-200 rounded-lg">
                                 <FaRegComment className="w-5 h-5 group-hover:text-sky-500" />
                                 <span className="text-sm">
                                     {singlePost?.comments?.length || 0}
@@ -417,7 +511,7 @@ const PostPage = () => {
 
                             {/* Repost */}
                             <button
-                                className="flex items-center justify-center gap-2 text-gray-500 hover:text-green-500 transition-colors group flex-1 py-2 hover:bg-gray-100 rounded-lg"
+                                className="flex items-center justify-center gap-2 text-base-content/60 hover:text-success transition-colors group flex-1 py-2 hover:bg-base-200 rounded-lg"
                                 onClick={() => {
                                     setActionPostId(singlePost._id);
                                     repost(singlePost._id);
@@ -428,7 +522,7 @@ const PostPage = () => {
                                         <LoadingSpinner size="sm" />
                                     )}
                                 {!isReposting && (
-                                    <BiRepost className="w-5 h-5 group-hover:text-green-500" />
+                                    <BiRepost className="w-5 h-5 group-hover:text-success" />
                                 )}
                                 <span className="text-sm">
                                     {singlePost?.repostCount || 0}
@@ -437,10 +531,10 @@ const PostPage = () => {
 
                             {/* Like */}
                             <button
-                                className={`flex items-center justify-center gap-2 transition-colors group flex-1 py-2 hover:bg-gray-100 rounded-lg ${
+                                className={`flex items-center justify-center gap-2 transition-colors group flex-1 py-2 hover:bg-base-200 rounded-lg ${
                                     isLikedByMe
-                                        ? "text-pink-500"
-                                        : "text-gray-500 hover:text-pink-500"
+                                        ? "text-secondary"
+                                        : "text-base-content/60 hover:text-secondary"
                                 }`}
                                 onClick={() => {
                                     setActionPostId(singlePost._id);
@@ -455,8 +549,8 @@ const PostPage = () => {
                                     <FaRegHeart
                                         className={`w-5 h-5 ${
                                             isLikedByMe
-                                                ? "text-pink-500"
-                                                : "group-hover:text-pink-500"
+                                                ? "text-secondary"
+                                                : "group-hover:text-secondary"
                                         }`}
                                     />
                                 )}
@@ -468,7 +562,7 @@ const PostPage = () => {
                             {/* React */}
                             <div className="relative flex-1">
                                 <button
-                                    className="flex items-center justify-center gap-2 text-gray-500 hover:text-yellow-500 transition-colors group w-full py-2 hover:bg-gray-100 rounded-lg"
+                                    className="flex items-center justify-center gap-2 text-base-content/60 hover:text-warning transition-colors group w-full py-2 hover:bg-base-200 rounded-lg"
                                     onClick={() =>
                                         setEmojiPickerOpen(
                                             emojiPickerOpen ===
@@ -483,7 +577,7 @@ const PostPage = () => {
                                             <LoadingSpinner size="sm" />
                                         )}
                                     {!isReacting && (
-                                        <MdAddReaction className="w-5 h-5 group-hover:text-yellow-500" />
+                                        <MdAddReaction className="w-5 h-5 group-hover:text-warning" />
                                     )}
                                     <span className="text-sm">
                                         {reactionCount}
@@ -510,7 +604,7 @@ const PostPage = () => {
                     </div>
 
                     {/* Comments Section */}
-                    <div className="border-t border-gray-200 pt-4">
+                    <div className="border-t border-base-200 pt-4">
                         <h2 className="font-bold text-lg mb-4">Comments</h2>
 
                         {/* Add Comment */}
@@ -518,7 +612,7 @@ const PostPage = () => {
                             className="flex gap-3 mb-6"
                             onSubmit={handlePostComment}
                         >
-                            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-blue-200 flex-shrink-0">
+                            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary/20 flex-shrink-0">
                                 <img
                                     src={
                                         authUser?.avatarUrl ||
@@ -530,10 +624,11 @@ const PostPage = () => {
                             </div>
                             <div className="flex-1">
                                 <textarea
-                                    className="w-full p-3 border-2 border-gray-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-200 transition-all"
+                                    className="w-full p-3 border-2 border-base-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/20 transition-all"
                                     placeholder="Write a comment..."
                                     rows="2"
                                     value={commentData.text}
+                                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handlePostComment(e); } }}
                                     onChange={(e) =>
                                         setCommentData({
                                             ...commentData,
@@ -544,7 +639,7 @@ const PostPage = () => {
                                 />
                                 <button
                                     type="submit"
-                                    className="mt-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full font-medium transition-colors disabled:opacity-50"
+                                    className="mt-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-content rounded-full font-medium transition-colors disabled:opacity-50"
                                     disabled={
                                         isCommenting ||
                                         !commentData.text.trim()
@@ -559,10 +654,31 @@ const PostPage = () => {
                             </div>
                         </form>
 
+                        {/* Sticker / GIF picker for new comment */}
+                        <AnimatePresence>
+                            {showCommentStickerPicker && (
+                                <div className="max-h-48 overflow-y-auto border border-base-content/30 rounded-lg p-1">
+                                    <Suspense fallback={null}>
+                                        <GifStickerPicker
+                                            onSelect={({ type, url }) => {
+                                                setCommentData(prev => ({
+                                                    ...prev,
+                                                    media: { url, type },   // directly store the media object
+                                                }));
+                                                setShowCommentStickerPicker(false);
+                                            }}
+                                            isOpen={showCommentStickerPicker}
+                                            onClose={() => setShowCommentStickerPicker(false)}
+                                        />
+                                    </Suspense>
+                                </div>
+                            )}
+                        </AnimatePresence>
+
                         {/* Comments List */}
                         <div className="space-y-4">
                             {singlePost?.comments?.length === 0 && (
-                                <p className="text-center text-gray-500 py-8">
+                                <p className="text-center text-base-content/60 py-8">
                                     No comments yet. Be the first to share
                                     your thoughts!
                                 </p>
@@ -573,7 +689,7 @@ const PostPage = () => {
                                         to={`/profile/${comment?.userUsername}`}
                                         className="flex-shrink-0"
                                     >
-                                        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-blue-200">
+                                        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary/20">
                                             <img
                                                 src={
                                                     comment?.userAvatar ||
@@ -585,7 +701,7 @@ const PostPage = () => {
                                         </div>
                                     </Link>
                                     <div className="flex-1">
-                                        <div className="bg-gray-100 rounded-2xl px-4 py-2">
+                                        <div className="bg-base-200 rounded-2xl px-4 py-2">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <Link
                                                     to={`/profile/${comment?.userUsername}`}
@@ -593,7 +709,7 @@ const PostPage = () => {
                                                 >
                                                     {comment?.userDisplayName}
                                                 </Link>
-                                                <span className="text-gray-500 text-xs">
+                                                <span className="text-base-content/60 text-xs">
                                                     @{comment?.userUsername}
                                                 </span>
                                             </div>
@@ -601,19 +717,96 @@ const PostPage = () => {
                                                 {comment?.text}
                                             </p>
                                         </div>
-                                        <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
+                                        <div className="flex items-center gap-4 mt-1 text-xs text-base-content/60">
+                                            {comment.replies?.length > 0 && (
+                                                <button onClick={() => setShowReplies(!showReplies)} className="p-1">
+                                                    {showReplies ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                                </button>
+                                            )}
                                             <span>
                                                 {formatPostDate(
                                                     comment?.createdAt
                                                 )}
                                             </span>
-                                            <button className="hover:text-gray-700">
-                                                Like
-                                            </button>
-                                            <button className="hover:text-gray-700">
+                                            <button className="hover:text-base-content/80" onClick={() => setReplyToCommentId(replyToCommentId === comment._id ? null : comment._id)}>
                                                 Reply
                                             </button>
                                         </div>
+                                        {/* Inline reply input */}
+                                        {replyToCommentId === comment._id && (
+                                            <div className="mt-2 space-y-2">
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Write a reply..."
+                                                        className="flex-1 border border-base-content/30 rounded px-2 py-1 text-sm bg-base-100"
+                                                        value={replyText}
+                                                        onChange={(e) => setReplyText(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter" && !e.shiftKey) {
+                                                                e.preventDefault();
+                                                                handleReplyComment(comment._id, replyText, replyMedia);
+                                                            }
+                                                        }}
+                                                    />
+                                                    <button
+                                                        className="text-xs btn btn-primary btn-sm"
+                                                        onClick={() => handleReplyComment(comment._id, replyText, replyMedia)}
+                                                    >
+                                                        Send
+                                                    </button>
+                                                    <button type="button" onClick={() => setShowReplyStickerPicker(!showReplyStickerPicker)} className="p-1 hover:bg-base-200 rounded" title="Add sticker or GIF">
+                                                        <Sticker className="w-4 h-4 text-base-content/60" />
+                                                    </button>
+                                                </div>
+                                                <AnimatePresence>
+                                                    {showReplyStickerPicker && (
+                                                        <div className="max-h-32 overflow-y-auto border border-base-content/30 rounded-lg p-1">
+                                                            <Suspense fallback={null}>
+                                                                <GifStickerPicker
+                                                                    onSelect={({ type, url }) => {
+                                                                        setReplyMedia({type, url});
+                                                                        setShowReplyStickerPicker(false);
+                                                                    }}
+                                                                    isOpen={showReplyStickerPicker}
+                                                                    onClose={() => setShowReplyStickerPicker(false)}
+                                                                />
+                                                            </Suspense>
+                                                        </div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+                                        )}
+
+                                        {showReplies && (
+                                            <div className="ml-4 mt-2 space-y-2">
+                                                {comment.replies.map(reply => (
+                                                    <div key={reply._id} className="flex gap-2 items-start">
+                                                        <div className="avatar">
+                                                            <div className="w-6 rounded-full">
+                                                                <img src={reply?.userAvatar || "/avatar-placeholder.png"} alt={reply?.userUsername} />
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="flex items-center gap-1">
+                                                                <span className="font-bold text-xs">{reply?.userDisplayName}</span>
+                                                                <span className="text-base-content/70 text-xs">@{reply?.userUsername}</span>
+                                                            </div>
+                                                            <div className="text-xs">{reply?.text}</div>
+                                                            {reply.media?.url && (
+                                                                <div className="mt-1">
+                                                                    {reply.media.type === 'sticker' ? (
+                                                                        <img src={reply.media.url} alt="sticker" className="max-w-[80px] max-h-[80px]" />
+                                                                    ) : (
+                                                                        <img src={reply.media.url} alt="gif" className="max-w-[100px] max-h-[100px] rounded" />
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}

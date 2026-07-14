@@ -43,7 +43,7 @@ const AudioContainer = ({ audioSrc }) => {
     };
 
     return (
-        <div className="w-full h-full object-cover object-center rounded-lg border border-gray-700">
+        <div className="w-full h-full object-cover object-center rounded-lg border border-base-content/40">
 
             {/* Waveform background */}
             <div
@@ -60,7 +60,7 @@ const AudioContainer = ({ audioSrc }) => {
                     {/* Play button */}
                     <button
                         onClick={togglePlay}
-                        className="flex-shrink-0 w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
+                        className="flex-shrink-0 w-16 h-16 bg-base-100 rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
                     >
                         {isPlaying? (
                             <svg className="w-6 h-6 fill-black" viewBox="0 0 24 24">
@@ -78,14 +78,14 @@ const AudioContainer = ({ audioSrc }) => {
                         <div
                             ref={progressRef}
                             onClick={handleSeek}
-                            className="w-full h-2 bg-white/30 rounded-full overflow-hidden cursor-pointer"
+                            className="w-full h-2 bg-base-100/30 rounded-full overflow-hidden cursor-pointer"
                         >
                             <div
-                                className="h-full bg-white rounded-full transition-all duration-100"
+                                className="h-full bg-base-100 rounded-full transition-all duration-100"
                                 style={{ width: `${progress}%` }}
                             />
                         </div>
-                        <div className="flex justify-between text-white text-xs mt-1 font-medium">
+                        <div className="flex justify-between text-primary-content text-xs mt-1 font-medium">
                             <span>{formatTime(currentTime)}</span>
                             <span>{formatTime(duration)}</span>
                         </div>

@@ -4,7 +4,6 @@ export interface UserDocument extends Document {
     email: string;
     passwordHash: string;
     username: string;
-    usernameLower: string;
     displayName?: string;
     accountType: 'Work' | 'Personal' | 'Business';
     accountVisibility: 'Private' | 'Public' | 'Friends';
@@ -77,17 +76,21 @@ export interface UserDocument extends Document {
     chatReportCount: { type: Number, default: 0 };
     chatRestrictedUntil: { type: Date };
     lastSeen: { type: Date };
+    gender: { type: String, default: '' },
+    socialHandles: [
+        {
+            platform: { type: String },
+            url: { type: String },
+        },
+    ];
+    bookmarkedPosts: mongoose.Types.ObjectId[];
+    theme: { type: String, default: 'winter' };
 }
 
 const UserSchema = new Schema<UserDocument>({
     email: { type: String, unique: true, index: true },
     passwordHash: String,
     username: { type: String, unique: true, index: true },
-    usernameLower: {
-        type: String,
-        unique: true,
-        index: true,
-    },
     displayName: String,
     accountType: {
         type: String,
@@ -171,6 +174,15 @@ const UserSchema = new Schema<UserDocument>({
     chatReportCount: { type: Number, default: 0 },
     chatRestrictedUntil: { type: Date },
     lastSeen: { type: Date },
+    gender: { type: String, default: '' },
+    socialHandles: [
+        {
+            platform: { type: String },
+            url: { type: String },
+        },
+    ],
+    bookmarkedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
+    theme: { type: String, default: 'winter' },
 });
 
 UserSchema.index(
@@ -188,11 +200,6 @@ UserSchema.index(
         name: "UserSearchIndex",
     }
 );
-
-UserSchema.pre("save", function (next) {
-    this.usernameLower = this.username.toLowerCase();
-    next();
-});
 
 // @ts-ignore
 export const User = model<UserDocument>('User', UserSchema);

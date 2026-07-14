@@ -811,119 +811,6 @@ export const useUserStore = create((set, get) => ({
         }
     },
 
-    commentPost: async (data) => {
-        async function refreshPosts() {
-            try {
-                const token = localStorage.getItem('access-token');
-                const res = await axiosInstance.get(`/posts/`, {
-                    headers: {
-                        "Authorization": `Bearer ${token}`
-                    }
-                });
-                // update posts array without changing global loading flag
-                set({Posts: res.data});
-            } catch (error) {
-                console.log("Error in Getting  Posts:", error);
-                toast.error("Failed to get  Posts");
-            }
-        }
-
-        async function refreshFollowingPosts() {
-            try {
-                const token = localStorage.getItem('access-token');
-                const res = await axiosInstance.get(`/posts/get-following-posts`, {
-                    headers: {
-                        "Authorization": `Bearer ${token}`
-                    }
-                });
-                // update followingPosts without changing global loading flag
-                set({ followingPosts: res.data });
-            } catch (error) {
-                console.log("Error in Getting Liked Posts:", error);
-                toast.error("Failed to get Liked Posts!");
-            }
-        }
-
-        async function refreshUserPosts(data) {
-            try {
-                const token = localStorage.getItem('access-token');
-                const res = await axiosInstance.get(`/posts/get-user-posts/${data}`, {
-                    headers: {
-                        "Authorization": `Bearer ${token}`
-                    }
-                });
-                // update userPosts without changing global loading flag
-                set({ userPosts: res.data });
-            } catch (error) {
-                console.log("Error in Getting User Posts:", error);
-                toast.error("Failed to get User Posts!, Try refreshing the page.");
-            }
-        }
-
-        async function refreshLikedPosts(data) {
-            try {
-                const token = localStorage.getItem('access-token');
-                const res = await axiosInstance.get(`/posts/liked-posts/${data}`, {
-                    headers: {
-                        "Authorization": `Bearer ${token}`
-                    }
-                });
-                // update likedPosts without changing global loading flag
-                set({ likedPosts: res.data });
-            } catch (error) {
-                console.log("Error in Getting Liked Posts:", error);
-                toast.error("Failed to get Liked Posts!");
-            }
-        }
-
-        async function refreshSinglePost(postId) {
-            try {
-                const token = localStorage.getItem('access-token');
-                const res = await axiosInstance.get(`/posts/${postId}`, {
-                    headers: {
-                        "Authorization": `Bearer ${token}`
-                    }
-                });
-                console.log("Refreshed single post:", res.data);
-                // update singlePost without changing global loading flag
-                set({ singlePost: res.data });
-            } catch (error) {
-                console.log("Error in Getting Single Post:", error);
-            }
-        }
-
-        try {
-            const token = localStorage.getItem('access-token');
-            const user = localStorage.getItem('user');
-            const res = await axiosInstance.post(`/posts/comment`, data, {
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
-            });
-            set({ commentedPost: true });
-            set({isCommenting: true});
-            set({ comment : res.data });
-            await refreshPosts();
-            await refreshFollowingPosts();
-            // Refresh single post if we have the postId
-            if (data.postId) {
-                await refreshSinglePost(data.postId);
-            }
-            if (user) {
-                await refreshUserPosts(user);
-                await refreshLikedPosts(user);
-            }
-            toast.success("Successfully commented on post");
-        } catch (error) {
-            console.log("Error in Commenting on Post:", error);
-            toast.error("Failed to comment on post!");
-            set({ commentedPost: false });
-            set({isCommenting: false});
-        } finally {
-            set({isCommenting: false});
-        }
-    },
-
     repost: async (data) => {
         async function refreshPosts() {
             try {
@@ -1367,5 +1254,74 @@ export const useUserStore = create((set, get) => ({
         } finally {
             set({ isGettingTrending: false });
         }
-    }
+    },
+
+    bookmarkPost: async (postId) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.post(
+                `/posts/${postId}/bookmark`,
+                {},
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            return res.data;   // { bookmarked: boolean, bookmarksCount: number }
+        } catch (error) {
+            toast.error('Failed to bookmark');
+        }
+    },
+
+    getBookmarkedPosts: async () => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.get('/posts/bookmarks', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            return res.data;   // array of posts
+        } catch (error) {
+            toast.error('Failed to fetch bookmarked posts');
+            return [];
+        }
+    },
+
+    // Update existing commentPost to accept media
+    commentPost: async ({ text, postId, media }) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.post('/posts/comment',
+                { text, postId, media },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            // After successful comment, refresh the post in the store
+            get().posts = get().posts.map(p => p._id === postId ? res.data : p);
+            return res.data;
+        } catch (error) {
+            toast.error('Failed to post comment');
+        }
+    },
+
+    // New reply method
+    replyToComment: async ({ commentId, text, media }) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const res = await axiosInstance.post(`/posts/comment/${commentId}/reply`,
+                { text, media },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            // Update the post in store
+            get().posts = get().posts.map(p => p._id === res.data._id ? res.data : p);
+            return res.data;
+        } catch (error) {
+            toast.error('Failed to reply');
+        }
+    },
+
+    updatePost: (postId, updatedPost) => {
+        set((state) => ({
+            Posts: state.Posts.map(p => p._id === postId ? updatedPost : p),
+            likedPosts: state.likedPosts?.map(p => p._id === postId ? updatedPost : p),
+            userPosts: state.userPosts?.map(p => p._id === postId ? updatedPost : p),
+            followingPosts: state.followingPosts?.map(p => p._id === postId ? updatedPost : p),
+            singlePost: updatedPost,
+        }))
+    },
 }));

@@ -20,7 +20,8 @@ router.get("/hashtags/:tag/posts", async (req, res) => {
         const skip = Number(req.query.skip) || 0;
 
         const posts = await Post.find({
-            hashtags: tag.toLowerCase()
+            hashtags: tag.toLowerCase(),
+            isPublished: true
         })
             .populate("author", "username displayName avatarUrl")
             .sort({ createdAt: -1 })

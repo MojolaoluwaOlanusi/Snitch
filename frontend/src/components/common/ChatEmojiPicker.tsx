@@ -53,7 +53,7 @@ const ReactionEmojiPicker: React.FC<Props> = ({ postId, onReact, onClose, isOpen
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.9 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute bottom-full mb-1 z-50 bg-white rounded-xl shadow-xl border border-gray-100"
+                    className="absolute bottom-full mb-1 z-50 bg-base-100 rounded-xl shadow-xl border border-base-300"
                 >
                     {!showFullPicker ? (
                         // Quick reactions bar
@@ -62,7 +62,7 @@ const ReactionEmojiPicker: React.FC<Props> = ({ postId, onReact, onClose, isOpen
                                 <button
                                     key={idx}
                                     onClick={() => handleQuickReact(emoji)}
-                                    className="w-9 h-9 flex items-center justify-center text-xl hover:bg-gray-100 rounded-lg transition-colors hover:scale-125 transform"
+                                    className="w-9 h-9 flex items-center justify-center text-xl hover:bg-base-200 rounded-lg transition-colors hover:scale-125 transform"
                                     title={emoji}
                                 >
                                     {emoji}
@@ -70,7 +70,7 @@ const ReactionEmojiPicker: React.FC<Props> = ({ postId, onReact, onClose, isOpen
                             ))}
                             <button
                                 onClick={() => setShowFullPicker(true)}
-                                className="w-9 h-9 flex items-center justify-center text-lg hover:bg-gray-100 rounded-lg transition-colors"
+                                className="w-9 h-9 flex items-center justify-center text-lg hover:bg-base-200 rounded-lg transition-colors"
                                 title="More reactions"
                             >
                                 <SmileIcon />
@@ -82,13 +82,13 @@ const ReactionEmojiPicker: React.FC<Props> = ({ postId, onReact, onClose, isOpen
                             <div className="flex items-center justify-between mb-2 px-2">
                                 <button
                                     onClick={() => setShowFullPicker(false)}
-                                    className="text-xs text-blue-400 hover:text-blue-500"
+                                    className="text-xs text-primary hover:text-primary"
                                 >
                                     ← Quick
                                 </button>
-                                <span className="text-xs text-gray-400">Choose reaction</span>
+                                <span className="text-xs text-base-content/50">Choose reaction</span>
                             </div>
-                            <Suspense fallback={<div className="text-center p-4 text-gray-400 text-sm">Loading...</div>}>
+                            <Suspense fallback={<div className="text-center p-4 text-base-content/50 text-sm">Loading...</div>}>
                                 <LazyPicker
                                     data={data}
                                     onEmojiSelect={handleSelect}
@@ -109,7 +109,7 @@ const ReactionEmojiPicker: React.FC<Props> = ({ postId, onReact, onClose, isOpen
 
 // Simple smile icon for the "more" button
 const SmileIcon = () => (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-base-content/60">
         <circle cx="12" cy="12" r="10" />
         <path d="M8 14s1.5 2 4 2 4-2 4-2" />
         <line x1="9" y1="9" x2="9.01" y2="9" />

@@ -23,20 +23,20 @@ const ReactionsDisplay = ({ reactions }) => {
 
     return (
         <div 
-            className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 rounded-lg p-1 transition-colors"
+            className="flex items-center gap-1 cursor-pointer hover:bg-base-200 rounded-lg p-1 transition-colors"
             onClick={() => setIsExpanded(!isExpanded)}
         >
             {displayReactions.map(({ emoji, count }) => (
                 <div 
                     key={emoji} 
-                    className="flex items-center gap-1 bg-gray-100 rounded-full px-2 py-1 text-sm hover:bg-gray-200 transition-colors"
+                    className="flex items-center gap-1 bg-base-200 rounded-full px-2 py-1 text-sm hover:bg-base-300 transition-colors"
                 >
                     <span>{emoji}</span>
-                    <span className="text-gray-600">{count}</span>
+                    <span className="text-base-content/70">{count}</span>
                 </div>
             ))}
             {sortedReactions.length > 3 && !isExpanded && (
-                <span className="text-gray-500 text-sm">+{sortedReactions.length - 3}</span>
+                <span className="text-base-content/60 text-sm">+{sortedReactions.length - 3}</span>
             )}
         </div>
     );

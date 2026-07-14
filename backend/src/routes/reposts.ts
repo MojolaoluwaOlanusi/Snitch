@@ -18,6 +18,7 @@ router.post('/:postId', auth, async (req,res)=>{
   const original = await Post.findById(postId);
   const author = await Post.findById(postId).select("author");
   if(!original) return res.status(404).json({ error:'not found' });
+  if(!author) return res.status(404).json({ error:'not found' });
   const repost = await Post.create({ author: req.userId, text: original.text, mediaType: original.mediaType, url: original.url, repostOf: original._id, createdAt: new Date() });
 
     const newNotification = new Notification({
@@ -35,10 +36,10 @@ router.post('/:postId', auth, async (req,res)=>{
     );
 
     await newNotification.save();
-    sendPushNotification(post.author.toString(), {
+    sendPushNotification(author.toString(), {
         title: 'New Repost',
         body: `${currentUser.displayName} reposted your post`,
-        url: `${process.env.CLIENT_URL}/post/${post._id}`,
+        url: `${process.env.CLIENT_URL}/post/${original._id}`,
     }).catch(err => console.error('Push repost error:', err));
   try{ const io = (globalThis as any).io; if(io) io.emit('post:repost', { repost }); }catch(e){}
   res.status(201).json(repost);
