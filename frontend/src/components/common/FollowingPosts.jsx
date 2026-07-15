@@ -1,24 +1,25 @@
 // @ts-nocheck
-import { useUserStore } from "../../store/useUserStore";
+import { useUserStore } from "@/store/useUserStore.js";
 import { useEffect, useState, Suspense } from "react";
 import PostSkeleton from "../../components/skeletons/PostSkeleton";
 import { Link, useNavigate } from "react-router-dom";
-import { Share2, Copy, Check, ExternalLink, Bookmark, Sticker } from "lucide-react";
+import { Share2, Copy, Check, Bookmark, Sticker } from "lucide-react";
 import { FaFacebook, FaXTwitter, FaWhatsapp, FaTelegram, FaEnvelope } from "react-icons/fa6";
 import { FaRegComment, FaRegHeart, FaTrash } from "react-icons/fa";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import { BiRepost } from "react-icons/bi";
 import { formatPostDate } from "../../utils/date";
 import { toast } from "sonner";
-import { useAuthStore } from "../../store/useAuthStore";
+import { useAuthStore } from "@/store/useAuthStore.js";
 import { MdAddReaction, MdReportProblem } from "react-icons/md";
 import { IoClose } from "react-icons/io5";
 import { Hash, MoreHorizontal } from "lucide-react";
 import EditPostModal from "../../components/common/EditPostModal";
 import ReactionEmojiPicker from "./ReactionEmojiPicker.tsx";
 import ReactionsDisplay from "./ReactionsDisplay";
+import ReportModal from "./ReportModal.jsx"
 import GifStickerPicker from "../../components/common/GifStickerPicker";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import axiosInstance from "@/lib/axios.js";
 
 // ── Single following post item ─────────────────────────
@@ -26,9 +27,8 @@ const FollowingPostItem = ({ post, authUserId }) => {
     const {
         isReposting, isLiking, isReacting, isCommenting,
         repost, likePost, reactToPost, bookmarkPost,
-        deletePost, reportPost, isReporting,
+        deletePost, reportPost,
         editingPostId, deletingPostId, reportingPostId,
-        commentPost, replyToComment,
     } = useUserStore();
 
     const {authUser} = useAuthStore();
@@ -37,13 +37,13 @@ const FollowingPostItem = ({ post, authUserId }) => {
     const [bookmarkCount, setBookmarkCount] = useState(post?.bookmarksCount || 0);
     const [actionPostId, setActionPostId] = useState(null);
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(null);
-    const [reportSelectVisible, setReportSelectVisible] = useState(false);
     const [commentData, setCommentData] = useState({ text: "", postId: "", media: null });
     const [replyToCommentId, setReplyToCommentId] = useState(null);
     const [replyText, setReplyText] = useState("");
     const [replyMedia, setReplyMedia] = useState(null);
     const [showCommentStickerPicker, setShowCommentStickerPicker] = useState(false);
     const [showReplyStickerPicker, setShowReplyStickerPicker] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(null);
 
     const navigate = useNavigate();
     const isLikedByMe = !!post?.likes?.some((id) => id === authUserId);
@@ -178,20 +178,8 @@ const FollowingPostItem = ({ post, authUserId }) => {
                       </button>
                   )}
                     {post?.author?._id === authUserId && !useUserStore.getState().isEditing && <EditPostModal post={post} />}
-                    <button className="text-gray-500" onClick={(e) => { e.preventDefault(); setReportSelectVisible(!reportSelectVisible); }}>
-                    <div className={`flex flex-row group ${reportSelectVisible ? "w-32" : "w-40"} justify-between`}>
-                      <p className={`group-hover:text-gray-700 ${reportSelectVisible ? "hidden" : "flex"}`}>Report post</p>
-                      <select
-                          onChange={(e) => { reportPost({ id: post?._id, reason: { reason: e.target.value } }); setReportSelectVisible(false); }}
-                          className={`${reportSelectVisible ? "flex" : "hidden"} flex-auto`}
-                      >
-                        <option>Select Reason</option>
-                        <option>pornographic</option><option>piracy</option><option>violence</option>
-                        <option>cyberbully</option><option>impersonation</option><option>abuse</option>
-                      </select>
-                        {!isReporting && <MdReportProblem className={`cursor-pointer group-hover:text-gray-700 ${reportSelectVisible ? "hidden" : "flex"}`} />}
-                    </div>
-                    <IoClose className={`${reportSelectVisible ? "flex" : "hidden"} h-6 w-6`} onClick={(e) => { e.preventDefault(); setReportSelectVisible(false); }} />
+                    <button className="text-gray-500" onClick={() => { setShowReportModal(post._id) }}>
+                    Report Post
                   </button>
                 </li>
               </ul>
@@ -232,11 +220,18 @@ const FollowingPostItem = ({ post, authUserId }) => {
 
                 {/* Action bar */}
                 <div className="flex justify-between mt-3">
-                    <div className="flex gap-4 items-center w-2/3 justify-between">
-                        {/* Comment button */}
-                        <div className="flex gap-1 items-center cursor-pointer group" onClick={() => document.getElementById(`fw_comments_modal${post._id}`).showModal()}>
+                    <div className="flex flex-1 items-center justify-around">
+                        {/* Comment */}
+                        <div
+                            className="flex gap-1 items-center cursor-pointer group"
+                            onClick={() =>
+                                document.getElementById(`comments_modal${post._id}`).showModal()
+                            }
+                        >
                             <FaRegComment className="w-4 h-4 text-base-content/60 group-hover:text-info" />
-                            <span className="text-sm text-base-content/60 group-hover:text-info">{post?.comments.length}</span>
+                            <span className="text-sm text-base-content/60 group-hover:text-info">
+        {post?.comments.length}
+      </span>
                         </div>
 
                         {/* Comment modal */}
@@ -400,60 +395,128 @@ const FollowingPostItem = ({ post, authUserId }) => {
                         </dialog>
 
                         {/* Repost */}
-                        <div className="flex gap-1 items-center group cursor-pointer" onClick={(e) => { e.preventDefault(); setActionPostId(post._id); repost(post?._id); }}>
+                        <div
+                            className="flex gap-1 items-center cursor-pointer group"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                setActionPostId(post._id);
+                                repost(post?._id);
+                            }}
+                        >
                             {isReposting && actionPostId === post._id && <LoadingSpinner size="sm" />}
-                            {!isReposting && <BiRepost className="w-6 h-6 text-base-content/60 group-hover:text-success" />}
-                            <span className="text-sm group-hover:text-success text-base-content/60">{post?.repostCount}</span>
+                            {!isReposting && (
+                                <BiRepost className="w-6 h-6 text-base-content/60 group-hover:text-success" />
+                            )}
+                            <span className="text-sm group-hover:text-success text-base-content/60">
+        {post?.repostCount}
+      </span>
                         </div>
 
                         {/* Like */}
-                        <div className="flex gap-1 items-center group cursor-pointer" onClick={(e) => { e.preventDefault(); setActionPostId(post._id); likePost(post?._id); }}>
+                        <div
+                            className="flex gap-1 items-center cursor-pointer group"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                setActionPostId(post._id);
+                                likePost(post?._id);
+                            }}
+                        >
                             {isLiking && actionPostId === post._id && <LoadingSpinner size="sm" />}
                             {!isLiking && (
-                                <FaRegHeart className={`w-4 h-4 cursor-pointer ${isLikedByMe ? "text-secondary" : "text-base-content/60"} group-hover:text-secondary`} />
+                                <FaRegHeart
+                                    className={`w-4 h-4 cursor-pointer ${
+                                        isLikedByMe ? "text-secondary" : "text-base-content/60"
+                                    } group-hover:text-secondary`}
+                                />
                             )}
-                            <span className={`text-sm group-hover:text-secondary ${isLikedByMe ? "text-secondary" : "text-base-content/60"}`}>{post?.likes?.length}</span>
+                            <span
+                                className={`text-sm group-hover:text-secondary ${
+                                    isLikedByMe ? "text-secondary" : "text-base-content/60"
+                                }`}
+                            >
+        {post?.likes?.length}
+      </span>
                         </div>
 
                         {/* Share */}
-                        <div className="flex gap-1 items-center group cursor-pointer" onClick={(e) => {
-                            e.preventDefault();
-                            const postUrl = `${window.location.origin}/post/${post?._id}`;
-                            window.dispatchEvent(new CustomEvent("fwOpenShareModal", { detail: { postId: post?._id, url: postUrl } }));
-                        }}>
+                        <div
+                            className="flex gap-1 items-center cursor-pointer group"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                const postUrl = `${window.location.origin}/post/${post?._id}`;
+                                window.dispatchEvent(
+                                    new CustomEvent("fwopenShareModal", {
+                                        detail: { postId: post?._id, url: postUrl },
+                                    })
+                                );
+                            }}
+                        >
                             <Share2 className="w-4 h-4 text-base-content/60 group-hover:text-primary" />
                         </div>
 
                         {/* Bookmark */}
                         <button
-                            className={`flex items-center justify-center gap-2 transition-colors group py-2 hover:bg-base-200 rounded-lg ${isBookmarked ? "text-primary" : "text-base-content/60 hover:text-primary"}`}
+                            className={`flex items-center justify-center gap-2 transition-colors group py-2 hover:bg-base-200 rounded-lg ${
+                                isBookmarked ? "text-primary" : "text-base-content/60 hover:text-primary"
+                            }`}
                             onClick={async () => {
                                 const data = await bookmarkPost(post._id);
-                                if (data) { setIsBookmarked(data.bookmarked); setBookmarkCount(data.bookmarksCount); }
-                            }}>
+                                if (data) {
+                                    setIsBookmarked(data.bookmarked);
+                                    setBookmarkCount(data.bookmarksCount);
+                                }
+                            }}
+                        >
                             <Bookmark className={`w-5 h-5 ${isBookmarked ? "fill-current" : ""}`} />
                             <span className="text-sm">{bookmarkCount}</span>
                         </button>
+
+                        {/* React / Emoji picker */}
+                        <div
+                            className="flex gap-1 items-center cursor-pointer group"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                setEmojiPickerOpen(emojiPickerOpen === post._id ? null : post._id);
+                            }}
+                        >
+                            {isReacting && actionPostId === post._id && <LoadingSpinner size="sm" />}
+                            {!isReacting && (
+                                <MdAddReaction className="w-6 h-6 text-base-content/60 group-hover:text-yellow-500" />
+                            )}
+                            <span className="text-sm text-base-content/60 group-hover:text-yellow-500">
+        {post?.reaction?.length}
+      </span>
+                        </div>
+
+                        {/* Top‑3 reactions display (inline) */}
+                        <ReactionsDisplay reactions={post?.reaction} />
+
                     </div>
 
-                    {/* Reactions */}
-                    <div className="flex gap-0 items-center">
-                        <ReactionsDisplay reactions={post?.reaction} />
-                        <div className="flex gap-0 items-center cursor-pointer relative ml-2">
-                            <div className="flex gap-1 items-center group cursor-pointer" onClick={(e) => { e.preventDefault(); setEmojiPickerOpen(emojiPickerOpen === post._id ? null : post._id); }}>
-                                {isReacting && actionPostId === post._id && <LoadingSpinner size="sm" />}
-                                {!isReacting && <MdAddReaction className="w-6 h-6 cursor-pointer text-base-content/60 group-hover:text-warning" />}
-                                <span className="text-sm text-base-content/60 group-hover:text-warning">{post?.reaction?.length}</span>
-                            </div>
+                    {/* Emoji picker (absolutely positioned) */}
+                    <div className="relative">
+                        {emojiPickerOpen === post._id && (
                             <ReactionEmojiPicker
                                 postId={post._id}
-                                isOpen={emojiPickerOpen === post._id}
+                                isOpen={true}
                                 onClose={() => setEmojiPickerOpen(null)}
-                                onReact={(emoji) => { setActionPostId(post._id); reactToPost({ id: post?._id, reaction: emoji }); }}
+                                onReact={(emoji) => {
+                                    setActionPostId(post._id);
+                                    reactToPost({ id: post?._id, reaction: emoji });
+                                }}
                             />
-                        </div>
+                        )}
                     </div>
                 </div>
+
+                {/* Report Modal */}
+                <ReportModal
+                    isOpen={showReportModal === post._id}
+                    onClose={() => setShowReportModal(null)}
+                    onReport={(reason) =>
+                        reportPost({ id: post._id, reason: { reason } })
+                    }
+                />
             </div>
         </div>
     );

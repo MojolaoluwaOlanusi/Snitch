@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect, Suspense, lazy } from "react";
+import React, { useRef, useEffect, Suspense, lazy } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAppTheme } from '@/hooks/useAppTheme.js';
 
 // Lazy load emoji picker
 const LazyPicker = lazy(async () => {
@@ -10,6 +11,7 @@ import data from "@emoji-mart/data";
 
 const ReactionEmojiPicker = ({ postId, onReact, onClose, isOpen }) => {
     const pickerRef = useRef(null);
+    const appTheme = useAppTheme();
 
     const handleSelect = (emoji) => {
         onReact(emoji.native);
@@ -50,7 +52,7 @@ const ReactionEmojiPicker = ({ postId, onReact, onClose, isOpen }) => {
                             data={data}
                             onEmojiSelect={handleSelect}
                             perLine={7}
-                            theme="light"
+                            theme={appTheme}
                             previewPosition="none"
                             skinTonePosition="none"
                             maxFrequentRows={0}

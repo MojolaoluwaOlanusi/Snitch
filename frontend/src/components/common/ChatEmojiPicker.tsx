@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, Suspense, lazy } from "react";
+import { useAppTheme } from '../../hooks/useAppTheme.js';
 import { motion, AnimatePresence } from "framer-motion";
 
 const LazyPicker = lazy(async () => {
@@ -20,6 +21,7 @@ const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"];
 const ReactionEmojiPicker: React.FC<Props> = ({ postId, onReact, onClose, isOpen }) => {
     const pickerRef = useRef<HTMLDivElement>(null);
     const [showFullPicker, setShowFullPicker] = useState(false);
+    const appTheme = useAppTheme();
 
     const handleSelect = (emoji: any) => {
         onReact(emoji.native);
@@ -93,7 +95,7 @@ const ReactionEmojiPicker: React.FC<Props> = ({ postId, onReact, onClose, isOpen
                                     data={data}
                                     onEmojiSelect={handleSelect}
                                     perLine={7}
-                                    theme="light"
+                                    theme={appTheme}
                                     previewPosition="none"
                                     skinTonePosition="none"
                                     maxFrequentRows={0}

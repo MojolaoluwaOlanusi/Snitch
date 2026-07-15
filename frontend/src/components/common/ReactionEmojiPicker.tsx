@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect, Suspense, lazy } from "react";
+import React, { useRef, useEffect, Suspense, lazy } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAppTheme } from "../../hooks/useAppTheme.js";
 
 const LazyPicker = lazy(async () => {
     const mod = await import("@emoji-mart/react");
@@ -16,6 +17,7 @@ interface Props {
 
 const ReactionEmojiPicker: React.FC<Props> = ({ postId, onReact, onClose, isOpen }) => {
     const pickerRef = useRef<HTMLDivElement>(null);
+    const appTheme = useAppTheme();
 
     const handleSelect = (emoji: any) => {
         onReact(emoji.native);
@@ -42,7 +44,7 @@ const ReactionEmojiPicker: React.FC<Props> = ({ postId, onReact, onClose, isOpen
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -20, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 bottom-full mb-2 z-50 bg-base-100 p-2 rounded-xl shadow-2xl border-2 border-primary/20 w-80 max-h-64 overflow-auto"
+                    className="absolute right-0 bottom-full mb-2 z-50 bg-base-100 p-2 rounded-xl shadow-2xl border-2 border-primary/20 max-h-64 overflow-auto"
                 >
                     {/* Lazy-loaded emojis */}
                     <Suspense fallback={<div className="text-center p-4 text-base-content/60">Loading emojis...</div>}>
@@ -50,7 +52,7 @@ const ReactionEmojiPicker: React.FC<Props> = ({ postId, onReact, onClose, isOpen
                             data={data}
                             onEmojiSelect={handleSelect}
                             perLine={8}
-                            theme="light"
+                            theme={appTheme}
                             previewPosition="none"
                             skinTonePosition="none"
                         />

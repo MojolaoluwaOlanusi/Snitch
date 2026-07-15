@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, Suspense, lazy } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { Suspense, lazy } from "react";
+import { useAppTheme } from '@/hooks/useAppTheme.js';
 
 const LazyPicker = lazy(async () => {
     const mod = await import("@emoji-mart/react");
@@ -8,27 +8,7 @@ const LazyPicker = lazy(async () => {
 import data from "@emoji-mart/data";
 
 const EmojiPicker = ({ inputRef, value, setValue }) => {
-    const [recent, setRecent] = useState([]);
-    const pickerRef = useRef(null);
-
-    // Load recent emojis from localStorage
-    useEffect(() => {
-        try {
-            const stored = localStorage.getItem("recentEmojis");
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                if (Array.isArray(parsed)) setRecent(parsed.slice(0, 20));
-            }
-        } catch {
-            setRecent([]);
-        }
-    }, []);
-
-    const saveRecent = (emoji) => {
-        const updated = [emoji, ...recent.filter((e) => e !== emoji)].slice(0, 20);
-        setRecent(updated);
-        localStorage.setItem("recentEmojis", JSON.stringify(updated));
-    };
+    const appTheme = useAppTheme();
 
     const handleSelect = (emoji) => {
         if (inputRef && inputRef.current) {
@@ -45,53 +25,26 @@ const EmojiPicker = ({ inputRef, value, setValue }) => {
                 el.setSelectionRange(newPos, newPos);
             }, 50);
 
-            saveRecent(emoji.native);
         }
     };
 
     return (
-        <div
-            ref={pickerRef}
-            className="bg-base-100 rounded-xl shadow-xl border border-base-300 w-[calc(100vw-2rem)] max-w-xs sm:max-w-sm md:w-80 max-h-96 overflow-hidden flex flex-col"
-        >
-            {/* Recent emojis */}
-            {recent.length > 0 && (
-                <div className="p-2 border-b border-base-300">
-                    <p className="text-xs text-base-content/50 mb-1 px-1">Recent</p>
-                    <div className="flex flex-wrap gap-0.5">
-                        {recent.map((emoji, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => handleSelect({ native: emoji })}
-                                className="w-8 h-8 flex items-center justify-center text-lg hover:bg-base-200 rounded-lg transition-colors"
-                            >
-                                {emoji}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Full emoji picker – always 7 per row, emoji size 24 */}
-            <div className="flex-1 overflow-y-auto">
-                <Suspense fallback={
-                    <div className="flex items-center justify-center p-8 text-base-content/50 text-sm">
-                        Loading emojis...
-                    </div>
-                }>
-                    <LazyPicker
-                        data={data}
-                        onEmojiSelect={handleSelect}
-                        perLine={7}
-                        emojiSize={24}
-                        theme="light"
-                        previewPosition="none"
-                        skinTonePosition="none"
-                        maxFrequentRows={2}
-                    />
-                </Suspense>
+        <Suspense fallback={
+            <div className="flex items-center justify-center p-8 text-base-content/50 text-sm">
+                Loading emojis...
             </div>
-        </div>
+        }>
+            <LazyPicker
+                data={data}
+                onEmojiSelect={handleSelect}
+                perLine={7}
+                emojiSize={24}
+                theme={appTheme}
+                previewPosition="none"
+                skinTonePosition="none"
+                maxFrequentRows={2}
+            />
+        </Suspense>
     );
 };
 

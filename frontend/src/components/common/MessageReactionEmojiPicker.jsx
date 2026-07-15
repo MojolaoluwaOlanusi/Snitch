@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, Suspense, lazy } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAppTheme } from '@/hooks/useAppTheme.js';
 
 const LazyPicker = lazy(() => import("@emoji-mart/react"));
 import data from "@emoji-mart/data";
@@ -11,6 +12,7 @@ const MessageReactionEmojiPicker = ({ postId, onReact, onClose, isOpen, position
     const pickerRef = useRef(null);
     const [showFullPicker, setShowFullPicker] = useState(false);
     const [screenWidth, setScreenWidth] = useState(window.innerWidth);
+    const appTheme = useAppTheme();
 
     useEffect(() => {
         const handleResize = () => setScreenWidth(window.innerWidth);
@@ -116,7 +118,7 @@ const MessageReactionEmojiPicker = ({ postId, onReact, onClose, isOpen, position
                         data={data}
                         onEmojiSelect={handleSelect}
                         perLine={isMobile ? 7 : 7}
-                        theme="light"
+                        theme={appTheme}
                         previewPosition="none"
                         skinTonePosition="none"
                         maxFrequentRows={0}

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useUserStore } from "../../store/useUserStore";
+import { useUserStore } from "@/store/useUserStore.js";
 import { useEffect, useState } from "react";
 import PostSkeleton from "../../components/skeletons/PostSkeleton";
 import { Link, useNavigate } from "react-router-dom";
@@ -9,16 +9,17 @@ import { toast } from "sonner";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import { BiRepost } from "react-icons/bi";
 import { formatPostDate } from "../../utils/date";
-import { useAuthStore } from "../../store/useAuthStore";
+import { useAuthStore } from "@/store/useAuthStore.js";
 import { MdAddReaction, MdReportProblem } from "react-icons/md";
 import { IoClose } from "react-icons/io5";
 import EditPostModal from "../../components/common/EditPostModal";
-import {MoreHorizontal, Hash, Share2, Copy, Check, ExternalLink, Bookmark, Sticker,  ChevronDown, ChevronUp} from "lucide-react";
+import {MoreHorizontal, Hash, Share2, Copy, Check, Bookmark, Sticker,  ChevronDown, ChevronUp} from "lucide-react";
 import ReactionEmojiPicker from "./ReactionEmojiPicker.tsx";
 import ReactionsDisplay from "./ReactionsDisplay";
 import GifStickerPicker from "../../components/common/GifStickerPicker";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { Suspense } from "react";
+import ReportModal from "./ReportModal.jsx"
 import axiosInstance from "../../lib/axios.js";
 
 // ── Single post item (extracted to avoid hook-in-loop) ──
@@ -26,9 +27,8 @@ const PostItem = ({ post, authUserId }) => {
     const {
         isReposting, isLiking, isReacting, isCommenting,
         repost, likePost, reactToPost, bookmarkPost,
-        deletePost, reportPost, isReporting,
+        reportPost,
         editingPostId, deletingPostId, reportingPostId,
-        commentPost, replyToComment, updatePost,
     } = useUserStore();
 
     const {authUser} = useAuthStore();
@@ -39,7 +39,6 @@ const PostItem = ({ post, authUserId }) => {
     const [bookmarkCount, setBookmarkCount] = useState(post?.bookmarksCount || 0);
     const [actionPostId, setActionPostId] = useState(null);
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(null);
-    const [reportSelectVisible, setReportSelectVisible] = useState(false);
     const [commentData, setCommentData] = useState({ text: "", postId: "", media: null });
     const [replyToCommentId, setReplyToCommentId] = useState(null);
     const [replyText, setReplyText] = useState("");
@@ -47,6 +46,7 @@ const PostItem = ({ post, authUserId }) => {
     const [showReplies, setShowReplies] = useState(false);
     const [showCommentStickerPicker, setShowCommentStickerPicker] = useState(false);
     const [showReplyStickerPicker, setShowReplyStickerPicker] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(null);
 
     const navigate = useNavigate();
     const isLikedByMe = !!post?.likes?.some((id) => id === authUserId);
@@ -187,34 +187,10 @@ const PostItem = ({ post, authUserId }) => {
                     {post?.author?._id === authUserId && !useUserStore.getState().isEditing && (
                         <EditPostModal post={post} />
                     )}
-                    <button className="text-base-content/60" onClick={(e) => {
-                        e.preventDefault();
-                        setReportSelectVisible(!reportSelectVisible);
+                    <button className="text-base-content/60" onClick={() => {
+                        setShowReportModal(post._id)
                     }}>
-                        <div className={`flex flex-row group ${reportSelectVisible ? "w-32" : "w-40"} justify-between`}>
-                            <p className={`group-hover:text-base-content/80 ${reportSelectVisible ? "hidden" : "flex"}`}>Report post</p>
-                            <select
-                                onChange={(e) => {
-                                    const { reportPost } = useUserStore.getState();
-                                    reportPost({ id: post?._id, reason: { reason: e.target.value } });
-                                    setReportSelectVisible(false);
-                                }}
-                                className={`${reportSelectVisible ? "flex" : "hidden"} flex-auto`}
-                            >
-                                <option>Select Reason</option>
-                                <option>pornographic</option>
-                                <option>piracy</option>
-                                <option>violence</option>
-                                <option>cyberbully</option>
-                                <option>impersonation</option>
-                                <option>abuse</option>
-                            </select>
-                            {!isReporting && <MdReportProblem className={`cursor-pointer group-hover:text-base-content/80 ${reportSelectVisible ? "hidden" : "flex"}`} />}
-                        </div>
-                        <IoClose className={`${reportSelectVisible ? "flex" : "hidden"} h-6 w-6`} onClick={(e) => {
-                            e.preventDefault();
-                            setReportSelectVisible(false);
-                        }} />
+                        Report Post
                     </button>
                 </li>
               </ul>
@@ -263,11 +239,18 @@ const PostItem = ({ post, authUserId }) => {
                 </Link>
                 {/* Action bar – replace entirely with this */}
                 <div className="flex justify-between mt-3">
-                    <div className="flex gap-4 items-center w-2/3 justify-between">
-                        {/* Comment button */}
-                        <div className="flex gap-1 items-center cursor-pointer group" onClick={() => document.getElementById(`comments_modal${post._id}`).showModal()}>
+                    <div className="flex flex-1 items-center justify-around">
+                        {/* Comment */}
+                        <div
+                            className="flex gap-1 items-center cursor-pointer group"
+                            onClick={() =>
+                                document.getElementById(`comments_modal${post._id}`).showModal()
+                            }
+                        >
                             <FaRegComment className="w-4 h-4 text-base-content/60 group-hover:text-info" />
-                            <span className="text-sm text-base-content/60 group-hover:text-info">{post?.comments.length}</span>
+                            <span className="text-sm text-base-content/60 group-hover:text-info">
+                                {post?.comments.length}
+                            </span>
                         </div>
 
                         {/* Comment modal */}
@@ -446,38 +429,34 @@ const PostItem = ({ post, authUserId }) => {
                             </div>
                         </dialog>
 
-                        {/* Repost button */}
+                        {/* Repost */}
                         <div
-                            className="flex gap-1 items-center group cursor-pointer"
+                            className="flex gap-1 items-center cursor-pointer group"
                             onClick={(e) => {
                                 e.preventDefault();
                                 setActionPostId(post._id);
                                 repost(post?._id);
                             }}
                         >
-                            {isReposting && actionPostId === post._id && (
-                                <LoadingSpinner size="sm" />
-                            )}
+                            {isReposting && actionPostId === post._id && <LoadingSpinner size="sm" />}
                             {!isReposting && (
                                 <BiRepost className="w-6 h-6 text-base-content/60 group-hover:text-success" />
                             )}
                             <span className="text-sm group-hover:text-success text-base-content/60">
-                            {post?.repostCount}
-                            </span>
+        {post?.repostCount}
+      </span>
                         </div>
 
-                        {/* Like button */}
+                        {/* Like */}
                         <div
-                            className="flex gap-1 items-center group cursor-pointer"
+                            className="flex gap-1 items-center cursor-pointer group"
                             onClick={(e) => {
                                 e.preventDefault();
                                 setActionPostId(post._id);
                                 likePost(post?._id);
                             }}
                         >
-                            {isLiking && actionPostId === post._id && (
-                                <LoadingSpinner size="sm" />
-                            )}
+                            {isLiking && actionPostId === post._id && <LoadingSpinner size="sm" />}
                             {!isLiking && (
                                 <FaRegHeart
                                     className={`w-4 h-4 cursor-pointer ${
@@ -490,20 +469,27 @@ const PostItem = ({ post, authUserId }) => {
                                     isLikedByMe ? "text-secondary" : "text-base-content/60"
                                 }`}
                             >
-                            {post?.likes?.length}
-                            </span>
+        {post?.likes?.length}
+      </span>
                         </div>
 
-                        {/* Share button */}
-                        <div className="flex gap-1 items-center group cursor-pointer" onClick={(e) => {
-                            e.preventDefault();
-                            const postUrl = `${window.location.origin}/post/${post?._id}`;
-                            window.dispatchEvent(new CustomEvent("OpenShareModal", { detail: { postId: post?._id, url: postUrl } }));
-                        }}>
+                        {/* Share */}
+                        <div
+                            className="flex gap-1 items-center cursor-pointer group"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                const postUrl = `${window.location.origin}/post/${post?._id}`;
+                                window.dispatchEvent(
+                                    new CustomEvent("OpenShareModal", {
+                                        detail: { postId: post?._id, url: postUrl },
+                                    })
+                                );
+                            }}
+                        >
                             <Share2 className="w-4 h-4 text-base-content/60 group-hover:text-primary" />
                         </div>
 
-                        {/* Bookmark button */}
+                        {/* Bookmark */}
                         <button
                             className={`flex items-center justify-center gap-2 transition-colors group py-2 hover:bg-base-200 rounded-lg ${
                                 isBookmarked ? "text-primary" : "text-base-content/60 hover:text-primary"
@@ -519,30 +505,53 @@ const PostItem = ({ post, authUserId }) => {
                             <Bookmark className={`w-5 h-5 ${isBookmarked ? "fill-current" : ""}`} />
                             <span className="text-sm">{bookmarkCount}</span>
                         </button>
-                    </div>
-                    <div className="flex gap-0 items-center">
-                        <ReactionsDisplay reactions={post?.reaction} />
-                        <div className="flex gap-0 items-center cursor-pointer relative ml-2">
-                            <div className="flex gap-1 items-center group cursor-pointer" onClick={(e) => {
+
+                        {/* React / Emoji picker */}
+                        <div
+                            className="flex gap-1 items-center cursor-pointer group"
+                            onClick={(e) => {
                                 e.preventDefault();
                                 setEmojiPickerOpen(emojiPickerOpen === post._id ? null : post._id);
-                            }}>
-                                {isReacting && actionPostId === post._id && <LoadingSpinner size="sm" />}
-                                {!isReacting && <MdAddReaction className="w-6 h-6 cursor-pointer text-base-content/60 group-hover:text-warning" />}
-                                <span className="text-sm text-base-content/60 group-hover:text-warning">{post?.reaction?.length}</span>
-                            </div>
+                            }}
+                        >
+                            {isReacting && actionPostId === post._id && <LoadingSpinner size="sm" />}
+                            {!isReacting && (
+                                <MdAddReaction className="w-6 h-6 text-base-content/60 group-hover:text-yellow-500" />
+                            )}
+                            <span className="text-sm text-base-content/60 group-hover:text-yellow-500">
+        {post?.reaction?.length}
+      </span>
+                        </div>
+
+                        {/* Top‑3 reactions display (inline) */}
+                        <ReactionsDisplay reactions={post?.reaction} />
+
+                    </div>
+
+                    {/* Emoji picker (absolutely positioned) */}
+                    <div className="relative">
+                        {emojiPickerOpen === post._id && (
                             <ReactionEmojiPicker
                                 postId={post._id}
-                                isOpen={emojiPickerOpen === post._id}
+                                isOpen={true}
                                 onClose={() => setEmojiPickerOpen(null)}
                                 onReact={(emoji) => {
                                     setActionPostId(post._id);
                                     reactToPost({ id: post?._id, reaction: emoji });
                                 }}
                             />
-                        </div>
+                        )}
                     </div>
                 </div>
+
+                {/* Report Modal */}
+                <ReportModal
+                    isOpen={showReportModal === post._id}
+                    onClose={() => setShowReportModal(null)}
+                    onReport={(reason) =>
+                        reportPost({ id: post._id, reason: { reason } })
+                    }
+                />
             </div>
         </div>
     );
