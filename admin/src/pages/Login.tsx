@@ -37,11 +37,11 @@ export default function Login() {
                 onSubmit={handleSubmit}
                 className="bg-base-100 p-8 rounded-xl shadow-lg w-full max-w-sm space-y-4"
             >
-                <h1 className="text-2xl font-bold text-center">Admin Login</h1>
+                <h1 className="text-2xl text-base-content font-bold text-center">Admin Login</h1>
                 <input
                     type="email"
                     placeholder="Email"
-                    className="input input-bordered w-full"
+                    className="input input-bordered text-base-content w-full"
                     value={email}
                     aria-label="Email"
                     title="Email"
@@ -51,7 +51,7 @@ export default function Login() {
                 <input
                     type="password"
                     placeholder="Password"
-                    className="input input-bordered w-full"
+                    className="input input-bordered text-base-content w-full"
                     value={password}
                     aria-label="Password"
                     title="Password"

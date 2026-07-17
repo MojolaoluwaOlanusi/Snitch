@@ -634,6 +634,18 @@ const ChatPage = () => {
         }
     }, [showContactList]);
 
+    useEffect(() => {
+        const h = (e) => {
+            if (attachmentRef.current && !attachmentRef.current.contains(e.target)) {
+                setShowAttachmentMenu(false);
+            }
+        };
+        if (showAttachmentMenu) {
+            document.addEventListener("mousedown", h);
+            return () => document.removeEventListener("mousedown", h);
+        }
+    }, [showAttachmentMenu]);
+
     // Outside click for Send Contact Modal
     useEffect(() => {
         const h = (e) => {
@@ -3899,7 +3911,7 @@ const ChatPage = () => {
                                                 style={{ height: "100%" }}                  // fills the flex container
                                                 data={messages}
                                                 itemContent={(index, message) => (
-                                                    <div id={`msg-${message._id}`}>
+                                                    <div className="py-1" id={`msg-${message._id}`}>
                                                         <MessageBubble message={message} />
                                                     </div>
                                                 )}
@@ -4284,7 +4296,7 @@ const ChatPage = () => {
                                                                 aria-label="sendp"
                                                                 disabled={isSending}
                                                                 className="p-2 sm:p-2.5 rounded-full transition-colors shadow-sm text-primary-content"
-                                                                style={{ backgroundColor: isSending ? '#d1d5db' : (themeColorMap[convoSettings.themeColor || 'emerald'] || '#10b981') }}
+                                                                style={{ backgroundColor: isSending ? '#d1d5db' : bubbleColor }}
                                                             >
                                                                 {isSending ? <Clock className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                                                             </button>
@@ -4503,7 +4515,7 @@ const ChatPage = () => {
                                         initial={{ scale: 0.95 }}
                                         animate={{ scale: 1 }}
                                         exit={{ scale: 0.95 }}
-                                        className="bg-base-100 rounded-xl shadow-xl p-2 w-[90%] max-w-xs"
+                                        className="bg-base-100 border rounded-xl shadow-xl p-2 w-[90%] max-w-xs"
                                         onClick={e => e.stopPropagation()}
                                     >
                                         <button onClick={handlePinConversation} className="w-full px-4 py-2.5 text-left hover:bg-base-200 rounded-lg flex items-center gap-3 text-sm text-base-content/70">
@@ -4574,7 +4586,7 @@ const ChatPage = () => {
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <h3 className="text-lg font-bold mb-4">Pin Message</h3>
@@ -4615,7 +4627,7 @@ const ChatPage = () => {
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-md shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-md shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <h3 className="text-lg font-bold mb-4">Create Poll</h3>
@@ -4672,7 +4684,7 @@ const ChatPage = () => {
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-md shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-md shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <h3 className="text-lg font-bold mb-4">Create Event</h3>
@@ -4710,7 +4722,7 @@ const ChatPage = () => {
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <h3 className="text-lg font-bold mb-3">Share Contact</h3>
@@ -4775,7 +4787,7 @@ const ChatPage = () => {
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[95%] max-w-xl max-h-[80vh] overflow-y-auto shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[95%] max-w-xl max-h-[80vh] overflow-y-auto shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between mb-4">
@@ -4811,7 +4823,7 @@ const ChatPage = () => {
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[95%] max-w-xl max-h-[80vh] overflow-y-auto shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[95%] max-w-xl max-h-[80vh] overflow-y-auto shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between mb-4">
@@ -4844,7 +4856,7 @@ const ChatPage = () => {
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[95%] max-w-xl max-h-[80vh] overflow-y-auto shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[95%] max-w-xl max-h-[80vh] overflow-y-auto shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between mb-4">
@@ -4877,7 +4889,7 @@ const ChatPage = () => {
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between mb-4">
@@ -4910,7 +4922,7 @@ const ChatPage = () => {
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between mb-4">
@@ -4943,7 +4955,7 @@ const ChatPage = () => {
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between mb-4">
@@ -4976,11 +4988,11 @@ const ChatPage = () => {
                                 <X className="w-6 h-6" />
                             </button>
                             {showMediaViewer.mime?.startsWith('image/') ? (
-                                <img src={showMediaViewer.url} alt="" className="max-w-[95vw] max-h-[95vh] rounded-xl object-contain" onClick={e => e.stopPropagation()} />
+                                <img src={showMediaViewer.url} alt="" className="max-w-[95vw] max-h-[95vh] rounded-xl border object-contain" onClick={e => e.stopPropagation()} />
                             ) : showMediaViewer.mime?.startsWith('video/') ? (
-                                <video src={showMediaViewer.url} controls className="max-w-[95vw] max-h-[95vh] rounded-xl" onClick={e => e.stopPropagation()} />
+                                <video src={showMediaViewer.url} controls className="max-w-[95vw] max-h-[95vh] border rounded-xl" onClick={e => e.stopPropagation()} />
                             ) : (
-                                <div className="bg-base-100 rounded-xl p-8 text-center max-w-[90%]" onClick={e => e.stopPropagation()}>
+                                <div className="bg-base-100 border rounded-xl p-8 text-center max-w-[90%]" onClick={e => e.stopPropagation()}>
                                     <FileText className="w-16 h-16 text-base-content/50 mx-auto mb-4" />
                                     <p className="text-lg font-medium">{showMediaViewer.filename || 'File'}</p>
                                     <a href={showMediaViewer.url} download className="text-primary hover:text-primary mt-2 inline-block"><Download className="w-5 h-5 inline mr-1" /> Download</a>
@@ -5005,7 +5017,7 @@ const ChatPage = () => {
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <h3 className="text-lg font-bold mb-3">Forward Message</h3>
@@ -5058,7 +5070,7 @@ const ChatPage = () => {
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-md shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-md shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <h3 className="text-lg font-bold mb-4">New Group</h3>
@@ -5091,7 +5103,7 @@ const ChatPage = () => {
                             className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
                         >
                             <motion.div
-                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-2xl pointer-events-auto"
+                                className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-2xl pointer-events-auto"
                             >
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="text-lg font-bold">New Chat</h3>
@@ -5140,7 +5152,7 @@ const ChatPage = () => {
                             <motion.div
                                 initial={{ scale: 0.9, y: 20 }}
                                 animate={{ scale: 1, y: 0 }}
-                                className="bg-base-100 rounded-2xl p-8 w-[90%] max-w-xs text-center shadow-2xl"
+                                className="bg-base-100 border rounded-2xl p-8 w-[90%] max-w-xs text-center shadow-2xl"
                             >
                                 <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                                     {incomingCall.isVideo ? <Video className="w-10 h-10 text-primary" /> : <Phone className="w-10 h-10 text-primary" />}
@@ -5174,7 +5186,7 @@ const ChatPage = () => {
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-md max-h-[70vh] overflow-y-auto shadow-xl z-[61]"
+                                className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-md max-h-[70vh] overflow-y-auto shadow-xl z-[61]"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <h3 className="text-lg font-bold mb-4">Add to Call</h3>
@@ -5202,7 +5214,7 @@ const ChatPage = () => {
                         >
                             <motion.div
                                 initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-xs shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-xs shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <h3 className="text-lg font-bold mb-4">Delete Message</h3>
@@ -5234,7 +5246,7 @@ const ChatPage = () => {
                             >
                                 <motion.div
                                     initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                                    className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
+                                    className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
                                     onClick={e => e.stopPropagation()}
                                 >
                                     <div className="flex items-center justify-between mb-4">
@@ -5293,7 +5305,7 @@ const ChatPage = () => {
                         >
                             <motion.div
                                 initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-sm shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <h3 className="text-lg font-bold mb-4">Disappearing Messages</h3>
@@ -5354,7 +5366,7 @@ const ChatPage = () => {
                         >
                             <motion.div
                                 initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[520px] max-h-[85vh] overflow-y-auto shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[520px] max-h-[85vh] overflow-y-auto shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between mb-4">
@@ -5567,7 +5579,7 @@ const ChatPage = () => {
                         >
                             <motion.div
                                 initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <h3 className="text-lg font-bold mb-4">Translate to</h3>
@@ -5594,7 +5606,7 @@ const ChatPage = () => {
                         >
                             <motion.div
                                 initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                                className="bg-base-100 rounded-2xl p-6 w-[480px] max-h-[80vh] overflow-y-auto shadow-xl"
+                                className="bg-base-100 border rounded-2xl p-6 w-[480px] max-h-[80vh] overflow-y-auto shadow-xl"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between mb-4">
@@ -5748,7 +5760,7 @@ const ChatPage = () => {
                             >
                                 <motion.div
                                     initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                                    className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-sm max-h-[80vh] overflow-y-auto shadow-xl"
+                                    className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-sm max-h-[80vh] overflow-y-auto shadow-xl"
                                     onClick={e => e.stopPropagation()}
                                 >
                                     <div className="flex items-center justify-between mb-4">
@@ -5973,7 +5985,7 @@ const ChatPage = () => {
                             className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
                         >
                             <motion.div
-                                className="bg-base-100 rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-2xl pointer-events-auto"
+                                className="bg-base-100 border rounded-2xl p-6 w-[90%] max-w-md max-h-[80vh] overflow-y-auto shadow-2xl pointer-events-auto"
                             >
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="text-lg font-bold">Send Contact</h3>

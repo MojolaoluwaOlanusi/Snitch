@@ -27,7 +27,7 @@ const ReportModal = ({ isOpen, onClose, onReport }) => {
                         animate={{ scale: 1 }}
                         exit={{ scale: 0.95 }}
                         onClick={(e) => e.stopPropagation()}
-                        className="bg-base-100 rounded-2xl p-6 w-full max-w-sm shadow-xl"
+                        className="bg-base-100 border rounded-2xl p-6 w-full max-w-sm shadow-xl"
                     >
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-bold text-base-content">
@@ -52,7 +52,7 @@ const ReportModal = ({ isOpen, onClose, onReport }) => {
                                         onReport(reason);
                                         onClose();
                                     }}
-                                    className="w-full text-left px-4 py-2 rounded-lg hover:bg-base-200 text-base-content capitalize"
+                                    className="w-full text-left px-4 py-2 rounded-lg hover:bg-base-200 bg-base-300 text-base-content capitalize"
                                     aria-label={`Report for ${reason}`}
                                 >
                                     {reason}

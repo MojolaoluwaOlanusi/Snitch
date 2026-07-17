@@ -244,7 +244,7 @@ const LikedPostItem = ({ post, authUserId }) => {
                         <div
                             className="flex gap-1 items-center cursor-pointer group"
                             onClick={() =>
-                                document.getElementById(`comments_modal${post._id}`).showModal()
+                                document.getElementById(`liked_comments_modal${post._id}`).showModal()
                             }
                         >
                             <FaRegComment className="w-4 h-4 text-base-content/60 group-hover:text-info" />

@@ -282,7 +282,6 @@ export const useUserStore = create((set, get) => ({
                 await refreshLikedPosts(user);
                 await refreshTruncatedPosts(user);
             }
-            toast.success("Post created successfully");
         } catch (error) {
             console.log("Error in Creating Post:", error);
             toast.error(error.response.data.message);
@@ -454,6 +453,22 @@ export const useUserStore = create((set, get) => ({
             }
         }
 
+        async function refreshSinglePost(data) {
+            try {
+                const token = localStorage.getItem('access-token');
+                const res = await axiosInstance.get(`/posts/get-post/${data}`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+                // update likedPosts without changing global loading flag
+                set({ singlePost: res.data });
+            } catch (error) {
+                console.log("Error in Getting Single Post:", error);
+                toast.error("Failed to get Single Post!");
+            }
+        }
+
         try {
             const token = localStorage.getItem('access-token');
             const user = localStorage.getItem('user');
@@ -466,6 +481,7 @@ export const useUserStore = create((set, get) => ({
             set({ likedPost: true });
             await refreshPosts();
             await refreshFollowingPosts();
+            await refreshSinglePost(data);
             if (user) {
                 await refreshUserPosts(user);
                 await refreshLikedPosts(user);
@@ -476,6 +492,7 @@ export const useUserStore = create((set, get) => ({
             if (res.data.message === "Successfully Liked Post"){
                 toast.success("Successfully liked post");
             }
+            return res.data;
         } catch (error) {
             console.log("Error in Liking  Post:", error);
             toast.error("Failed to like post!");
@@ -643,6 +660,22 @@ export const useUserStore = create((set, get) => ({
             }
         }
 
+        async function refreshSinglePost(data) {
+            try {
+                const token = localStorage.getItem('access-token');
+                const res = await axiosInstance.get(`/posts/get-post/${data}`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+                // update likedPosts without changing global loading flag
+                set({ singlePost: res.data });
+            } catch (error) {
+                console.log("Error in Getting Single Post:", error);
+                toast.error("Failed to get Single Post!");
+            }
+        }
+
         try {
             const token = localStorage.getItem('access-token');
             const user = localStorage.getItem('user');
@@ -655,6 +688,7 @@ export const useUserStore = create((set, get) => ({
             set({ reactedToPost: true });
             await refreshPosts();
             await refreshFollowingPosts();
+            await refreshSinglePost(data.id);
             if (user) {
                 await refreshUserPosts(user);
                 await refreshLikedPosts(user);
@@ -876,6 +910,22 @@ export const useUserStore = create((set, get) => ({
             }
         }
 
+        async function refreshSinglePost(data) {
+            try {
+                const token = localStorage.getItem('access-token');
+                const res = await axiosInstance.get(`/posts/get-post/${data}`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+                // update likedPosts without changing global loading flag
+                set({ singlePost: res.data });
+            } catch (error) {
+                console.log("Error in Getting Single Post:", error);
+                toast.error("Failed to get Single Post!");
+            }
+        }
+
         try {
             const token = localStorage.getItem('access-token');
             const user = localStorage.getItem('user');
@@ -889,6 +939,7 @@ export const useUserStore = create((set, get) => ({
             set({ Repost: res.data });
             await refreshPosts();
             await refreshFollowingPosts();
+            await refreshSinglePost(data);
             if (user) {
                 await refreshUserPosts(user);
                 await refreshLikedPosts(user);

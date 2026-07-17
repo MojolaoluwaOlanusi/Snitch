@@ -242,7 +242,7 @@ router.post('/generate-invite', auth, requireAdmin, async (req,res)=>{
 // If code matches any active invite stored on some admin user and (optional) email matches, set that user isAdmin=true
 router.post('/accept-invite', auth, async (req,res)=>{
     const { code } = req.body;
-    if(!code) return res.status(400).json({ error:'missing_code' });
+    if(!code) return res.status(400).json({ error:'missing_code', message: "Please enter a code" });
 
     // iterate admin users with non-expired invites
     const admins = await User.find({ isAdmin: true, 'adminInvite.expiresAt': { $gt: new Date() } });
@@ -259,11 +259,11 @@ router.post('/accept-invite', auth, async (req,res)=>{
             break;
         }
     }
-    if(!matchedAdmin) return res.status(404).json({ error:'invalid_or_expired_code' });
+    if(!matchedAdmin) return res.status(401).json({ error:'invalid_or_expired_code', message: 'Invalid or expired code', });
 
     // set current user as admin
     const me = await User.findById(req.userId);
-    if(!me) return res.status(404).json({ error:'user_not_found' });
+    if(!me) return res.status(401).json({ error:'user_not_found', message: "This user does not exist" });
     me.isAdmin = true;
     // clear invites on matched admin (optional)
     matchedAdmin.adminInvite = undefined;

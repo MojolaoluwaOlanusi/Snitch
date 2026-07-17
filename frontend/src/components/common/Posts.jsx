@@ -268,13 +268,13 @@ const PostItem = ({ post, authUserId }) => {
                                 {/* New comment form */}
                                 <form onSubmit={handlePostComment}>
                                     <div className="flex gap-2 items-center mt-4 border-t border-base-content/30 pt-2">
-                  <textarea
-                      className="textarea w-full p-1 rounded text-md resize-none border focus:outline-none border-base-content/30 bg-base-100"
-                      placeholder="Write a comment..."
-                      value={commentData.text}
-                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handlePostComment(e); } }}
-                      onChange={(e) => setCommentData({ ...commentData, text: e.target.value, postId: post?._id })}
-                  />
+                                        <textarea
+                                            className="w-full p-1 rounded text-md resize-none border focus:outline-none border-base-content/30 bg-base-300"
+                                            placeholder="Write a comment..."
+                                            value={commentData.text}
+                                            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handlePostComment(e); } }}
+                                            onChange={(e) => setCommentData({ ...commentData, text: e.target.value, postId: post?._id })}
+                                        />
                                         <button type="button" onClick={() => setShowCommentStickerPicker(!showCommentStickerPicker)} className="p-2 hover:bg-base-200 rounded-full" title="Add sticker or GIF">
                                             <Sticker className="w-5 h-5 text-base-content/60" />
                                         </button>
@@ -354,7 +354,7 @@ const PostItem = ({ post, authUserId }) => {
                                                             <input
                                                                 type="text"
                                                                 placeholder="Write a reply..."
-                                                                className="flex-1 border border-base-content/30 rounded px-2 py-1 text-sm bg-base-100"
+                                                                className="flex-1 border border-base-content/30 rounded px-2 py-1 text-sm bg-base-300"
                                                                 value={replyText}
                                                                 onChange={(e) => setReplyText(e.target.value)}
                                                                 onKeyDown={(e) => {

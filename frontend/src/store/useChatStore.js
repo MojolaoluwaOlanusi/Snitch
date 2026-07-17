@@ -93,7 +93,6 @@ export const useChatStore = create((set, get) => ({
         return new Promise((resolve, reject) => {
             socket.emit('message:forward', { messageId: data.messageId, targets: data.targets }, async (ack) => {
                 if (!ack?.ok) { toast.error("Failed to forward"); reject(new Error(ack?.error)); return; }
-                toast.success("Forwarded");
                 await get().getConversations();
                 resolve(ack);
             });
@@ -128,7 +127,6 @@ export const useChatStore = create((set, get) => ({
         return new Promise((resolve, reject) => {
             socket.emit('message:pin', { messageId, duration }, (ack) => {
                 if (!ack?.ok) { toast.error("Failed to pin message"); reject(new Error(ack?.error)); return; }
-                toast.success("Message pinned");
                 resolve(ack);
             });
         });
@@ -140,7 +138,6 @@ export const useChatStore = create((set, get) => ({
         return new Promise((resolve, reject) => {
             socket.emit('message:unpin', { messageId }, (ack) => {
                 if (!ack?.ok) { toast.error("Failed to unpin message"); reject(new Error(ack?.error)); return; }
-                toast.success("Message unpinned");
                 resolve(ack);
             });
         });

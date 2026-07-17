@@ -3,7 +3,7 @@ import { useUserStore } from "../../store/useUserStore";
 import { FaArrowLeft, FaRegComment, FaRegHeart, FaTrash } from "react-icons/fa";
 import { BiRepost } from "react-icons/bi";
 import { MdAddReaction, MdReportProblem } from "react-icons/md";
-import {MoreHorizontal, Hash, Sticker, ChevronUp, ChevronDown} from "lucide-react";
+import {MoreHorizontal, Hash, Sticker, ChevronUp, ChevronDown, Share2, Bookmark, Copy, Check} from "lucide-react";
 import {Suspense, useEffect, useState} from "react";
 import PostPageSkeleton from "../../components/skeletons/PostPageSkeleton";
 import Sidebar from "../../components/common/Sidebar";
@@ -17,6 +17,8 @@ import axiosInstance from "../../lib/axios";
 import {AnimatePresence} from "framer-motion";
 import GifStickerPicker from "../../components/common/GifStickerPicker.jsx";
 import {toast} from "sonner";
+import {IoClose} from "react-icons/io5";
+import {FaEnvelope, FaFacebook, FaTelegram, FaWhatsapp, FaXTwitter} from "react-icons/fa6";
 
 const PostPage = () => {
     const { postId } = useParams();
@@ -36,7 +38,7 @@ const PostPage = () => {
         isGettingSinglePost,
         likePost,
         isLiking,
-        commentPost,
+        bookmarkPost,
         isCommenting,
         repost,
         isReposting,
@@ -57,6 +59,11 @@ const PostPage = () => {
     const [actionPostId, setActionPostId] = useState(null);
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(null);
     const [authorData, setAuthorData] = useState(null);
+    const [shareModal, setShareModal] = useState({ open: false, postId: null, url: "" });
+    const [isBookmarked, setIsBookmarked] = useState(
+        singlePost?.bookmarkedBy?.includes(authUserId)
+    );
+    const [bookmarkCount, setBookmarkCount] = useState(singlePost?.bookmarksCount || 0);
 
     useEffect(() => {
         getPostById(postId);
@@ -97,6 +104,12 @@ const PostPage = () => {
             }
         }
     }, [singlePost, users, authUserId, authUser]);
+
+    useEffect(() => {
+        const handler = (e) => setShareModal({ open: true, postId: e.detail.postId, url: e.detail.url });
+        window.addEventListener("OpenPostShareModal", handler);
+        return () => window.removeEventListener("OpenShareModal", handler);
+    }, []);
 
     const fetchUserData = async (userId) => {
         try {
@@ -559,6 +572,41 @@ const PostPage = () => {
                                 </span>
                             </button>
 
+                            {/* Share */}
+                            <button
+                                className="flex items-center justify-center gap-2 text-base-content/60 hover:text-sky-500 transition-colors group flex-1 py-2 hover:bg-base-200 rounded-lg"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    const postUrl = `${window.location.origin}/post/${singlePost?._id}`;
+                                    window.dispatchEvent(
+                                        new CustomEvent("OpenPostShareModal", {
+                                            detail: { postId: singlePost?._id, url: postUrl },
+                                        })
+                                    );
+                                }}
+                            >
+                                <Share2 className="w-4 h-4 text-base-content/60 group-hover:text-primary" />
+                            </button>
+
+                            {/* Bookmark */}
+                            <button
+                                className={`flex items-center justify-center gap-2 transition-colors group flex-1 py-2 hover:bg-base-200 rounded-lg ${
+                                    isBookmarked
+                                        ? "text-secondary"
+                                        : "text-base-content/60 hover:text-secondary"
+                                }`}
+                                onClick={async () => {
+                                    const data = await bookmarkPost(singlePost._id);
+                                    if (data) {
+                                        setIsBookmarked(data.bookmarked);
+                                        setBookmarkCount(data.bookmarksCount);
+                                    }
+                                }}
+                            >
+                                <Bookmark className={`w-5 h-5 ${isBookmarked ? "fill-current" : ""}`} />
+                                <span className="text-sm">{bookmarkCount}</span>
+                            </button>
+
                             {/* React */}
                             <div className="relative flex-1">
                                 <button
@@ -674,6 +722,54 @@ const PostPage = () => {
                                 </div>
                             )}
                         </AnimatePresence>
+
+                        {shareModal.open && (
+                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShareModal({ open: false, postId: null, url: "" })}>
+                                <div className="bg-base-100 rounded-2xl p-6 w-[400px] shadow-xl" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-lg font-bold">Share Post</h3>
+                                        <button onClick={() => setShareModal({ open: false, postId: null, url: "" })} className="p-2 hover:bg-base-200 rounded-full">
+                                            <IoClose className="w-5 h-5 text-base-content/60" />
+                                        </button>
+                                    </div>
+                                    <button onClick={() => {
+                                        navigator.clipboard.writeText(shareModal.url);
+                                        toast.success("Link copied to clipboard");
+                                    }} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-base-200 rounded-xl mb-2 transition-colors">
+                                        <div className="w-10 h-10 rounded-full bg-base-200 flex items-center justify-center">
+                                            <Copy className="w-5 h-5 text-base-content/70" />
+                                        </div>
+                                        <div className="text-left flex-1">
+                                            <p className="text-sm font-medium text-base-content">Copy Link</p>
+                                            <p className="text-xs text-base-content/50">{shareModal.url}</p>
+                                        </div>
+                                        <Check className="w-4 h-4 text-base-content/50" />
+                                    </button>
+                                    <div className="grid grid-cols-2 gap-2 mt-4">
+                                        <button onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareModal.url)}`, '_blank')} className="flex items-center gap-2 px-4 py-3 bg-primary/10 hover:bg-primary/10 rounded-xl transition-colors">
+                                            <FaFacebook className="w-5 h-5 text-primary/90" />
+                                            <span className="text-sm font-medium text-primary">Facebook</span>
+                                        </button>
+                                        <button onClick={() => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareModal.url)}`, '_blank')} className="flex items-center gap-2 px-4 py-3 bg-base-200 hover:bg-base-200 rounded-xl transition-colors">
+                                            <FaXTwitter className="w-5 h-5 text-base-content" />
+                                            <span className="text-sm font-medium text-base-content/80">X</span>
+                                        </button>
+                                        <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareModal.url)}`, '_blank')} className="flex items-center gap-2 px-4 py-3 bg-success/10 hover:bg-success/10 rounded-xl transition-colors">
+                                            <FaWhatsapp className="w-5 h-5 text-green-600" />
+                                            <span className="text-sm font-medium text-green-700">WhatsApp</span>
+                                        </button>
+                                        <button onClick={() => window.open(`https://t.me/share/url?url=${encodeURIComponent(shareModal.url)}`, '_blank')} className="flex items-center gap-2 px-4 py-3 bg-info/10 hover:bg-info/20 rounded-xl transition-colors">
+                                            <FaTelegram className="w-5 h-5 text-info" />
+                                            <span className="text-sm font-medium text-info">Telegram</span>
+                                        </button>
+                                        <button onClick={() => window.open(`mailto:?subject=Check out this post on Snitch&body=${encodeURIComponent(shareModal.url)}`, '_blank')} className="flex items-center gap-2 px-4 py-3 bg-error/10 hover:bg-error/10 rounded-xl transition-colors col-span-2">
+                                            <FaEnvelope className="w-5 h-5 text-error/90" />
+                                            <span className="text-sm font-medium text-error">Email</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Comments List */}
                         <div className="space-y-4">

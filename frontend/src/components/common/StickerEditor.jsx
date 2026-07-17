@@ -366,7 +366,7 @@ const StickerEditor = ({ onClose, onSave }) => {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 sm:p-4"
         >
-            <div className="bg-base-100 rounded-2xl p-4 w-full max-w-[520px] max-h-[90vh] overflow-y-auto overflow-x-hidden shadow-xl" ref={containerRef}>
+            <div className="bg-base-100 border rounded-2xl p-4 w-full max-w-[520px] max-h-[90vh] overflow-y-auto overflow-x-hidden shadow-xl" ref={containerRef}>
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-bold">Sticker Editor</h3>
                     <button onClick={onClose} className="p-2 hover:bg-base-200 rounded-full"><X className="w-5 h-5" /></button>
@@ -592,7 +592,7 @@ const StickerEditor = ({ onClose, onSave }) => {
                             </div>
                         )}
 
-                        <button onClick={handleSave} className="w-full py-2.5 bg-success/100 text-primary-content rounded-xl font-medium hover:bg-success/90 flex items-center justify-center gap-2">
+                        <button onClick={handleSave} className="w-full py-2.5 bg-primary/80 text-primary-content rounded-xl font-medium hover:bg-sprimary/60 flex items-center justify-center gap-2">
                             <Save className="w-4 h-4" /> Save Sticker
                         </button>
                     </>

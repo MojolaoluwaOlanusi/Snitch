@@ -1,14 +1,15 @@
 // @ts-nocheck
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    X, Edit3, Bookmark, Shield, Trash2, EyeOff,
+    X, Edit3, Bookmark,EyeOff,
     Twitter, Instagram, Globe, Link as LinkIcon, Plus, AlertTriangle,
 } from "lucide-react";
 import axiosInstance from "../../lib/axios";
 import { toast } from "sonner";
 import { useState, useEffect } from 'react';
-import { useUserStore } from '../../store/useUserStore';
-import { Link } from 'react-router-dom';
+import { useUserStore } from '@/store/useUserStore.js';
+import { useAuthStore } from '@/store/useAuthStore.js';
+import {Link, useParams} from 'react-router-dom';
 
 const SOCIAL_PLATFORMS = [
     { name: "twitter", label: "Twitter", icon: Twitter },
@@ -38,6 +39,10 @@ const SettingsModal = ({ isOpen, onClose, authUser, onProfileUpdate, onEditProfi
     const { getBookmarkedPosts } = useUserStore();
     const [bookmarkedPosts, setBookmarkedPosts] = useState([]);
     const [loadingBookmarks, setLoadingBookmarks] = useState(false);
+    const [adminInviteCode, setAdminInviteCode] = useState("");
+    const { getUserProfile, user } = useAuthStore();
+
+    const { username } = useParams();
 
     useEffect(() => {
         if (authUser) {
@@ -123,6 +128,20 @@ const SettingsModal = ({ isOpen, onClose, authUser, onProfileUpdate, onEditProfi
         }
     };
 
+    const becomeAdmin = async (data) => {
+        try {
+            const token = localStorage.getItem("access-token");
+            await axiosInstance.post("/admin/accept-invite", {code : data},
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success("You are now an admin");
+            await getUserProfile(username);
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Failed to become admin");
+            console.error(err)
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -139,7 +158,7 @@ const SettingsModal = ({ isOpen, onClose, authUser, onProfileUpdate, onEditProfi
                         initial={{ scale: 0.95, y: 20 }}
                         animate={{ scale: 1, y: 0 }}
                         exit={{ scale: 0.95, y: 20 }}
-                        className="bg-base-100 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl"
+                        className="bg-base-100 border rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl"
                         onClick={e => e.stopPropagation()}
                     >
                         {/* Header */}
@@ -152,7 +171,7 @@ const SettingsModal = ({ isOpen, onClose, authUser, onProfileUpdate, onEditProfi
 
                         {/* Tabs */}
                         <div className="flex border-b px-4 gap-2 overflow-x-auto">
-                            {["profile", "bookmarks", "appearance", "danger"].map(tab => (
+                            {["profile", "bookmarks", "appearance", "danger", "admin"].map(tab => (
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
@@ -350,6 +369,58 @@ const SettingsModal = ({ isOpen, onClose, authUser, onProfileUpdate, onEditProfi
                                                     Cancel
                                                 </button>
                                             </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === "admin" && (
+                                <div className="space-y-4">
+                                    <div className="p-4 bg-base-200 rounded-xl border border-gold">
+                                        {user.isAdmin ? (
+                                            <div className="flex justify-center items-center">
+                                                <button
+                                                    className="px-4 py-2 bg-gold text-primary-content rounded-lg font-medium hover:bg-gold/60"
+                                                    onClick={() => window.open(import.meta.env.VITE_ADMIN_URL, '_blank')}
+                                                >
+                                                    Go to Admin Dashboard
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="flex items-center gap-2 text-error/90 mb-2">
+                                                    <span className="font-semibold text-gold">Become an Admin</span>
+                                                </div>
+                                                <p className="text-sm text-base-content mb-4">
+                                                    Use the admin invitation code provided by an admin to become a Snitch Admin.
+                                                </p>
+                                                <div className="flex flex-col gap-2">
+                                                    <input
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        pattern="[0-9]*"
+                                                        value={adminInviteCode}
+                                                        onChange={(e) => {
+                                                            const input = e.target.value;
+                                                            if (/^\d*$/.test(input) && input.length <= 6) {
+                                                                setAdminInviteCode(input);
+                                                            }
+                                                        }}
+                                                        className="bg-base-200 w-full border rounded-lg py-2 pl-10 pr-4 text-base-content placeholder-base-content border-gold "
+                                                        placeholder="Enter the Code"
+                                                        maxLength={6}
+                                                    />
+                                                    <button
+                                                        onClick={() => {
+                                                            becomeAdmin(adminInviteCode);
+                                                        }}
+                                                        disabled={!adminInviteCode}
+                                                        className="px-4 py-2 bg-gold text-primary-content rounded-lg font-medium hover:bg-gold/80"
+                                                    >
+                                                        Use Code
+                                                    </button>
+                                                </div>
+                                            </>
                                         )}
                                     </div>
                                 </div>

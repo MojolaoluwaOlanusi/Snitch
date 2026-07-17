@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
-import { Trash2, Ban, CheckCircle, AlertTriangle, Eye, UserPlus, Copy } from 'lucide-react';
+import {Trash2, Ban, CheckCircle, AlertTriangle, Eye, UserPlus, Copy, History} from 'lucide-react';
 
 export default function Users() {
     const [users, setUsers] = useState([]);
@@ -205,7 +205,7 @@ export default function Users() {
                                             aria-label={`View warnings of ${user.username}`}
                                             title="Warnings history"
                                         >
-                                            <Eye className="w-3 h-3" />
+                                            <History className="w-3 h-3" />
                                         </button>
                                         <button
                                             onClick={() => deleteUser(user._id)}
@@ -253,7 +253,7 @@ export default function Users() {
                         <ul className="space-y-2">
                             {warnings.map((w: any) => (
                                 <li key={w._id} className="border-b border-base-300 pb-2">
-                                    <p className="text-sm text-bold">Reason:{w.reason}</p>
+                                    <p className="text-sm text-bold">Reason: {w.reason}</p>
                                     <p className="text-xs text-base-content/60">{new Date(w.createdAt).toLocaleString()}</p>
                                 </li>
                             ))}

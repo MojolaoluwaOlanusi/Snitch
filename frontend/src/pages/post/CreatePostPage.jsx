@@ -309,7 +309,7 @@ function CreatePostPage() {
 
         try {
             let mediaUrl = null;
-            let mediaType = "";
+            let mediaType = "None";
 
             if (file) {
                 setIsUploadingMedia(true);
