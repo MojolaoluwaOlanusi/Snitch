@@ -35,8 +35,6 @@ app.use(express.json({ limit: '20mb' }));
 const allowedOrigins = [
     process.env.CLIENT_URL,
     process.env.ADMIN_URL,
-    process.env.CLIENT_BUILD_URL,
-    process.env.ADMIN_BUILD_URL,
 ];
 
 app.use(cors({
