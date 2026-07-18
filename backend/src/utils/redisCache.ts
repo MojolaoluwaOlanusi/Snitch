@@ -13,6 +13,9 @@ export const redis = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379'
     keepAlive: 5000,
     connectTimeout: 10000,
     enableOfflineQueue: false,
+    tls: process.env.REDIS_URL?.startsWith('rediss://') ? {
+        rejectUnauthorized: true,
+    } : undefined,
 });
 
 redis.on('error', (err: Error) => {

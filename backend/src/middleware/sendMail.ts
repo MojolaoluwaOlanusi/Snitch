@@ -19,7 +19,8 @@ const transport = nodemailer.createTransport({
         pass: process.env.SMTP_PASS,
     },
     tls: {
-        rejectUnauthorized: false,
+        rejectUnauthorized: true,
+        minVersion: 'TLSv1.2',
     },
 });
 

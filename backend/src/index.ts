@@ -13,11 +13,15 @@ import searchRoutes from './routes/search.js';
 import repostsRoutes from './routes/reposts.js';
 import chatRoutes from './routes/chat.js';
 import './config/env.js';
+import { validateTLSConfiguration } from './config/tlsValidation.js';
 import path from 'node:path';
 import Post from "./models/Post.js";
 import {sendPushNotification} from "./utils/pushNotifications.js"
 import { fileURLToPath } from 'node:url';
 import { initRealtime } from './realtime/server.js';
+
+// Validate TLS configuration before starting
+validateTLSConfiguration();
 
 // Recreate __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -88,8 +92,19 @@ if (!MONGO_URI) {
     process.exit(1);
 }
 
+// Validate MongoDB URI uses TLS
+if (!MONGO_URI.startsWith('mongodb+srv://') && !MONGO_URI.includes('tls=true')) {
+    console.warn('⚠️  WARNING: MongoDB connection does not appear to use TLS. Ensure connection string includes tls=true or uses mongodb+srv:// for Atlas.');
+}
+
 mongoose
-    .connect(MONGO_URI)
+    .connect(MONGO_URI, {
+        tls: true,
+        tlsAllowInvalidCertificates: false,
+        tlsAllowInvalidHostnames: false,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+    })
     .then(() => {
         httpServer.listen(PORT, () => console.log('Backend listening on', PORT));
     })
@@ -97,12 +112,6 @@ mongoose
         console.error(e);
         process.exit(1);
     });
-
-const clientBuildPath = path.join(__dirname, '..', 'frontend', 'dist');
-app.use(express.static(clientBuildPath));
-app.get('*', (_req, res) => {
-    res.sendFile(path.join(clientBuildPath, 'index.html'));
-});
 
 setInterval(async () => {
     try {
