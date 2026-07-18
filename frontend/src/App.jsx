@@ -1,28 +1,28 @@
 import {Navigate, Route, Routes} from "react-router-dom";
-import {useAuthStore} from "./store/useAuthStore";
+import {useAuthStore} from "./store/useAuthStore.js";
 import { Toaster } from 'sonner'
 import { Suspense, lazy, useEffect } from "react";
 // 👇 lazy load every page
-const HomePage = lazy(() => import("./pages/home/HomePage"));
-const LoginPage = lazy(() => import("./pages/auth/login/LoginPage"));
-const SignUpPage = lazy(() => import("./pages/auth/signup/SignUpPage"));
-const NotificationPage = lazy(() => import("./pages/notification/NotificationPage"));
-const ChatPage = lazy(() => import("./pages/chat/ChatPage"));
-const ProfilePage = lazy(() => import("./pages/profile/ProfilePage"));
-const CreatePostPage = lazy(() => import("./pages/post/CreatePostPage"));
-const WarpPage = lazy(() => import("./pages/warp/WarpPage"));
-const AIPage = lazy(() => import("./pages/ai/AIPage"));
-const SearchPage = lazy(() => import("./pages/search/SearchPage"));
-const NotFoundPage = lazy(() => import("./pages/404/404"));
-const ForgotPasswordPage = lazy(() => import("./pages/auth/forgot/ForgotPasswordPage"));
+const HomePage = lazy(() => import("./pages/home/HomePage.jsx"));
+const LoginPage = lazy(() => import("./pages/auth/login/LoginPage.jsx"));
+const SignUpPage = lazy(() => import("./pages/auth/signup/SignUpPage.jsx"));
+const NotificationPage = lazy(() => import("./pages/notification/NotificationPage.jsx"));
+const ChatPage = lazy(() => import("./pages/chat/ChatPage.jsx"));
+const ProfilePage = lazy(() => import("./pages/profile/ProfilePage.jsx"));
+const CreatePostPage = lazy(() => import("./pages/post/CreatePostPage.jsx"));
+const WarpPage = lazy(() => import("./pages/warp/WarpPage.jsx"));
+const AIPage = lazy(() => import("./pages/ai/AIPage.jsx"));
+const SearchPage = lazy(() => import("./pages/search/SearchPage.jsx"));
+const NotFoundPage = lazy(() => import("./pages/404/404.jsx"));
+const ForgotPasswordPage = lazy(() => import("./pages/auth/forgot/ForgotPasswordPage.jsx"));
 const VerifyForgotPasswordCodePage = lazy(() =>
-    import("./pages/auth/forgot/VerifyForgotPasswordCodePage")
+    import("./pages/auth/forgot/VerifyForgotPasswordCodePage.jsx")
 );
-const VerifyAccountPage = lazy(() => import("./pages/auth/verification/VerifyAccountPage"));
+const VerifyAccountPage = lazy(() => import("./pages/auth/verification/VerifyAccountPage.jsx"));
 const VerifyVerificationCodePage = lazy(() =>
-    import("./pages/auth/verification/VerifyVerificationCodePage")
+    import("./pages/auth/verification/VerifyVerificationCodePage.jsx")
 );
-const PostPage = lazy(() => import("./pages/post/PostPage"));
+const PostPage = lazy(() => import("./pages/post/PostPage.jsx"));
 
 function App () {
     const { checkAuthentication, isCheckingAuth, authUserId } = useAuthStore();

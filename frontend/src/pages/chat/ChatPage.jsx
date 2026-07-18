@@ -1,10 +1,10 @@
 // @ts-nocheck
 import {useCallback, useEffect, useRef, useState, Suspense} from "react";
 import React from "react";
-import {useChatStore} from "../../store/useChatStore";
-import {useAuthStore} from "../../store/useAuthStore";
-import Sidebar from "../../components/common/Sidebar";
-import {SnitchLogo} from "../../components/svgs/snitch";
+import {useChatStore} from "../../store/useChatStore.js";
+import {useAuthStore} from "../../store/useAuthStore.js";
+import Sidebar from "../../components/common/Sidebar.jsx";
+import {SnitchLogo} from "../../components/svgs/snitch.jsx";
 import {
     Archive,
     BarChart3,
@@ -67,20 +67,20 @@ import {
     VolumeX,
     X,
 } from "lucide-react";
-import { useConversationSettings } from '../../hooks/useConversationSettings';
+import { useConversationSettings } from '../../hooks/useConversationSettings.js';
 import {AnimatePresence, motion} from "framer-motion";
-import axiosInstance from "../../lib/axios";
+import axiosInstance from "../../lib/axios.js";
 import { toast } from 'sonner'
 import {useLocation, useNavigate} from "react-router-dom";
 import {getLinkPreview} from 'link-preview-js';
 import {TbBookmarkOff} from "react-icons/tb";
 import { Virtuoso } from "react-virtuoso";
-const StickerEditor = React.lazy(() => import("../../components/common/StickerEditor"));
-const GifStickerPicker = React.lazy(() => import("../../components/common/GifStickerPicker"));
-const LocationPicker = React.lazy(() => import("../../components/common/LocationPicker"));
-const GroupInfoModal = React.lazy(() => import("../../components/common/GroupInfoModal"));
-const EmojiPicker = React.lazy(() => import("../../components/common/EmojiPicker"));
-const MessageReactionEmojiPicker = React.lazy(() => import("../../components/common/MessageReactionEmojiPicker"));
+const StickerEditor = React.lazy(() => import("../../components/common/StickerEditor.jsx"));
+const GifStickerPicker = React.lazy(() => import("../../components/common/GifStickerPicker.jsx"));
+const LocationPicker = React.lazy(() => import("../../components/common/LocationPicker.jsx"));
+const GroupInfoModal = React.lazy(() => import("../../components/common/GroupInfoModal.jsx"));
+const EmojiPicker = React.lazy(() => import("../../components/common/EmojiPicker.jsx"));
+const MessageReactionEmojiPicker = React.lazy(() => import("../../components/common/MessageReactionEmojiPicker.jsx"));
 
 // ==================== Sub-Components ====================
 

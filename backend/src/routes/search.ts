@@ -1,18 +1,18 @@
-import express from 'express';
-import {SearchService} from "../search/search.service.ts";
+import express, { Request, Response } from 'express';
+import {SearchService} from "../search/search.service.js";
 import jwt from "jsonwebtoken";
-import {User} from "../models/User.ts";
-import Post from "../models/Post.ts";
+import {User} from "../models/User.js";
+import Post from "../models/Post.js";
 
 const router = express.Router();
 
-async function authMiddleware(req:any, _res:any,next:any){
+async function authMiddleware(req: Request, _res: Response, next: any){
     const h = req.headers.authorization; if(!h) return next(); const parts = h.split(' '); if(parts.length!==2) return next(); try{ const decoded:any = jwt.verify(parts[1], process.env.JWT_SECRET || 'DevelopmentSecret'); const user = await User.findById(decoded.id); req.userId = decoded.id ; if(user) req.user = user; }catch(e){} next();
 }
 
 router.use(authMiddleware);
 
-router.get("/hashtags/:tag/posts", async (req, res) => {
+router.get("/hashtags/:tag/posts", async (req: Request, res: Response) => {
     try {
         const { tag } = req.params;
 
@@ -47,7 +47,7 @@ router.get("/hashtags/:tag/posts", async (req, res) => {
     }
 });
 
-router.get("/:searchType/:searchWord/:limit", async (req, res) => {
+router.get("/:searchType/:searchWord/:limit", async (req: Request, res: Response) => {
 
     if (!req.user) return res.status(401).json({ error:'unauthorized' });
 

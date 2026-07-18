@@ -3,21 +3,21 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { createServer } from "http";
 import cors from 'cors';
-import authRoutes from './routes/auth.ts';
-import postRoutes from './routes/posts.ts';
-import mediaRoutes from './routes/media.ts';
-import notificationRoutes from './routes/notification.ts';
-import incognitoRoutes from './routes/incognito.ts';
-import adminRoutes from './routes/admin.ts';
-import searchRoutes from './routes/search.ts';
-import repostsRoutes from './routes/reposts.ts';
-import chatRoutes from './routes/chat.ts';
-import './config/env.ts';
+import authRoutes from './routes/auth.js';
+import postRoutes from './routes/posts.js';
+import mediaRoutes from './routes/media.js';
+import notificationRoutes from './routes/notification.js';
+import incognitoRoutes from './routes/incognito.js';
+import adminRoutes from './routes/admin.js';
+import searchRoutes from './routes/search.js';
+import repostsRoutes from './routes/reposts.js';
+import chatRoutes from './routes/chat.js';
+import './config/env.js';
 import path from 'node:path';
-import Post from "./models/Post.ts";
-import {sendPushNotification} from "./utils/pushNotifications.ts"
+import Post from "./models/Post.js";
+import {sendPushNotification} from "./utils/pushNotifications.js"
 import { fileURLToPath } from 'node:url';
-import { initRealtime } from './realtime/server.ts';
+import { initRealtime } from './realtime/server.js';
 
 // Recreate __dirname
 const __filename = fileURLToPath(import.meta.url);

@@ -1,7 +1,7 @@
 import {ComponentPreview, Previews} from "@react-buddy/ide-toolbox";
-import {PaletteTree} from "./palette";
+import {PaletteTree} from "./palette.tsx";
 import {lazy} from "react";
-const ChatPage = lazy(() => import("../pages/chat/ChatPage"));
+const ChatPage = lazy(() => import("../pages/chat/ChatPage.jsx"));
 
 const ComponentPreviews = () => {
     return (

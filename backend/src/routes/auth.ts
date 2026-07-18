@@ -1,13 +1,13 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import Notification from '../models/Notification.ts'
-import {User} from '../models/User.ts';
-import transport from '../middleware/sendMail.ts';
-import {doHash, doHashValidation, hmacProcess} from '../utils/hashing.ts';
-import { sendPushNotification } from '../utils/pushNotifications.ts';
-import Post from "../models/Post.ts";
-import Report from "../models/Report.ts";
+import Notification from '../models/Notification.js'
+import {User} from '../models/User.js';
+import transport from '../middleware/sendMail.js';
+import {doHash, doHashValidation, hmacProcess} from '../utils/hashing.js';
+import { sendPushNotification } from '../utils/pushNotifications.js';
+import Post from "../models/Post.js";
+import Report from "../models/Report.js";
 
 const router = express.Router();
 
@@ -15,7 +15,7 @@ function signAccess(id:string){ return jwt.sign({ id }, process.env.JWT_SECRET |
 
 function signRefresh(id:string){ return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET || 'DevelopmentRefresh', { expiresIn: '30d' }); }
 
-router.post('/signup', async (req,res)=> {
+router.post('/signup', async (req: Request, res: Response)=> {
     const { email, username, password, accountType, displayName } = req.body;
 
     if(!email||!username||!password||!accountType||!displayName) return res.status(400).json({ error:'missing', message: "Please fill all fields!" });
@@ -31,7 +31,7 @@ router.post('/signup', async (req,res)=> {
         res.status(400).json({ error: e.message });
     }});
 
-router.post('/login', async (req,res)=> {
+router.post('/login', async (req: Request, res: Response)=> {
     const { email, password } = req.body;
 
     if(!email || !password){
@@ -55,7 +55,7 @@ router.post('/login', async (req,res)=> {
     res.json({ access, refresh, user: { id: u._id, username: u.username } });
 });
 
-router.post('/refresh', async (req,res) => {
+router.post('/refresh', async (req: Request, res: Response) => {
     // const { refreshToken } = req.body;
     // const user = await User.findById(req.userId).select("-passwordHash");
     //
@@ -101,7 +101,7 @@ router.post('/refresh', async (req,res) => {
     }
 });
 
-router.post('/signout', (_req, res) => {
+router.post('/signout', (_req: Request, res: Response) => {
     try {
         res.cookie("jwt", "", { maxAge: 0 });
         res.status(200).json({ message: "Logged out successfully" });
@@ -111,11 +111,11 @@ router.post('/signout', (_req, res) => {
     }
 });
 
-router.get("/check", authMiddleware, async (req, res) => {
+router.get("/check", authMiddleware, async (req: Request, res: Response) => {
     res.status(200).json({id: req.userId})
 });
 
-router.get('/get-profile',authMiddleware, async (req, res) => {
+router.get('/get-profile',authMiddleware, async (req: Request, res: Response) => {
     try {
         const user = await User.findById(req.userId).select("-passwordHash");
         res.status(200).json(user);
@@ -125,7 +125,7 @@ router.get('/get-profile',authMiddleware, async (req, res) => {
     }
 });
 
-router.get('/get-user-profile/:username',authMiddleware, async (req, res) => {
+router.get('/get-user-profile/:username',authMiddleware, async (req: Request, res: Response) => {
     try {
         const { username } = req.params;
         const user = await User.findOne({username}).select("-passwordHash");
@@ -136,7 +136,7 @@ router.get('/get-user-profile/:username',authMiddleware, async (req, res) => {
     }
 });
 
-router.put('/update-profile',authMiddleware, async (req, res) => {
+router.put('/update-profile',authMiddleware, async (req: Request, res: Response) => {
     try {
         const { email, username, gender, socialHandles, theme, displayName, bio, avatarUrl, coverImg, accountType, accountVisibility, link, location } = req.body;
         const user = await User.findById(req.userId).select("-passwordHash");
@@ -153,13 +153,13 @@ router.put('/update-profile',authMiddleware, async (req, res) => {
     }
 });
 
-router.get('/bookmarks', authMiddleware, async (req, res) => {
+router.get('/bookmarks', authMiddleware, async (req: Request, res: Response) => {
     const user = await User.findById(req.userId).populate('bookmarkedPosts');
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user.bookmarkedPosts);
 });
 
-router.delete('/account', authMiddleware, async (req, res) => {
+router.delete('/account', authMiddleware, async (req: Request, res: Response) => {
     // Optionally verify password before deletion
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -168,7 +168,7 @@ router.delete('/account', authMiddleware, async (req, res) => {
     res.json({ message: 'Account deleted' });
 });
 
-router.post('/send-verification-code', async (req, res) => {
+router.post('/send-verification-code', async (req: Request, res: Response) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
 
@@ -259,7 +259,7 @@ router.post('/send-verification-code', async (req, res) => {
     }
 });
 
-router.post('/verify-verification-code', async (req, res) => {
+router.post('/verify-verification-code', async (req: Request, res: Response) => {
     const { email, providedCode } = req.body;
     if (!email || !providedCode) return res.status(400).json({ success: false, message: 'Missing params' });
 
@@ -295,7 +295,7 @@ router.post('/verify-verification-code', async (req, res) => {
     }
 });
 
-router.post('/send-forgot-password-code', async (req, res) => {
+router.post('/send-forgot-password-code', async (req: Request, res: Response) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ success: false, message: 'Email required' });
 
@@ -384,7 +384,7 @@ router.post('/send-forgot-password-code', async (req, res) => {
     }
 });
 
-router.post('/verify-forgot-password-code', async (req, res) => {
+router.post('/verify-forgot-password-code', async (req: Request, res: Response) => {
     const { email, providedCode, newPassword } = req.body;
     if (!email || !providedCode || !newPassword) return res.status(400).json({ success: false, message: 'Missing params' });
 
@@ -423,7 +423,7 @@ router.post('/verify-forgot-password-code', async (req, res) => {
     }
 });
 
-router.patch('/change-password', authMiddleware, async (req, res) => {
+router.patch('/change-password', authMiddleware, async (req: Request, res: Response) => {
     const { oldPassword, newPassword } = req.body;
     if (!oldPassword || !newPassword) return res.status(400).json({ success: false, message: 'Missing params' });
 
@@ -444,7 +444,7 @@ router.patch('/change-password', authMiddleware, async (req, res) => {
     }
 });
 
-router.post('/follow', authMiddleware, async (req, res) => {
+router.post('/follow', authMiddleware, async (req: Request, res: Response) => {
     try {
         const { id: userToModifyId } = req.body;
         const userToModify = await User.findById(userToModifyId);
@@ -504,7 +504,7 @@ router.post('/follow', authMiddleware, async (req, res) => {
     }
 });
 
-router.get('/get-suggested-users', authMiddleware, async (req, res) => {
+router.get('/get-suggested-users', authMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
 
@@ -535,7 +535,7 @@ router.get('/get-suggested-users', authMiddleware, async (req, res) => {
     }
 });
 
-router.get('/get-followers', authMiddleware, async (req, res) => {
+router.get('/get-followers', authMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
 
@@ -548,7 +548,7 @@ router.get('/get-followers', authMiddleware, async (req, res) => {
     }
 });
 
-router.get('/get-following', authMiddleware, async (req, res) => {
+router.get('/get-following', authMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
 
@@ -561,7 +561,7 @@ router.get('/get-following', authMiddleware, async (req, res) => {
     }
 });
 
-router.post('/report/:id', authMiddleware, async (req, res) => {
+router.post('/report/:id', authMiddleware, async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { reason } = req.body;
@@ -603,7 +603,7 @@ router.post('/report/:id', authMiddleware, async (req, res) => {
     }
 });
 
-router.get('/reports', authMiddleware, async (_req, res) => {
+router.get('/reports', authMiddleware, async (_req: Request, res: Response) => {
     const reports = await Report.find()
         .populate('postId', 'author text')
         .populate('reportedBy', 'email username')
@@ -611,7 +611,7 @@ router.get('/reports', authMiddleware, async (_req, res) => {
     res.json(reports);
 });
 
-router.post('/block/:id', authMiddleware, async (req, res) => {
+router.post('/block/:id', authMiddleware, async (req: Request, res: Response) => {
     const { id: userToModifyId } = req.params;
     const currentUser = await User.findById(req.userId);
 
@@ -630,7 +630,7 @@ router.post('/block/:id', authMiddleware, async (req, res) => {
 
 });
 
-router.post('/unblock/:id', authMiddleware, async (req, res) => {
+router.post('/unblock/:id', authMiddleware, async (req: Request, res: Response) => {
     const { id } = req.params;
     const currentUser = req.userId;
 
@@ -648,25 +648,25 @@ router.post('/unblock/:id', authMiddleware, async (req, res) => {
     }
 });
 
-router.get('/get-user-by-username/:username', authMiddleware, async (req, res) => {
+router.get('/get-user-by-username/:username', authMiddleware, async (req: Request, res: Response) => {
     const { username } = req.params;
     const user = await User.findOne({username});
     res.json(user);
 });
 
-router.get('/get-user-by-id/:id', authMiddleware, async (req, res) => {
+router.get('/get-user-by-id/:id', authMiddleware, async (req: Request, res: Response) => {
     const { id } = req.params;
     const user = await User.findById(id).select("-passwordHash");
     res.json(user);
 });
 
-router.get('/get-users', authMiddleware, async (_req, res) => {
+router.get('/get-users', authMiddleware, async (_req: Request, res: Response) => {
     const users = await User.find({}, 'username');
     res.json(users);
 });
 
 // Report a user (from chat)
-router.post('/report-user/:id', authMiddleware, async (req, res) => {
+router.post('/report-user/:id', authMiddleware, async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { reason } = req.body;
@@ -696,7 +696,7 @@ router.post('/report-user/:id', authMiddleware, async (req, res) => {
 });
 
 // Save push subscription
-router.post('/push-subscription', authMiddleware, async (req: any, res: any) => {
+router.post('/push-subscription', authMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
         const { subscription } = req.body;
@@ -720,7 +720,7 @@ router.post('/push-subscription', authMiddleware, async (req: any, res: any) => 
 });
 
 // Remove push subscription
-router.delete('/push-subscription', authMiddleware, async (req: any, res: any) => {
+router.delete('/push-subscription', authMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
         const { endpoint } = req.body;
@@ -738,7 +738,7 @@ router.delete('/push-subscription', authMiddleware, async (req: any, res: any) =
     }
 });
 
-async function authMiddleware(req: any, res: any, next: any) {
+async function authMiddleware(req: Request, res: Response, next: any) {
     const h = req.headers.authorization;
     if (!h) return res.status(400).json({error: 'unauthorized'});
     try {

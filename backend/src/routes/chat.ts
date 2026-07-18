@@ -1,14 +1,14 @@
-import express from "express";
-import {User} from "../models/User.ts";
-import Message from "../models/Message.ts";
-import Conversation from "../models/Conversation.ts";
-import { Sticker } from '../models/Sticker.ts';
-import Contact from "../models/Contact.ts";
-import { Wallpaper } from '../models/UserWallpaper.ts';
+import express, { Request, Response } from "express";
+import {User} from "../models/User.js";
+import Message from "../models/Message.js";
+import Conversation from "../models/Conversation.js";
+import { Sticker } from '../models/Sticker.js';
+import Contact from "../models/Contact.js";
+import { Wallpaper } from '../models/UserWallpaper.js';
 import bcrypt from 'bcryptjs';
-import {protectRoute} from "../middleware/protectRoute.ts";
-import {getCachedMessages, redis, updateCachedMessage} from '../utils/redisCache.ts';
-import { ThemeColor } from '../models/ThemeColor.ts';
+import {protectRoute} from "../middleware/protectRoute.js";
+import {getCachedMessages, redis, updateCachedMessage} from '../utils/redisCache.js';
+import { ThemeColor } from '../models/ThemeColor.js';
 import axios from 'axios';
 import {randomUUID} from 'crypto';
 import * as cheerio from 'cheerio';
@@ -20,7 +20,7 @@ declare global {
 const router = express.Router();
 
 // Translate message text
-router.post("/translate", protectRoute, async (req, res) => {
+router.post("/translate", protectRoute, async (req: Request, res: Response) => {
     try {
         const { text, targetLang } = req.body;
         if (!text) return res.status(400).json({ error: "Text required" });
@@ -37,7 +37,7 @@ router.post("/translate", protectRoute, async (req, res) => {
 });
 
 // Get all conversations for a user
-router.get("/conversations", protectRoute, async (req, res) => {
+router.get("/conversations", protectRoute, async (req: Request, res: Response) => {
     try {
         const userId = req.user._id;
         const conversations = await Conversation.find({
@@ -55,7 +55,7 @@ router.get("/conversations", protectRoute, async (req, res) => {
 });
 
 // Get or create conversation with a user
-router.post("/conversation/:userId", protectRoute, async (req, res) => {
+router.post("/conversation/:userId", protectRoute, async (req: Request, res: Response) => {
     try {
         const currentUserId = req.user._id;
         const targetUserId = req.params.userId;
@@ -99,7 +99,7 @@ router.post("/conversation/:userId", protectRoute, async (req, res) => {
 });
 
 // Get messages in a conversation
-router.get("/messages/:conversationId", protectRoute, async (req, res) => {
+router.get("/messages/:conversationId", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const { limit = 50, before } = req.query;
@@ -144,7 +144,7 @@ router.get("/messages/:conversationId", protectRoute, async (req, res) => {
 });
 
 // Search messages
-router.get("/search/:conversationId", protectRoute, async (req, res) => {
+router.get("/search/:conversationId", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const { q } = req.query;
@@ -164,7 +164,7 @@ router.get("/search/:conversationId", protectRoute, async (req, res) => {
 });
 
 // Star/Unstar message
-router.put("/message/:messageId/star", protectRoute, async (req, res) => {
+router.put("/message/:messageId/star", protectRoute, async (req: Request, res: Response) => {
     try {
         const { messageId } = req.params;
         const userId = req.user._id;
@@ -204,7 +204,7 @@ router.put("/message/:messageId/star", protectRoute, async (req, res) => {
 });
 
 // Get starred messages
-router.get("/starred/:conversationId", protectRoute, async (req, res) => {
+router.get("/starred/:conversationId", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user._id;
@@ -224,7 +224,7 @@ router.get("/starred/:conversationId", protectRoute, async (req, res) => {
 });
 
 // Get bookmarked messages
-router.get("/bookmarked/:conversationId", protectRoute, async (req, res) => {
+router.get("/bookmarked/:conversationId", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user._id;
@@ -244,7 +244,7 @@ router.get("/bookmarked/:conversationId", protectRoute, async (req, res) => {
 });
 
 // Pin/Unpin conversation
-router.put("/conversation/:conversationId/pin", protectRoute, async (req, res) => {
+router.put("/conversation/:conversationId/pin", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user._id;
@@ -269,7 +269,7 @@ router.put("/conversation/:conversationId/pin", protectRoute, async (req, res) =
 });
 
 // Archive/Unarchive conversation
-router.put("/conversation/:conversationId/archive", protectRoute, async (req, res) => {
+router.put("/conversation/:conversationId/archive", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user._id;
@@ -294,7 +294,7 @@ router.put("/conversation/:conversationId/archive", protectRoute, async (req, re
 });
 
 // Mute/Unmute conversation
-router.put("/conversation/:conversationId/mute", protectRoute, async (req, res) => {
+router.put("/conversation/:conversationId/mute", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const { duration } = req.body;
@@ -321,7 +321,7 @@ router.put("/conversation/:conversationId/mute", protectRoute, async (req, res) 
 });
 
 // Mark conversation as read
-router.put("/conversation/:conversationId/read", protectRoute, async (req, res) => {
+router.put("/conversation/:conversationId/read", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user._id;
@@ -378,7 +378,7 @@ router.put("/conversation/:conversationId/read", protectRoute, async (req, res) 
 });
 
 // Clear chat
-router.delete("/conversation/:conversationId/clear", protectRoute, async (req, res) => {
+router.delete("/conversation/:conversationId/clear", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user._id;
@@ -405,7 +405,7 @@ router.delete("/conversation/:conversationId/clear", protectRoute, async (req, r
 });
 
 // Create group chat
-router.post("/group", protectRoute, async (req, res) => {
+router.post("/group", protectRoute, async (req: Request, res: Response) => {
     try {
         const { name, participantIds, avatar, description } = req.body;
         const adminId = req.user._id;
@@ -449,7 +449,7 @@ router.post("/group", protectRoute, async (req, res) => {
 });
 
 // Add participant to group
-router.put("/group/:conversationId/add", protectRoute, async (req, res) => {
+router.put("/group/:conversationId/add", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const { participantIds } = req.body;
@@ -478,7 +478,7 @@ router.put("/group/:conversationId/add", protectRoute, async (req, res) => {
 });
 
 // Remove participant from group
-router.put("/group/:conversationId/remove", protectRoute, async (req, res) => {
+router.put("/group/:conversationId/remove", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const { participantId } = req.body;
@@ -509,7 +509,7 @@ router.put("/group/:conversationId/remove", protectRoute, async (req, res) => {
 });
 
 // Update group info
-router.put("/group/:conversationId", protectRoute, async (req, res) => {
+router.put("/group/:conversationId", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const { name, avatar, description, groupAvatar, adminOnlyMessages } = req.body;
@@ -543,7 +543,7 @@ router.put("/group/:conversationId", protectRoute, async (req, res) => {
 });
 
 // Get contacts
-router.get("/contacts", protectRoute, async (req, res) => {
+router.get("/contacts", protectRoute, async (req: Request, res: Response) => {
     try {
         const userId = req.user._id;
         const contacts = await Contact.find({ userId })
@@ -557,7 +557,7 @@ router.get("/contacts", protectRoute, async (req, res) => {
 });
 
 // Add contact
-router.post("/contact/:contactId", protectRoute, async (req, res) => {
+router.post("/contact/:contactId", protectRoute, async (req: Request, res: Response) => {
     try {
         const userId = req.user._id;
         const contactId = req.params.contactId;
@@ -586,7 +586,7 @@ router.post("/contact/:contactId", protectRoute, async (req, res) => {
 });
 
 // Update contact
-router.put("/contact/:contactId", protectRoute, async (req, res) => {
+router.put("/contact/:contactId", protectRoute, async (req: Request, res: Response) => {
     try {
         const userId = req.user._id;
         const contactId = req.params.contactId;
@@ -614,7 +614,7 @@ router.put("/contact/:contactId", protectRoute, async (req, res) => {
 });
 
 // Delete contact
-router.delete("/contact/:contactId", protectRoute, async (req, res) => {
+router.delete("/contact/:contactId", protectRoute, async (req: Request, res: Response) => {
     try {
         const userId = req.user._id;
         const contactId = req.params.contactId;
@@ -628,7 +628,7 @@ router.delete("/contact/:contactId", protectRoute, async (req, res) => {
 });
 
 // Report message
-router.post("/message/:messageId/report", protectRoute, async (req, res) => {
+router.post("/message/:messageId/report", protectRoute, async (req: Request, res: Response) => {
     try {
         const { messageId } = req.params;
         const userId = req.user._id;
@@ -648,7 +648,7 @@ router.post("/message/:messageId/report", protectRoute, async (req, res) => {
 });
 
 // Poll vote – plain object, no Map
-router.put("/message/:messageId/vote", protectRoute, async (req, res) => {
+router.put("/message/:messageId/vote", protectRoute, async (req: Request, res: Response) => {
     try {
         const { messageId } = req.params;
         const { optionIndex, isMultiple } = req.body;
@@ -707,7 +707,7 @@ router.put("/message/:messageId/vote", protectRoute, async (req, res) => {
 });
 
 // Block status
-router.get("/block-status/:userId", protectRoute, async (req, res) => {
+router.get("/block-status/:userId", protectRoute, async (req: Request, res: Response) => {
     try {
         const currentUserId = req.user._id;
         const otherUserId = req.params.userId;
@@ -725,7 +725,7 @@ router.get("/block-status/:userId", protectRoute, async (req, res) => {
 });
 
 // Check chat restriction
-router.get("/check-restriction", protectRoute, async (req, res) => {
+router.get("/check-restriction", protectRoute, async (req: Request, res: Response) => {
     try {
         const user = await User.findById(req.user._id);
         if (!user) return res.status(404).json({ error: "User not found" });
@@ -740,7 +740,7 @@ router.get("/check-restriction", protectRoute, async (req, res) => {
 });
 
 // Lock conversation
-router.put("/conversation/:conversationId/lock", protectRoute, async (req, res) => {
+router.put("/conversation/:conversationId/lock", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const { password } = req.body;
@@ -773,7 +773,7 @@ router.put("/conversation/:conversationId/lock", protectRoute, async (req, res) 
 });
 
 // Unlock conversation
-router.put("/conversation/:conversationId/unlock", protectRoute, async (req, res) => {
+router.put("/conversation/:conversationId/unlock", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const { password } = req.body;
@@ -804,7 +804,7 @@ router.put("/conversation/:conversationId/unlock", protectRoute, async (req, res
 });
 
 // Unlock all locked chats
-router.post("/unlock-all", protectRoute, async (req, res) => {
+router.post("/unlock-all", protectRoute, async (req: Request, res: Response) => {
     try {
         const { password } = req.body;
         const userId = req.user._id;
@@ -839,7 +839,7 @@ router.post("/unlock-all", protectRoute, async (req, res) => {
 });
 
 // Favorite conversation
-router.put("/conversation/:conversationId/favorite", protectRoute, async (req, res) => {
+router.put("/conversation/:conversationId/favorite", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user._id;
@@ -864,7 +864,7 @@ router.put("/conversation/:conversationId/favorite", protectRoute, async (req, r
 });
 
 // Report group
-router.post("/group/:conversationId/report", protectRoute, async (req, res) => {
+router.post("/group/:conversationId/report", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user._id;
@@ -891,7 +891,7 @@ router.post("/group/:conversationId/report", protectRoute, async (req, res) => {
 });
 
 // Update group settings
-router.put("/group/:conversationId/settings", protectRoute, async (req, res) => {
+router.put("/group/:conversationId/settings", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const { adminOnlyMessages, groupRules } = req.body;
@@ -917,7 +917,7 @@ router.put("/group/:conversationId/settings", protectRoute, async (req, res) => 
 });
 
 // Initiate chat from contact link
-router.get("/contact/:userId", protectRoute, async (req, res) => {
+router.get("/contact/:userId", protectRoute, async (req: Request, res: Response) => {
     try {
         const currentUserId = req.user._id;
         const targetUserId = req.params.userId;
@@ -946,7 +946,7 @@ router.get("/contact/:userId", protectRoute, async (req, res) => {
 });
 
 // Group info
-router.get("/group/:conversationId/info", protectRoute, async (req, res) => {
+router.get("/group/:conversationId/info", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const conversation = await Conversation.findById(conversationId)
@@ -964,7 +964,7 @@ router.get("/group/:conversationId/info", protectRoute, async (req, res) => {
 });
 
 // Mark view‑once message as viewed (and clear media)
-router.put("/message/:messageId/view-once", protectRoute, async (req, res) => {
+router.put("/message/:messageId/view-once", protectRoute, async (req: Request, res: Response) => {
     try {
         const { messageId } = req.params;
         const userId = req.user._id;
@@ -1008,7 +1008,7 @@ router.put("/message/:messageId/view-once", protectRoute, async (req, res) => {
 });
 
 // Toggle disappearing messages timer
-router.put("/conversation/:conversationId/disappearing", protectRoute, async (req, res) => {
+router.put("/conversation/:conversationId/disappearing", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const { timer } = req.body; // timer in seconds, or null/0 to disable
@@ -1030,7 +1030,7 @@ router.put("/conversation/:conversationId/disappearing", protectRoute, async (re
 });
 
 // Generate group invite link
-router.post("/group/:conversationId/invite", protectRoute, async (req, res) => {
+router.post("/group/:conversationId/invite", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user._id;
@@ -1058,7 +1058,7 @@ router.post("/group/:conversationId/invite", protectRoute, async (req, res) => {
 });
 
 // Join group via invite token
-router.post("/join/:token", protectRoute, async (req, res) => {
+router.post("/join/:token", protectRoute, async (req: Request, res: Response) => {
     try {
         const { token } = req.params;
         const userId = req.user._id;
@@ -1099,7 +1099,7 @@ router.post("/join/:token", protectRoute, async (req, res) => {
 });
 
 // Update group avatar
-router.put("/group/:conversationId/avatar", protectRoute, async (req, res) => {
+router.put("/group/:conversationId/avatar", protectRoute, async (req: Request, res: Response) => {
     try {
         const { conversationId } = req.params;
         const { avatarUrl } = req.body;
@@ -1123,7 +1123,7 @@ router.put("/group/:conversationId/avatar", protectRoute, async (req, res) => {
 });
 
 // Get link preview metadata
-router.post("/link-preview", protectRoute, async (req, res) => {
+router.post("/link-preview", protectRoute, async (req: Request, res: Response) => {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: "URL required" });
 
@@ -1181,7 +1181,7 @@ router.post("/link-preview", protectRoute, async (req, res) => {
     }
 });
 
-router.get("/giphy/trending", protectRoute, async (req, res) => {
+router.get("/giphy/trending", protectRoute, async (req: Request, res: Response) => {
     try {
         const { limit = 20, offset = 0 } = req.query;
         const apiKey = process.env.GIPHY_API_KEY;
@@ -1223,7 +1223,7 @@ router.get("/giphy/trending", protectRoute, async (req, res) => {
     }
 });
 
-router.get("/giphy/search", protectRoute, async (req, res) => {
+router.get("/giphy/search", protectRoute, async (req: Request, res: Response) => {
     try {
         const { q, limit = 20, offset = 0 } = req.query;
         const apiKey = process.env.GIPHY_API_KEY;
@@ -1260,7 +1260,7 @@ router.get("/giphy/search", protectRoute, async (req, res) => {
 });
 
 // Get available sticker packs
-router.get("/stickers", protectRoute, async (req, res) => {
+router.get("/stickers", protectRoute, async (req: Request, res: Response) => {
     try {
         const { limit = 20, skip = 0 } = req.query;
         const pageSize = Number(limit) || 20;
@@ -1323,7 +1323,7 @@ router.get("/stickers", protectRoute, async (req, res) => {
 });
 
 // Update link preview for a message (and sync Redis)
-router.put("/message/:messageId/linkPreview-update", protectRoute, async (req, res) => {
+router.put("/message/:messageId/linkPreview-update", protectRoute, async (req: Request, res: Response) => {
     try {
         const { messageId } = req.params;
 
@@ -1359,7 +1359,7 @@ router.put("/message/:messageId/linkPreview-update", protectRoute, async (req, r
     }
 });
 
-router.get("/conversation/:conversationId/export", protectRoute, async (req, res) => {
+router.get("/conversation/:conversationId/export", protectRoute, async (req: Request, res: Response) => {
     try {
         const conversationId = req.params.conversationId;
 
@@ -1382,7 +1382,7 @@ router.get("/conversation/:conversationId/export", protectRoute, async (req, res
     }
 });
 
-router.put("/message/:messageId/bookmark", protectRoute, async (req, res) => {
+router.put("/message/:messageId/bookmark", protectRoute, async (req: Request, res: Response) => {
     const { messageId } = req.params;
     const userId = req.user._id;
 
@@ -1412,7 +1412,7 @@ router.put("/message/:messageId/bookmark", protectRoute, async (req, res) => {
     res.json({ bookmarked: index === -1 });
 });
 
-router.post("/stickers", protectRoute, async (req, res) => {
+router.post("/stickers", protectRoute, async (req: Request, res: Response) => {
     try {
         const { url, pack } = req.body;
         const sticker = await Sticker.create({
@@ -1428,7 +1428,7 @@ router.post("/stickers", protectRoute, async (req, res) => {
 });
 
 // Get all custom theme colors
-router.get("/theme-colors", protectRoute, async (req, res) => {
+router.get("/theme-colors", protectRoute, async (req: Request, res: Response) => {
     try {
         const colors = await ThemeColor.find().sort({ createdAt: -1 });
         res.json(colors);
@@ -1438,7 +1438,7 @@ router.get("/theme-colors", protectRoute, async (req, res) => {
 });
 
 // Add a custom theme color
-router.post("/theme-colors", protectRoute, async (req, res) => {
+router.post("/theme-colors", protectRoute, async (req: Request, res: Response) => {
     try {
         const { hex } = req.body;
         if (!hex || !/^#[0-9A-Fa-f]{6}$/.test(hex)) {
@@ -1473,7 +1473,7 @@ router.post("/theme-colors", protectRoute, async (req, res) => {
 });
 
 // Get user's wallpapers
-router.get("/wallpapers", protectRoute, async (req, res) => {
+router.get("/wallpapers", protectRoute, async (req: Request, res: Response) => {
     try {
         const wallpapers = await Wallpaper.find({ userId: req.user._id }).sort({ createdAt: -1 });
         res.json(wallpapers);
@@ -1483,7 +1483,7 @@ router.get("/wallpapers", protectRoute, async (req, res) => {
 });
 
 // Save a wallpaper
-router.post("/wallpapers", protectRoute, async (req, res) => {
+router.post("/wallpapers", protectRoute, async (req: Request, res: Response) => {
     try {
         const { url, thumb, source } = req.body;
         const wallpaper = await Wallpaper.create({
@@ -1499,7 +1499,7 @@ router.post("/wallpapers", protectRoute, async (req, res) => {
 });
 
 // Delete a wallpaper
-router.delete("/wallpapers/:id", protectRoute, async (req, res) => {
+router.delete("/wallpapers/:id", protectRoute, async (req: Request, res: Response) => {
     try {
         await Wallpaper.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
         res.json({ success: true });
@@ -1508,7 +1508,7 @@ router.delete("/wallpapers/:id", protectRoute, async (req, res) => {
     }
 });
 
-router.get("/wallpapers/search", protectRoute, async (req, res) => {
+router.get("/wallpapers/search", protectRoute, async (req: Request, res: Response) => {
     try {
         const { query = "nature", page = 1, per_page = 20 } = req.query;
         const accessKey = process.env.UNSPLASH_ACCESS_KEY;

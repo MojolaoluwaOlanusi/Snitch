@@ -1,7 +1,7 @@
 import {create} from "zustand";
-import axiosInstance  from "../lib/axios";
+import axiosInstance  from "../lib/axios.js";
 import { toast } from 'sonner'
-import {useAuthStore} from "./useAuthStore";
+import {useAuthStore} from "./useAuthStore.js";
 
 export const useUserStore = create((set, get) => ({
     searchResults: {

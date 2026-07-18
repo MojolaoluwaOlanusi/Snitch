@@ -1,5 +1,5 @@
 import {useState} from "react";
-import { useAuthStore } from "../../../store/useAuthStore";
+import { useAuthStore } from "../../../store/useAuthStore.js";
 import {MessageCircleIcon, LockIcon, MailIcon, UserIcon, LoaderIcon, Briefcase, User2Icon} from "lucide-react";
 import { Link } from "react-router-dom";
 

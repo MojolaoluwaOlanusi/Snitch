@@ -1,11 +1,11 @@
 import { Server, Socket } from 'socket.io';
-import { RoomStore } from './rooms.ts';
-import Message from '../models/Message.ts';
-import Notification from "../models/Notification.ts"
-import Conversation from '../models/Conversation.ts';
-import {User} from '../models/User.ts';
-import { registerSignaling } from './signaling.ts';
-import { cacheMessage, cacheOnlineStatus, getOnlineUsers, removeCachedMessage, updateCachedMessage } from '../utils/redisCache.ts';
+import { RoomStore } from './rooms.js';
+import Message from '../models/Message.js';
+import Notification from "../models/Notification.js"
+import Conversation from '../models/Conversation.js';
+import {User} from '../models/User.js';
+import { registerSignaling } from './signaling.js';
+import { cacheMessage, cacheOnlineStatus, getOnlineUsers, removeCachedMessage, updateCachedMessage } from '../utils/redisCache.js';
 import {randomUUID} from "crypto";
 
 export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: RoomStore) => {

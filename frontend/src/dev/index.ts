@@ -1,7 +1,7 @@
 import React from "react";
-import {useInitial} from "./useInitial";
+import {useInitial} from "./useInitial.ts";
 
-const ComponentPreviews = React.lazy(() => import("./previews"));
+const ComponentPreviews = React.lazy(() => import("./previews.tsx"));
 
 export {
     ComponentPreviews,

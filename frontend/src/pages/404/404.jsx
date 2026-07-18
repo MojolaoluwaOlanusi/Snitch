@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { SnitchLogoSmall } from "../../components/svgs/snitch";
+import { SnitchLogoSmall } from "../../components/svgs/snitch.jsx";
 
 const NotFoundPage = () => {
     return (

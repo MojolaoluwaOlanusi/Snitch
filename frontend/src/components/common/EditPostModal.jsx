@@ -2,11 +2,11 @@
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { useUserStore } from "../../store/useUserStore";
+import { useUserStore } from "../../store/useUserStore.js";
 import { EditIcon, LoaderIcon, Smile, ImageIcon, X } from "lucide-react";
-import axiosInstance from "../../lib/axios";
+import axiosInstance from "../../lib/axios.js";
 import getCaretCoordinates from "textarea-caret";
-import EmojiPicker from "./EmojiPicker";
+import EmojiPicker from "./EmojiPicker.jsx";
 
 const MAX_CHARS = 1000;
 

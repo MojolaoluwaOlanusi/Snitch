@@ -1,10 +1,10 @@
-import Notification from "../models/Notification.ts";
-import express from 'express';
+import Notification from "../models/Notification.js";
+import express, { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
-async function authMiddleware(req: any, res: any, next: any) {
+async function authMiddleware(req: Request, res: Response, next: any) {
     const h = req.headers.authorization;
     if (!h) return res.status(401).json({ error: 'unauth' });
     try {
@@ -20,7 +20,7 @@ async function authMiddleware(req: any, res: any, next: any) {
     }
 }
 
-router.get('/get-notifications', authMiddleware, async (req, res) => {
+router.get('/get-notifications', authMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;  // ← use req.userId, not req.user._id
 
@@ -38,7 +38,7 @@ router.get('/get-notifications', authMiddleware, async (req, res) => {
     }
 });
 
-router.delete('/delete-notification', authMiddleware, async (req, res) => {
+router.delete('/delete-notification', authMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
 

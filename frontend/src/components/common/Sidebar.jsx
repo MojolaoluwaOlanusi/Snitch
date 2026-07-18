@@ -1,13 +1,13 @@
 import { BellIcon, HomeIcon, MessageCircleIcon, PlusIcon, SearchIcon, UserIcon, ZapIcon, Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { GiFlowerTwirl } from "react-icons/gi";
-import { SnitchLogoSmall } from "../svgs/snitch";
-import { useAuthStore } from "../../store/useAuthStore";
+import { SnitchLogoSmall } from "../svgs/snitch.jsx";
+import { useAuthStore } from "../../store/useAuthStore.js";
 import { useEffect, useState } from "react";
 import { BiLogOut } from "react-icons/bi";
-import axiosInstance from "../../lib/axios";
+import axiosInstance from "../../lib/axios.js";
 import { toast } from 'sonner'
-import { useChatStore } from "../../store/useChatStore";
+import { useChatStore } from "../../store/useChatStore.js";
 
 const Sidebar = () => {
     const { logout, authUser, getProfile } = useAuthStore();

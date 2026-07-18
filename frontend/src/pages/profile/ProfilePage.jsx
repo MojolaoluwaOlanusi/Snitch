@@ -2,14 +2,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 
-import UserPosts from "../../components/common/UserPosts";
-import LikedPosts from "../../components/common/LikedPosts";
-import ProfileHeaderSkeleton from "../../components/skeletons/ProfileHeaderSkeleton";
-import EditProfileModal from "../../components/common/EditProfileModal";
-import { Badge } from "../../components/common/badge";
-import Sidebar from "../../components/common/Sidebar";
-import { VerifiedSvg } from "../../components/svgs/verified";
-import SettingsModal from "../../components/common/SettingsModal";
+import UserPosts from "../../components/common/UserPosts.jsx";
+import LikedPosts from "../../components/common/LikedPosts.jsx";
+import ProfileHeaderSkeleton from "../../components/skeletons/ProfileHeaderSkeleton.jsx";
+import EditProfileModal from "../../components/common/EditProfileModal.jsx";
+import { Badge } from "../../components/common/badge.tsx";
+import Sidebar from "../../components/common/Sidebar.jsx";
+import { VerifiedSvg } from "../../components/svgs/verified.jsx";
+import SettingsModal from "../../components/common/SettingsModal.jsx";
 
 import {
     AlertTriangle, Briefcase, Building, CheckCircle2, User, Shield, MapPin,
@@ -22,12 +22,12 @@ import { GrUserAdmin } from "react-icons/gr";
 import { FaLink } from "react-icons/fa";
 import { MdEdit } from "react-icons/md";
 
-import { formatMemberSinceDate } from "../../utils/date";
-import { useAuthStore } from "../../store/useAuthStore";
-import { useUserStore } from "../../store/useUserStore";
-import { useMediaStore } from "../../store/useMediaStore";
-import { useChatStore } from "../../store/useChatStore";
-import axiosInstance from "../../lib/axios";
+import { formatMemberSinceDate } from "../../utils/date/index.js";
+import { useAuthStore } from "../../store/useAuthStore.js";
+import { useUserStore } from "../../store/useUserStore.js";
+import { useMediaStore } from "../../store/useMediaStore.js";
+import { useChatStore } from "../../store/useChatStore.js";
+import axiosInstance from "../../lib/axios.js";
 import { toast } from "sonner";
 
 const ProfilePage = () => {

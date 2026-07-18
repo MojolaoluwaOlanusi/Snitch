@@ -8,9 +8,7 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
-  "resolveJsonModule": true
+    "resolveJsonModule": true
   },
   "include": ["src"]
 }

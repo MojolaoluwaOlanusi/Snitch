@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import axiosInstance from "../../lib/axios";
+import axiosInstance from "../../lib/axios.js";
 import { X } from "lucide-react";
 
 const HashtagAutocomplete = ({ value, onChange, placeholder = "Add hashtags..." }) => {

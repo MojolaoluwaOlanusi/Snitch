@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useState, useRef } from "react";
-import { useAuthStore } from "../../store/useAuthStore";
+import { useAuthStore } from "../../store/useAuthStore.js";
 
 const EditProfileModal = ({ authUser, isOpen, onClose }) => {
     const [formData, setFormData] = useState({

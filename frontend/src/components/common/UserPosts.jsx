@@ -1,24 +1,24 @@
 // @ts-nocheck
 import { useUserStore } from "@/store/useUserStore.js";
 import { useEffect, useState, Suspense } from "react";
-import PostSkeleton from "../../components/skeletons/PostSkeleton";
+import PostSkeleton from "../../components/skeletons/PostSkeleton.jsx";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { FaRegComment, FaRegHeart, FaTrash } from "react-icons/fa";
-import LoadingSpinner from "../../components/common/LoadingSpinner";
+import LoadingSpinner from "../../components/common/LoadingSpinner.jsx";
 import { Share2, Copy, Check, Bookmark, Sticker } from "lucide-react";
 import { FaFacebook, FaXTwitter, FaWhatsapp, FaTelegram, FaEnvelope } from "react-icons/fa6";
 import { BiRepost } from "react-icons/bi";
-import { formatPostDate } from "../../utils/date";
+import { formatPostDate } from "../../utils/date/index.js";
 import { useAuthStore } from "@/store/useAuthStore.js";
 import { MdAddReaction, MdReportProblem } from "react-icons/md";
 import { IoClose } from "react-icons/io5";
 import { Hash, MoreHorizontal } from "lucide-react";
 import ReportModal from "./ReportModal.jsx"
-import EditPostModal from "../../components/common/EditPostModal";
+import EditPostModal from "../../components/common/EditPostModal.jsx";
 import ReactionEmojiPicker from "./ReactionEmojiPicker.tsx";
-import ReactionsDisplay from "./ReactionsDisplay";
-import GifStickerPicker from "../../components/common/GifStickerPicker";
+import ReactionsDisplay from "./ReactionsDisplay.jsx";
+import GifStickerPicker from "../../components/common/GifStickerPicker.jsx";
 import { AnimatePresence } from "framer-motion";
 import axiosInstance from "../../lib/axios.js";
 

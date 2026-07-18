@@ -1,7 +1,7 @@
 // Only use this during development by changing the dev script in .env to run allowadmin.ts
 
 import mongoose from 'mongoose';
-import { User } from '../models/User.ts';
+import { User } from '../models/User.js';
 
 (async () => {
     await mongoose.connect('mongodb://localhost:27017/snitch');

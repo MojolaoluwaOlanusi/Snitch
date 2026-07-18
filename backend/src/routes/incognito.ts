@@ -1,8 +1,8 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import {User} from '../models/User.ts';
+import {User} from '../models/User.js';
 const router = express.Router();
-async function authMiddleware(req: any, res: any, next: any) {
+async function authMiddleware(req: Request, res: Response, next: any) {
     const h = req.headers.authorization;
     if (!h) return res.status(400).json({error: 'unauthorized'});
     try {
@@ -16,7 +16,7 @@ async function authMiddleware(req: any, res: any, next: any) {
     }
 }
 
-router.post('/toggle', authMiddleware, async (req,res)=>{
+router.post('/toggle', authMiddleware, async (req: Request, res: Response)=>{
   const u = await User.findById(req.userId);
   if(!u) return res.status(404).json({ error:'not found' });
   u.incognito = !u.incognito;

@@ -1,5 +1,5 @@
-import {useAuthStore} from "../../store/useAuthStore";
-import {useChatStore} from "../../store/useChatStore";
+import {useAuthStore} from "../../store/useAuthStore.js";
+import {useChatStore} from "../../store/useChatStore.js";
 import {useState} from "react";
 import {SendIcon} from "lucide-react";
 

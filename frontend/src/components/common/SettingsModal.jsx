@@ -4,7 +4,7 @@ import {
     X, Edit3, Bookmark,EyeOff,
     Twitter, Instagram, Globe, Link as LinkIcon, Plus, AlertTriangle,
 } from "lucide-react";
-import axiosInstance from "../../lib/axios";
+import axiosInstance from "../../lib/axios.js";
 import { toast } from "sonner";
 import { useState, useEffect } from 'react';
 import { useUserStore } from '@/store/useUserStore.js';

@@ -1,14 +1,14 @@
 import { Link } from "react-router-dom";
-import LoadingSpinner from "../../components/common/LoadingSpinner";
+import LoadingSpinner from "../../components/common/LoadingSpinner.jsx";
 import { IoSettingsOutline } from "react-icons/io5";
 import { FaUser } from "react-icons/fa";
 import { FaHeart } from "react-icons/fa6";
-import { useUserStore } from "../../store/useUserStore";
+import { useUserStore } from "../../store/useUserStore.js";
 import { useEffect } from "react";
 import { BiRepost } from "react-icons/bi";
 import { MdOutlineAddReaction } from "react-icons/md";
-import Sidebar from "../../components/common/Sidebar";
-import RightPanel from "../../components/common/RightPanel";
+import Sidebar from "../../components/common/Sidebar.jsx";
+import RightPanel from "../../components/common/RightPanel.jsx";
 import {Bookmark, MessageCircle} from "lucide-react";
 
 const NotificationPage = () => {

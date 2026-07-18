@@ -1,4 +1,4 @@
-import Sidebar from "../../components/common/Sidebar";
+import Sidebar from "../../components/common/Sidebar.jsx";
 
 const AIPage = () => {
     return (

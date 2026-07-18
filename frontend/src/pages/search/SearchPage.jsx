@@ -1,12 +1,12 @@
-import Sidebar from "../../components/common/Sidebar";
+import Sidebar from "../../components/common/Sidebar.jsx";
 import {Search, Users, FileText, MessageCircle, AtSign, Hash, TrendingUp, MessageSquare} from "lucide-react";
-import {Input} from "../../components/common/input"
-import {useUserStore} from "../../store/useUserStore";
-import LoadingSpinner from "../../components/common/LoadingSpinner";
+import {Input} from "../../components/common/input.tsx"
+import {useUserStore} from "../../store/useUserStore.js";
+import LoadingSpinner from "../../components/common/LoadingSpinner.jsx";
 import {useState, useEffect} from "react";
 import {Link, useLocation, useNavigate} from "react-router-dom";
-import {formatPostDate} from "../../utils/date";
-import axiosInstance from "../../lib/axios";
+import {formatPostDate} from "../../utils/date/index.js";
+import axiosInstance from "../../lib/axios.js";
 
 const SearchPage = () => {
     const location = useLocation();

@@ -1,22 +1,22 @@
-import express from 'express';
-import Post from '../models/Post.ts';
-import { sendPushNotification } from '../utils/pushNotifications.ts';
-import Notification from '../models/Notification.ts'
-import {User} from '../models/User.ts';
+import express, { Request, Response } from 'express';
+import Post from '../models/Post.js';
+import { sendPushNotification } from '../utils/pushNotifications.js';
+import Notification from '../models/Notification.js'
+import {User} from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import mongoose from "mongoose";
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
-import s3 from '../config/s3Client.ts';
+import s3 from '../config/s3Client.js';
 
 const router = express.Router();
 
-async function authMiddleware(req:any, _res:any,next:any){
+async function authMiddleware(req: Request, _res: Response, next: any){
   const h = req.headers.authorization; if(!h) return next(); const parts = h.split(' '); if(parts.length!==2) return next(); try{ const decoded:any = jwt.verify(parts[1], process.env.JWT_SECRET || 'DevelopmentSecret'); const user = await User.findById(decoded.id); req.userId = decoded.id ; if(user) req.user = user; }catch(e){} next();
 }
 
 router.use(authMiddleware);
 
-router.post('/', async (req,res)=>{
+router.post('/', async (req: Request, res: Response)=>{
     if(!req.user) return res.status(401).json({ error:'unauthorized' });
     const { text, url, isWarp, mediaType, mentions, hashtags } = req.body;
     if (!text) return  res.status(400).json({message: "Post Content is Required"});
@@ -25,9 +25,9 @@ router.post('/', async (req,res)=>{
     res.status(201).json(p);
 });
 
-router.get('/', async (_req,res)=>{ const posts = await Post.find({ isPublished: true }).sort({ createdAt:-1 }).limit(50).populate('author','username displayName avatarUrl'); res.json(posts); });
+router.get('/', async (_req: Request, res: Response)=>{ const posts = await Post.find({ isPublished: true }).sort({ createdAt:-1 }).limit(50).populate('author','username displayName avatarUrl'); res.json(posts); });
 
-router.get('/trending', async (req,res)=>{
+router.get('/trending', async (req: Request, res: Response)=>{
     const parsedLimit = Number(req.query.limit);
     const parsedSkip = Number(req.query.skip);
     const limit = Number.isFinite(parsedLimit)
@@ -49,7 +49,7 @@ router.get('/trending', async (req,res)=>{
     res.json({ posts: trendingPosts, hasMore: skip + limit < total });
 });
 
-router.get('/trending/hashtags', async (req,res)=>{
+router.get('/trending/hashtags', async (req: Request, res: Response)=>{
     const parsedLimit = Number(req.query.limit);
     const parsedSkip = Number(req.query.skip);
     const limit = Number.isFinite(parsedLimit)
@@ -81,7 +81,7 @@ router.get('/trending/hashtags', async (req,res)=>{
     res.json({ hashtags, hasMore: skip + limit < total });
 });
 
-router.delete('/delete/:id', async (req: any, res: any) => {
+router.delete('/delete/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -141,7 +141,7 @@ router.delete('/delete/:id', async (req: any, res: any) => {
     }
 });
 
-router.put('/edit-post/:id', async (req, res) => {
+router.put('/edit-post/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { text, mediaType , url, hashtags, mentions } = req.body;
@@ -161,7 +161,7 @@ router.put('/edit-post/:id', async (req, res) => {
 });
 
 // Get user's bookmarked posts
-router.get('/bookmarks', async (req, res) => {
+router.get('/bookmarks', async (req: Request, res: Response) => {
     try {
         const user = await User.findById(req.userId).populate('bookmarkedPosts');
         if (!user) return res.status(404).json({ error: 'User not found' });
@@ -173,7 +173,7 @@ router.get('/bookmarks', async (req, res) => {
 });
 
 // Toggle bookmark
-router.post('/:postId/bookmark', async (req, res) => {
+router.post('/:postId/bookmark', async (req: Request, res: Response) => {
     try {
         const postId = new mongoose.Types.ObjectId(req.params.postId);
         const post = await Post.findById(postId);
@@ -234,7 +234,7 @@ router.post('/:postId/bookmark', async (req, res) => {
     }
 });
 
-router.get('/get-post/:id', async (req, res) => {
+router.get('/get-post/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
 
@@ -247,7 +247,7 @@ router.get('/get-post/:id', async (req, res) => {
     }
 })
 
-router.post('/like/:id', async (req, res) => {
+router.post('/like/:id', async (req: Request, res: Response) => {
     try {
         if(!req.user) return res.status(400).json({ error:'unauthorized' });
         const userId = req.user._id;
@@ -301,7 +301,7 @@ router.post('/like/:id', async (req, res) => {
     }
 });
 
-router.get('/liked-posts/:id', async (req, res) => {
+router.get('/liked-posts/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
 
     try {
@@ -325,7 +325,7 @@ router.get('/liked-posts/:id', async (req, res) => {
     }
 });
 
-router.get('/get-user-posts/:id', async (req, res) => {
+router.get('/get-user-posts/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const user = await User.findById(id);
@@ -349,7 +349,7 @@ router.get('/get-user-posts/:id', async (req, res) => {
     }
 });
 
-router.get('/get-truncated-posts/:id', async (req, res) => {
+router.get('/get-truncated-posts/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const user = await User.findById(id);
@@ -373,7 +373,7 @@ router.get('/get-truncated-posts/:id', async (req, res) => {
     }
 });
 
-router.get('/get-following-posts', async (req, res) => {
+router.get('/get-following-posts', async (req: Request, res: Response) => {
     const userId = req.userId;
 
     try {
@@ -398,7 +398,7 @@ router.get('/get-following-posts', async (req, res) => {
     }
 })
 
-router.post('/react', async (req, res) => {
+router.post('/react', async (req: Request, res: Response) => {
     try {
         // @ts-ignore
         const { id } = req.body;
@@ -438,7 +438,7 @@ router.post('/react', async (req, res) => {
     }});
 
 // POST /comment – add a comment (with optional media)
-router.post('/comment', async (req, res) => {
+router.post('/comment', async (req: Request, res: Response) => {
     try {
         const { text, postId, media } = req.body;
         const userId = req.userId;
@@ -477,7 +477,7 @@ router.post('/comment', async (req, res) => {
 });
 
 // POST /comment/:commentId/reply – reply to a comment
-router.post('/comment/:commentId/reply', async (req, res) => {
+router.post('/comment/:commentId/reply', async (req: Request, res: Response) => {
     try {
         const { commentId } = req.params;
         const { text, media } = req.body;
@@ -520,7 +520,7 @@ router.post('/comment/:commentId/reply', async (req, res) => {
 });
 
 // POST /api/posts/schedule
-router.post('/schedule', async (req, res) => {
+router.post('/schedule', async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ error: 'unauthorized' });
     const { text, url, isWarp, mediaType, mentions, hashtags, scheduledAt } = req.body;
 

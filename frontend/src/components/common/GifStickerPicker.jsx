@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, X } from "lucide-react";
 import { motion } from "framer-motion";
-import axiosInstance from "../../lib/axios";
+import axiosInstance from "../../lib/axios.js";
 import { Camera } from "lucide-react";
 import { toast } from 'sonner'
 

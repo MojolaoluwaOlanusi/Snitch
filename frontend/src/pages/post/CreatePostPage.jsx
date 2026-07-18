@@ -1,14 +1,14 @@
 // @ts-nocheck
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Sidebar from "../../components/common/Sidebar";
-import { useUserStore } from "../../store/useUserStore";
-import { useAuthStore } from "../../store/useAuthStore";
-import CreatePostRightPanel from "../../components/common/CreatePostRightPanel";
+import Sidebar from "../../components/common/Sidebar.jsx";
+import { useUserStore } from "../../store/useUserStore.js";
+import { useAuthStore } from "../../store/useAuthStore.js";
+import CreatePostRightPanel from "../../components/common/CreatePostRightPanel.jsx";
 import { LoaderIcon, Smile, ImageIcon, X } from "lucide-react";
-import axiosInstance from "../../lib/axios";
+import axiosInstance from "../../lib/axios.js";
 import getCaretCoordinates from "textarea-caret";
-import EmojiPicker from "../../components/common/EmojiPicker";
+import EmojiPicker from "../../components/common/EmojiPicker.jsx";
 import "./CreatePostPage.css";
 import {toast} from "sonner";
 

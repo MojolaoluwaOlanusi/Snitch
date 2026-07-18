@@ -7,10 +7,10 @@ import {
     Edit3, Check, Crown, LinkIcon, FileText, Download, Star, Bookmark, Clock, Upload, Unlock, Lock,
     Heart, Palette
 } from "lucide-react";
-import axiosInstance from "../../lib/axios";
+import axiosInstance from "../../lib/axios.js";
 import { toast } from 'sonner'
-import { useChatStore } from "../../store/useChatStore";
-import { useAuthStore } from "../../store/useAuthStore";
+import { useChatStore } from "../../store/useChatStore.js";
+import { useAuthStore } from "../../store/useAuthStore.js";
 
 const GroupInfoModal = ({ isOpen, onClose, conversationId, onlineUsers, onMemberClick, onAvatarChange }) => {
     const [group, setGroup] = useState(null);

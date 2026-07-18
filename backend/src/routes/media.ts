@@ -1,14 +1,14 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
-import s3 from '../config/s3Client.ts';
+import s3 from '../config/s3Client.js';
 
 const router = express.Router();
 
 // lightweight auth middleware used across routes in this project
-async function authMiddleware(req: any, res: any, next: any) {
+async function authMiddleware(req: Request, res: Response, next: any) {
     const h = req.headers.authorization;
     if (!h) return res.status(401).json({ error: 'unauthorized' });
     try {
@@ -23,7 +23,7 @@ async function authMiddleware(req: any, res: any, next: any) {
 }
 
 // Back-compat endpoint (keeps behavior similar to earlier code)
-router.post('/upload-url', async (req, res) => {
+router.post('/upload-url', async (req: Request, res: Response) => {
     const { contentType, folder } = req.body;
     if (!contentType) return res.status(400).json({ error: 'missing contentType' });
 
@@ -47,7 +47,7 @@ router.post('/upload-url', async (req, res) => {
 });
 
 // Authenticated presign endpoint - enforces user-owned key prefix and tighter validation
-router.post('/presign', authMiddleware, async (req: any, res: any) => {
+router.post('/presign', authMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
         const { key: clientKey, contentType, expiresInSeconds, bucket: bucketIn } = req.body;
@@ -84,7 +84,7 @@ router.post('/presign', authMiddleware, async (req: any, res: any) => {
 });
 
 // Chat media presign - organizes by conversation and media type
-router.post('/chat-presign', authMiddleware, async (req: any, res: any) => {
+router.post('/chat-presign', authMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
         const { conversationId, fileName, contentType, mediaType } = req.body;
@@ -120,7 +120,7 @@ router.post('/chat-presign', authMiddleware, async (req: any, res: any) => {
 });
 
 // Wallpaper presign (authenticated)
-router.post('/wallpaper-presign', authMiddleware, async (req: any, res: any) => {
+router.post('/wallpaper-presign', authMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
         const { conversationId, fileName, contentType } = req.body;

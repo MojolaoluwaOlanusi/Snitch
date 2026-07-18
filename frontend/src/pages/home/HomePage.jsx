@@ -1,11 +1,11 @@
 import Sidebar from "../../components/common/Sidebar.jsx";
-import RightPanel from "../../components/common/RightPanel";
-import { useUserStore } from "../../store/useUserStore";
-import Posts from "../../components/common/Posts";
-import { useChatStore } from "../../store/useChatStore";
-import { useAuthStore } from "../../store/useAuthStore";
+import RightPanel from "../../components/common/RightPanel.jsx";
+import { useUserStore } from "../../store/useUserStore.js";
+import Posts from "../../components/common/Posts.jsx";
+import { useChatStore } from "../../store/useChatStore.js";
+import { useAuthStore } from "../../store/useAuthStore.js";
 import { useState } from "react";
-import FollowingPosts from "../../components/common/FollowingPosts";
+import FollowingPosts from "../../components/common/FollowingPosts.jsx";
 
 function HomePage() {
     const [feedType, setFeedType] = useState("forYou");

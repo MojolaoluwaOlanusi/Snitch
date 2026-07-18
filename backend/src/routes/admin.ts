@@ -1,16 +1,16 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import crypto from 'crypto';
-import { User } from '../models/User.ts';
-import Warning from '../models/Warning.ts';
-import Report from '../models/Report.ts';
-import Post from '../models/Post.ts';
+import { User } from '../models/User.js';
+import Warning from '../models/Warning.js';
+import Report from '../models/Report.js';
+import Post from '../models/Post.js';
 import jwt from 'jsonwebtoken';
 import mongoose from "mongoose";
 
 const router = express.Router();
 
 // 🔹 Authentication Middleware
-async function auth(req: any, res: any, next: any) {
+async function auth(req: Request, res: Response, next: any) {
     const h = req.headers.authorization;
     if (!h) return res.status(401).json({ error: 'unauth' });
 
@@ -29,7 +29,7 @@ async function auth(req: any, res: any, next: any) {
 }
 
 // 🔹 Require Admin Middleware
-function requireAdmin(req: any, res: any, next: any) {
+function requireAdmin(req: Request, res: Response, next: any) {
     if (!req.user?.isAdmin) {
         return res.status(403).json({ error: 'forbidden' });
     }
@@ -37,7 +37,7 @@ function requireAdmin(req: any, res: any, next: any) {
 }
 
 // 🔹 Warn a User
-router.post('/warn/:userId', auth, requireAdmin, async (req, res) => {
+router.post('/warn/:userId', auth, requireAdmin, async (req: Request, res: Response) => {
     const { userId } = req.params;
     const { reason } = req.body;
 
@@ -70,7 +70,7 @@ router.post('/warn/:userId', auth, requireAdmin, async (req, res) => {
 });
 
 // 🔹 Get All Warnings
-router.get('/warnings', auth, requireAdmin, async (_req, res) => {
+router.get('/warnings', auth, requireAdmin, async (_req: Request, res: Response) => {
     const warnings = await Warning.find()
         .populate('userId', 'email username')
         .populate('issuedBy', 'email username')
@@ -79,23 +79,23 @@ router.get('/warnings', auth, requireAdmin, async (_req, res) => {
 });
 
 // 🔹 Get All Banned Users
-router.get('/users/banned', auth, requireAdmin, async (_req, res) => {
+router.get('/users/banned', auth, requireAdmin, async (_req: Request, res: Response) => {
     const bannedUsers = await User.find({ isBanned: true }, 'email username warningsCount');
     res.json(bannedUsers);
 });
 
 // 🔹 Get All Users
-router.get('/users', auth, requireAdmin, async (_req, res) => {
+router.get('/users', auth, requireAdmin, async (_req: Request, res: Response) => {
     const users = await User.find({}, 'email username warningsCount isBanned isAdmin');
     res.json(users);
 });
 
-router.get('/posts', auth, requireAdmin, async (_req, res) => {
+router.get('/posts', auth, requireAdmin, async (_req: Request, res: Response) => {
     const posts = await Post.find({},);
     res.json(posts);
 });
 
-router.get('/reports', auth, requireAdmin, async (_req, res) => {
+router.get('/reports', auth, requireAdmin, async (_req: Request, res: Response) => {
     const reports = await Report.find()
         .populate('reason')
         .populate('reportedBy', 'username')
@@ -105,14 +105,14 @@ router.get('/reports', auth, requireAdmin, async (_req, res) => {
 });
 
 // 🔹 Get A User by Username
-router.get('/user-by-username', auth, requireAdmin, async (req, res) => {
+router.get('/user-by-username', auth, requireAdmin, async (req: Request, res: Response) => {
     const { username } = req.body;
     const users = await User.findOne({username}, 'email username warningsCount isBanned isAdmin');
     res.json(users);
 });
 
 // 🔹 Delete A User
-router.delete('/delete-user/:id', auth, requireAdmin, async (req, res) => {
+router.delete('/delete-user/:id', auth, requireAdmin, async (req: Request, res: Response) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -129,7 +129,7 @@ router.delete('/delete-user/:id', auth, requireAdmin, async (req, res) => {
 })
 
 // 🔹 Unban a User
-router.patch('/unban/:userId', auth, requireAdmin, async (req, res) => {
+router.patch('/unban/:userId', auth, requireAdmin, async (req: Request, res: Response) => {
     const { userId } = req.params;
 
     const u = await User.findById(userId).select("-passwordHash");
@@ -150,7 +150,7 @@ router.patch('/unban/:userId', auth, requireAdmin, async (req, res) => {
 });
 
 // 🔹 NEW: Manually Ban a User
-router.patch('/ban/:userId', auth, requireAdmin, async (req, res) => {
+router.patch('/ban/:userId', auth, requireAdmin, async (req: Request, res: Response) => {
     const { userId } = req.params;
     const { reason } = req.body;
 
@@ -181,7 +181,7 @@ router.patch('/ban/:userId', auth, requireAdmin, async (req, res) => {
 });
 
 // 🔹 Get all warnings for a specific user
-router.get('/warnings/:userId', auth, requireAdmin, async (req, res) => {
+router.get('/warnings/:userId', auth, requireAdmin, async (req: Request, res: Response) => {
     const { userId } = req.params;
 
     // Find warnings issued to this user
@@ -201,7 +201,7 @@ router.get('/warnings/:userId', auth, requireAdmin, async (req, res) => {
 });
 
 // 🔹 Public route — List all admins
-router.get('/admins', async (_req, res) => {
+router.get('/admins', async (_req: Request, res: Response) => {
     try {
         // Find all users with isAdmin true
         const admins = await User.find(
@@ -217,7 +217,7 @@ router.get('/admins', async (_req, res) => {
 
 // Generate a six-digit admin invite code (expires in 15 minutes)
 // POST /api/admin/generate-invite  { email (optional), expiresMinutes: number }
-router.post('/generate-invite', auth, requireAdmin, async (req,res)=>{
+router.post('/generate-invite', auth, requireAdmin, async (req: Request, res: Response)=>{
     const expiresMinutes = Number(req.body.expiresMinutes) || 15;
     const targetEmail = req.body.email || null; // optional - email to tie code to
     const code = String(Math.floor(100000 + Math.random()*900000)); // 6 digits
@@ -240,7 +240,7 @@ router.post('/generate-invite', auth, requireAdmin, async (req,res)=>{
 
 // Accept an invitation: POST /api/admin/accept-invite { email, code }
 // If code matches any active invite stored on some admin user and (optional) email matches, set that user isAdmin=true
-router.post('/accept-invite', auth, async (req,res)=>{
+router.post('/accept-invite', auth, async (req: Request, res: Response)=>{
     const { code } = req.body;
     if(!code) return res.status(400).json({ error:'missing_code', message: "Please enter a code" });
 
@@ -273,7 +273,7 @@ router.post('/accept-invite', auth, async (req,res)=>{
 });
 
 // GET /api/admin/stats/users – new users per month for the last 12 months
-router.get('/stats/users', auth, requireAdmin, async (_req, res) => {
+router.get('/stats/users', auth, requireAdmin, async (_req: Request, res: Response) => {
     const stats = await User.aggregate([
         { $match: { createdAt: { $exists: true } } },
         { $group: { _id: { $month: "$createdAt" }, count: { $sum: 1 } } },
@@ -283,7 +283,7 @@ router.get('/stats/users', auth, requireAdmin, async (_req, res) => {
 });
 
 // GET /api/admin/stats/posts
-router.get('/stats/posts', auth, requireAdmin, async (_req, res) => {
+router.get('/stats/posts', auth, requireAdmin, async (_req: Request, res: Response) => {
     const stats = await Post.aggregate([
         { $match: { createdAt: { $exists: true } } },
         { $group: { _id: { $month: "$createdAt" }, count: { $sum: 1 } } },
@@ -293,7 +293,7 @@ router.get('/stats/posts', auth, requireAdmin, async (_req, res) => {
 });
 
 // GET /api/admin/stats/reports
-router.get('/stats/reports', auth, requireAdmin, async (_req, res) => {
+router.get('/stats/reports', auth, requireAdmin, async (_req: Request, res: Response) => {
     const stats = await Report.aggregate([
         { $match: { createdAt: { $exists: true } } },
         { $group: { _id: { $month: "$createdAt" }, count: { $sum: 1 } } },

@@ -4,7 +4,7 @@ import "./index.css";
 import App from "./App.jsx";
 import {BrowserRouter} from "react-router-dom";
 import {DevSupport} from "@react-buddy/ide-toolbox";
-import {ComponentPreviews, useInitial} from "./dev";
+import {ComponentPreviews, useInitial} from "./dev/index.ts";
 import { onLCP, onINP, onCLS } from "web-vitals";
 
 onLCP(console.log);

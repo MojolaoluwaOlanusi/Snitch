@@ -1,7 +1,7 @@
-import {useUserStore} from "../../store/useUserStore";
+import {useUserStore} from "../../store/useUserStore.js";
 import {useEffect} from "react";
-import CreatePostRightPanelSkeleton from "../../components/skeletons/CreatePostRightPanelSkeleton";
-import {useAuthStore} from "../../store/useAuthStore";
+import CreatePostRightPanelSkeleton from "../../components/skeletons/CreatePostRightPanelSkeleton.jsx";
+import {useAuthStore} from "../../store/useAuthStore.js";
 import {AudioLinesIcon, ImageIcon, VideoIcon} from "lucide-react";
 import {Link} from "react-router-dom";
 

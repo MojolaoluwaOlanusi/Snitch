@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
-import {useUserStore} from "../../store/useUserStore";
-import {useAuthStore} from "../../store/useAuthStore";
+import {useUserStore} from "../../store/useUserStore.js";
+import {useAuthStore} from "../../store/useAuthStore.js";
 import {useEffect} from "react";
-import RightPanelSkeleton from "../../components/skeletons/RightPanelSkeleton";
-import PageLoader from "../../components/common/PageLoader";
+import RightPanelSkeleton from "../../components/skeletons/RightPanelSkeleton.jsx";
+import PageLoader from "../../components/common/PageLoader.jsx";
 
 
 const RightPanel = () => {

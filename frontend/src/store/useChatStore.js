@@ -1,8 +1,8 @@
 import { create } from "zustand";
-import { useAuthStore } from "./useAuthStore";
+import { useAuthStore } from "./useAuthStore.js";
 import { toast } from 'sonner'
-import axiosInstance from "../lib/axios";
-import axios from "../lib/axios";
+import axiosInstance from "../lib/axios.js";
+import axios from "../lib/axios.js";
 
 export const useChatStore = create((set, get) => ({
     conversations: [],

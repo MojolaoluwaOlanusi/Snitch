@@ -1,14 +1,14 @@
-import express from 'express';
-import Post from '../models/Post.ts';
+import express, { Request, Response } from 'express';
+import Post from '../models/Post.js';
 import jwt from 'jsonwebtoken';
-import {User} from'../models/User.ts';
-import { sendPushNotification } from '../utils/pushNotifications.ts';
-import Notification from '../models/Notification.ts'
+import {User} from'../models/User.js';
+import { sendPushNotification } from '../utils/pushNotifications.js';
+import Notification from '../models/Notification.js'
 const router = express.Router();
-async function auth(req:any,res:any,next:any){ const h=req.headers.authorization; if(!h) return res.status(401).json({ error:'unauth' }); try{ const token = h.split(' ')[1]; const decoded:any = jwt.verify(token, process.env.JWT_SECRET || 'devsecret'); req.userId = decoded.id; next(); }catch(e){ return res.status(401).json({ error:'invalid' }); } }
+async function auth(req: Request, res: Response, next: any){ const h=req.headers.authorization; if(!h) return res.status(401).json({ error:'unauth' }); try{ const token = h.split(' ')[1]; const decoded:any = jwt.verify(token, process.env.JWT_SECRET || 'devsecret'); req.userId = decoded.id; next(); }catch(e){ return res.status(401).json({ error:'invalid' }); } }
 
 // POST /api/reposts { postId }
-router.post('/:postId', auth, async (req,res)=>{
+router.post('/:postId', auth, async (req: Request, res: Response)=>{
   const { postId } = req.params;
   const currentUser = await User.findById(req.userId);
   if (!currentUser){

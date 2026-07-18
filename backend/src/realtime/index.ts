@@ -1,8 +1,8 @@
 import { Server } from 'socket.io';
-import { socketAuthMiddleware } from '../middleware/socket.auth.middlware.ts';
-import { registerSocketHandlers } from './handlers.ts';
-import { RoomStore } from './rooms.ts';
-import { RedisRoomStore } from './adapter/redisRoomStore.ts';
+import { socketAuthMiddleware } from '../middleware/socket.auth.middlware.js';
+import { registerSocketHandlers } from './handlers.js';
+import { RoomStore } from './rooms.js';
+import { RedisRoomStore } from './adapter/redisRoomStore.js';
 import { createAdapter } from '@socket.io/redis-adapter';
 import IORedis from 'ioredis';
 

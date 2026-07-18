@@ -15,7 +15,8 @@ export async function doHashValidation(plain: string, hashed: string): Promise<b
  * - secret must be set in process.env.HMAC_VERIFICATION_CODE_SECRET
  */
 export function hmacProcess(value: string, secret?: string): string {
-    const key = secret || process.env.HMAC_VERIFICATION_CODE_SECRET || '9ff0c014bd9e8652b152b2b5f7b6d3b405313cf7f37f26ee77eeaa4f7ad86a0c';
+    const key = secret || process.env.HMAC_VERIFICATION_CODE_SECRET;
+    if (!key) throw new Error('HMAC secret is not defined in environment variables');
     return crypto.createHmac('sha256', key).update(String(value)).digest('hex');
 }
 export default { doHash, doHashValidation, hmacProcess };

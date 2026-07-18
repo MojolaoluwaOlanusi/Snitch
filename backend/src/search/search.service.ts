@@ -1,7 +1,7 @@
-import {User} from "../models/User.ts";
-import Post from "../models/Post.ts";
-import Message from "../models/Message.ts";
-import { buildRegex } from "./search.utils.ts";
+import {User} from "../models/User.js";
+import Post from "../models/Post.js";
+import Message from "../models/Message.js";
+import { buildRegex } from "./search.utils.js";
 
 export class SearchService {
     static async search(x: { searchWord: any; searchType: any; limit: any; skip?: any; }) {

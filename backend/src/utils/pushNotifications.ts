@@ -1,5 +1,5 @@
 import webpush from 'web-push';
-import { User } from '../models/User.ts';
+import { User } from '../models/User.js';
 
 webpush.setVapidDetails(
     process.env.VAPID_SUBJECT || 'mailto:test@test.com',

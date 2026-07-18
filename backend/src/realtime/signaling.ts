@@ -1,8 +1,8 @@
 import { Server, Socket } from 'socket.io';
-import s3 from '../config/s3Client.ts';
+import s3 from '../config/s3Client.js';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { RoomStore } from './rooms.ts';
+import { RoomStore } from './rooms.js';
 
 // Lightweight id generator to avoid new dependency
 const makeId = (prefix = 'id') => `${prefix}_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`;
