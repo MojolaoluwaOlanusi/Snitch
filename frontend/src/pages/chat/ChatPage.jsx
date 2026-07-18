@@ -67,7 +67,7 @@ import {
     VolumeX,
     X,
 } from "lucide-react";
-import { useConversationSettings } from '../../hooks/useConversationSettings.js';
+import { useConversationSettings } from '../../hooks/useConversationsettings.js';
 import {AnimatePresence, motion} from "framer-motion";
 import axiosInstance from "../../lib/axios.js";
 import { toast } from 'sonner'
