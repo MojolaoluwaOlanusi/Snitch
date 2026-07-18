@@ -9,7 +9,6 @@
     "outDir": "dist",
     "rootDir": "src",
     "resolveJsonModule": true,
-    "types": ["node"],
     "noImplicitAny": false,
     "useUnknownInCatchVariables": false
   },
