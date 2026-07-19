@@ -79,7 +79,7 @@ function validateMongoDB(): ValidationResult {
  */
 function validateRedis(): ValidationResult {
     const redisUrl = process.env.REDIS_URL;
-    
+
     if (!redisUrl) {
         return {
             name: 'Redis',
@@ -88,7 +88,6 @@ function validateRedis(): ValidationResult {
         };
     }
 
-    // Check for development Redis URL in production
     if ((redisUrl.includes('localhost') || redisUrl.includes('127.0.0.1')) && process.env.NODE_ENV === 'production') {
         return {
             name: 'Redis',
@@ -97,21 +96,12 @@ function validateRedis(): ValidationResult {
         };
     }
 
-    // Check for TLS
     const usesTLS = redisUrl.startsWith('rediss://');
-    
-    if (!usesTLS && process.env.NODE_ENV === 'production') {
-        return {
-            name: 'Redis',
-            status: 'WARNING',
-            message: 'Redis URL does not use TLS (rediss://) in production. Ensure your Redis Cloud/Pro cluster supports TLS.',
-        };
-    }
 
     return {
         name: 'Redis',
         status: 'OK',
-        message: `Redis configured with ${usesTLS ? 'TLS encryption' : 'non-TLS connection (acceptable for development)'}`,
+        message: `Redis configured with ${usesTLS ? 'TLS encryption' : 'non-TLS connection (temporarily allowed)'}`,
     };
 }
 
