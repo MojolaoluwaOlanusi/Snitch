@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon",
-    "test:redis-reload": "ts-node ./test/redis-reload.ts",
-    "test:create-add": "ts-node ./test/create-add-integration.ts",
+    "test:create-add": "tsx ./test/create-add-integration.ts",
+    "test:redis-reload": "tsx ./test/redis-reload.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "start:worker": "node dist/worker/processor.js"
@@ -55,6 +55,7 @@
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
+    "tsx": "^4.23.1",
     "typescript": "^7.0.2"
   }
 }
