@@ -1,634 +1,275 @@
-# 🎨 Snitch Frontend - User Application
+﻿# Snitch Frontend
 
-**The Face of Snitch: A Modern, Real-Time Social Media Experience**
-
-This is the user-facing React application for Snitch. Built with React 18, Vite, TailwindCSS, and DaisyUI, it provides a responsive, feature-rich interface for posting, messaging, and connecting with communities.
+The user-facing React application for Snitch - a full-stack social media platform with real-time chat, posts, and social features.
 
 ---
 
-## 📋 Table of Contents
+## 📋 Project Overview
 
-- [Overview](#overview)
-- [Tech Stack Deep Dive](#tech-stack-deep-dive)
-- [Folder Structure](#folder-structure)
-- [How to Connect to Backend](#how-to-connect-to-backend)
-- [Environment Variables](#environment-variables)
-- [Development Setup](#development-setup)
-- [Build for Production](#build-for-production)
-- [Deployment to Vercel](#deployment-to-vercel)
-- [Troubleshooting](#troubleshooting)
-- [Performance Tips](#performance-tips)
-
----
-
-## 🎯 Overview
-
-The Snitch frontend is a modern, responsive single-page application (SPA) that enables users to:
-
-- ✍️ Create and manage posts with rich media
-- 💬 Chat in real-time with other users
-- 🔍 Search posts and discover content
-- 🔔 Receive instant notifications
-- 👤 Manage their profile and preferences
-- 🌙 Toggle between light and dark themes
-
-**Key Goals**:
-- Deliver a blazing-fast user experience (Vite + optimized builds)
-- Ensure responsive design (mobile-first)
-- Maintain type safety (TypeScript)
-- Handle real-time updates seamlessly (WebSocket integration)
+The Snitch frontend is a modern React application built with Vite, featuring real-time messaging, post feeds, user profiles, and search functionality. It connects to the backend API via REST and WebSocket for seamless real-time updates.
 
 ---
 
 ## 🛠️ Tech Stack Deep Dive
 
 ### Core Framework
-- **React 18** - Component-based UI library with hooks
-  - Why: Industry standard, largest ecosystem, excellent dev tools
-  - Hooks: State management, side effects, context
-
-- **Vite** - Next-generation build tool
-  - Why: Lightning-fast HMR, optimized production bundles, zero-config
-  - Dev: <100ms rebuild times
-  - Prod: Tree-shaking, code splitting, lazy loading
+- **React 18**: Modern React with hooks and concurrent features
+- **Vite 5**: Lightning-fast build tool and dev server
+- **TypeScript**: Type-safe development
 
 ### Styling
-- **TailwindCSS 3** - Utility-first CSS framework
-  - Why: Rapid development, consistent design system, small production builds
-  - Customization: Via `tailwind.config.js`
-
-- **DaisyUI 4** - Component library built on Tailwind
-  - Why: Pre-built components (buttons, forms, modals), follows Tailwind conventions
-  - Usage: `<button class="btn btn-primary">Click me</button>`
-
-### HTTP & Real-Time
-- **Axios** - HTTP client library
-  - Why: Promise-based, interceptor support, built-in timeout handling
-  - Usage: `api.get()`, `api.post()`, `api.put()`, `api.delete()`
-  - Interceptors: Auto-inject auth tokens, handle 401 refresh
-
-- **Socket.IO Client** - WebSocket communication
-  - Why: Fallback to HTTP long-polling if WebSocket unavailable
-  - Events: Real-time chat, notifications, typing indicators
-  - Auto-reconnect: Handles network interruptions
+- **TailwindCSS 3**: Utility-first CSS framework
+- **DaisyUI 4**: Component library built on TailwindCSS
+- **Why chosen**: DaisyUI provides beautiful, accessible components out of the box while maintaining Tailwind's flexibility
 
 ### Routing & State
-- **React Router DOM** - Client-side routing
-  - Why: Industry standard for SPAs, nested routes, lazy code splitting
-  - Pages: Home, Chat, Profile, Search, Settings
+- **React Router DOM v6**: Client-side routing with nested routes
+- **Zustand**: Lightweight state management
+- **Why Zustand**: Simpler than Redux, no boilerplate, excellent TypeScript support
 
-- **React Context + Custom Hooks** - State management
-  - Why: No external dependencies, simpler than Redux for this use case
-  - Contexts: AuthContext, SocketContext, ThemeContext
+### API & Real-time
+- **Axios**: HTTP client with interceptors for JWT auth
+- **Socket.IO Client**: WebSocket client for real-time features
+- **Why Socket.IO**: Automatic reconnection, room support, fallback to HTTP polling
 
-### Utilities
-- **Date-fns** - Date manipulation
-- **Lodash** - Utility functions (debounce, throttle, etc.)
-- **clsx** - Conditional classname merging
+### Other Key Libraries
+- **Framer Motion**: Smooth animations and transitions
+- **Sonner**: Beautiful toast notifications
+- **Lucide React**: Modern icon library
+- **React Virtuoso**: Virtual scrolling for performance
+- **link-preview-js**: Link preview generation for chat messages
 
 ---
 
 ## 📁 Folder Structure
 
-```
-frontend/
-├── README.md                      ← This file
-├── index.html                     ← HTML entry point
-├── package.json
-├── vite.config.ts                ← Vite configuration
-├── tailwind.config.js             ← TailwindCSS theme
-├── postcss.config.cjs             ← PostCSS config
-├── tsconfig.json                  ← TypeScript config
-├── public/                        ← Static assets
-│   ├── manifest.json             ← PWA manifest
-│   ├── service-worker.js         ← Service worker for offline
-│   ├── avatars/                  ← Placeholder avatars
-│   └── sounds/                   ← Notification sounds
-│
-└── src/
-    ├── main.jsx                  ← React mount point
-    ├── App.jsx                   ← Root component
-    ├── index.css                 ← Global styles
-    │
-    ├── pages/                    ← Route-based pages
-    │   ├── Home.jsx             ← Post feed
-    │   ├── Chat.jsx             ← Messaging interface
-    │   ├── Profile.jsx          ← User profile
-    │   ├── Search.jsx           ← Search results
-    │   ├── Discover.jsx         ← Trending posts
-    │   ├── Notifications.jsx    ← Notification center
-    │   └── Settings.jsx         ← User preferences
-    │
-    ├── components/              ← Reusable UI components
-    │   ├── common/
-    │   │   ├── Navbar.jsx       ← Top navigation
-    │   │   ├── Sidebar.jsx      ← Left sidebar menu
-    │   │   ├── Footer.jsx       ← Footer
-    │   │   └── Modal.jsx        ← Reusable modal
-    │   │
-    │   ├── Post/
-    │   │   ├── PostCard.jsx     ← Single post display
-    │   │   ├── PostForm.jsx     ← Create/edit post
-    │   │   └── PostActions.jsx  ← Like, comment, share buttons
-    │   │
-    │   ├── Chat/
-    │   │   ├── ConversationList.jsx  ← Inbox
-    │   │   ├── MessageBubble.jsx     ← Individual message
-    │   │   ├── ChatInput.jsx         ← Message input box
-    │   │   └── TypingIndicator.jsx  ← "User is typing..." UI
-    │   │
-    │   └── skeletons/           ← Loading placeholders
-    │       ├── PostSkeleton.jsx
-    │       └── ChatSkeleton.jsx
-    │
-    ├── hooks/                   ← Custom React hooks
-    │   ├── useAuth.js          ← Auth state & login/logout
-    │   ├── useSocket.js        ← WebSocket connection & events
-    │   ├── usePost.js          ← Post creation/deletion
-    │   ├── useChat.js          ← Chat operations
-    │   ├── useSearch.js        ← Search posts/users
-    │   └── useLocalStorage.js  ← Persist state to browser
-    │
-    ├── context/                ← React Context providers
-    │   ├── AuthContext.jsx     ← User auth state, JWT token
-    │   ├── SocketContext.jsx   ← WebSocket client instance
-    │   └── ThemeContext.jsx    ← Light/dark mode
-    │
-    ├── services/               ← External API & WebSocket setup
-    │   ├── api.js             ← Axios instance with interceptors
-    │   │   (Base URL from VITE_API_URL)
-    │   │   (Auto-injects auth token)
-    │   │   (Handles 401 token refresh)
-    │   │
-    │   └── socket.js          ← Socket.IO client initialization
-    │       (Connection URL from VITE_WS_URL)
-    │       (Passes auth token as query param)
-    │
-    ├── utils/                  ← Helper functions
-    │   ├── dateFormat.js       ← Format timestamps
-    │   ├── validators.js       ← Input validation
-    │   ├── imageUtils.js       ← Image resizing, compression
-    │   ├── fileUtils.js        ← File size checks, MIME types
-    │   └── constants.js        ← App constants (endpoints, limits)
-    │
-    └── store/                  ← Optional: Global state (if using Zustand/Redux)
-        └── (not used in basic setup, but provided for scaling)
-```
+`
+src/
+├── pages/              # Route-based page components
+│   ├── home/          # Home feed page
+│   ├── profile/       # User profile page
+│   ├── post/          # Post detail and create pages
+│   ├── search/        # Search page
+│   ├── chat/          # Chat/messaging page
+│   ├── auth/          # Authentication pages (login, signup, etc.)
+│   ├── notification/  # Notifications page
+│   ├── ai/            # AI features page
+│   └── warp/          # Warp features page
+├── components/        # Reusable UI components
+│   ├── common/        # Shared components (Sidebar, PostCard, etc.)
+│   ├── skeletons/     # Loading skeleton components
+│   └── svgs/          # SVG icon components
+├── hooks/             # Custom React hooks
+│   ├── useAuth.js     # Authentication hook
+│   ├── useSocket.js   # WebSocket connection hook
+│   └── useConversationSettings.js # Per-conversation settings
+├── context/           # React Context providers
+│   ├── AuthContext.jsx # Authentication state
+│   ├── SocketContext.jsx # WebSocket state
+│   └── ThemeContext.jsx # Theme state
+├── services/          # API client setup
+│   └── axios.js       # Axios instance with interceptors
+├── utils/             # Utility functions
+│   ├── date/          # Date formatting utilities
+│   └── validators.js  # Input validation helpers
+├── store/             # Zustand stores
+│   ├── useAuthStore.js # Auth state
+│   ├── useChatStore.js # Chat state
+│   ├── useUserStore.js # User state
+│   └── useMediaStore.js # Media state
+├── App.jsx            # Root component with routing
+└── main.jsx           # Entry point
+`
 
-### Key Files Explained
+### Directory Explanations
 
-#### `pages/Home.jsx`
-```javascript
-// Displays feed of all posts
-// Fetches: GET /api/posts?page=1&limit=20
-// Real-time updates: Socket event 'new-post'
-```
+**src/pages/**: All route-based page components. Each page is a complete feature area (e.g., home feed, profile, chat).
 
-#### `pages/Chat.jsx`
-```javascript
-// Displays conversation list and active chat
-// Fetches: GET /api/chat/conversations
-// Real-time: Socket events 'new-message', 'user-typing', 'user-online'
-```
+**src/components/**: Reusable UI components used across multiple pages. Common components like Sidebar, PostCard, and MessageBubble live here.
 
-#### `hooks/useAuth.js`
-```javascript
-// Manages user login/logout/token refresh
-// Returns: { user, loading, error, login, logout, isAuthenticated }
-// Token stored in: httpOnly cookie (set by server) or localStorage
-```
+**src/hooks/**: Custom React hooks that encapsulate reusable logic. useAuth handles authentication state, useSocket manages WebSocket connections.
 
-#### `services/api.js`
-```javascript
-// Axios instance with:
-// - Base URL: import.meta.env.VITE_API_URL
-// - Auth interceptor: Adds 'Authorization: Bearer <token>' to all requests
-// - Error handling: Handles 401, 403, 500 errors
-```
+**src/context/**: React Context providers for global state. AuthContext provides user auth state, SocketContext provides WebSocket connection.
+
+**src/services/**: API client setup. The axios instance is configured with interceptors to automatically inject JWT tokens.
+
+**src/utils/**: Pure utility functions. Date formatters, input validators, and other helper functions.
 
 ---
 
-## 🔌 How to Connect to Backend
+## 🔌 How it Connects to the Backend
 
-### 1. **API Communication (HTTP/REST)**
+### API Integration Pattern
 
-All API calls go through the `api` service:
+The frontend uses Axios for HTTP requests with automatic JWT injection:
 
-```javascript
-// frontend/src/services/api.js
-import axios from 'axios';
+`javascript
+// Base URL from environment variable
+const API_URL = import.meta.env.VITE_API_URL;
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4500',
-  withCredentials: true, // Include cookies
-});
+// Auth token stored in localStorage
+const token = localStorage.getItem('access-token');
 
-// Request interceptor: Add auth token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken');
+// Axios interceptor injects token
+axiosInstance.interceptors.request.use((config) => {
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    config.headers.Authorization = Bearer ;
   }
   return config;
 });
+`
 
-export default api;
-```
+### WebSocket Connection
 
-**Usage Example**:
+WebSocket connection uses Socket.IO client with auth token passed via query parameter:
 
-```javascript
-// In a component
-import api from '../services/api';
-
-const fetchPosts = async () => {
-  const response = await api.get('/posts?page=1&limit=20');
-  setPosts(response.data);
-};
-```
-
-### 2. **Real-Time Communication (WebSocket)**
-
-WebSocket events are managed through the `SocketContext`:
-
-```javascript
-// frontend/src/context/SocketContext.jsx
-import io from 'socket.io-client';
-
-const socket = io(import.meta.env.VITE_WS_URL || 'http://localhost:4500', {
-  query: {
-    token: localStorage.getItem('authToken'),
-  },
-  transports: ['websocket', 'polling'],
+`javascript
+const socket = io(VITE_WS_URL, {
+  auth: { token: localStorage.getItem('access-token') },
+  transports: ['websocket']
 });
+`
 
-// Listen for real-time events
-socket.on('new-message', (message) => {
-  setMessages((prev) => [...prev, message]);
-});
-```
-
-### 3. **Auth Token Injection**
-
-Tokens are automatically added to all requests:
-
-```javascript
-// Backend expects: Authorization: Bearer <JWT_TOKEN>
-
-// For WebSocket: Token passed as query parameter
-const socket = io(url, {
-  query: { token: authToken },
-});
-
-// Backend validates token from query parameters
-```
-
-### 4. **CORS Configuration**
-
-The backend CORS settings allow:
-
-```javascript
-// Backend config
-app.use(cors({
-  origin: [
-    'https://snitch.vercel.app',     // Production frontend
-    'https://admin.snitch.vercel.app', // Production admin
-    'http://localhost:5173',          // Dev frontend
-  ],
-  credentials: true,
-}));
-```
-
-**Your VITE_API_URL must match backend CORS origin.**
+**Note**: WebSockets don't support custom headers, so the JWT is passed via the uth object which Socket.IO sends as a query parameter.
 
 ---
 
-## ⚙️ Environment Variables
+## 🔐 Environment Variables
 
-Create a `.env` file in the frontend root with these variables:
+Create a .env file in the frontend root:
 
-```bash
-# Backend API connection
-VITE_API_URL=http://localhost:4500           # Dev: local backend
-VITE_WS_URL=http://localhost:4500            # WebSocket endpoint
-
-# Production (after deploying backend)
-# VITE_API_URL=https://api.snitch.fly.dev
-# VITE_WS_URL=wss://api.snitch.fly.dev
-```
-
-### Why the `VITE_` Prefix?
-
-- Vite only exposes variables prefixed with `VITE_` to the browser (security best practice)
-- Do NOT prefix secrets like API keys with `VITE_` - they'll leak
-- Server-side secrets stay in backend `.env`
-
-### Environment File Template
-
-```bash
-# .env.development
-VITE_API_URL=http://localhost:4500
-VITE_WS_URL=http://localhost:4500
-
-# .env.production
+`env
 VITE_API_URL=https://api.snitch.fly.dev
 VITE_WS_URL=wss://api.snitch.fly.dev
-```
+`
+
+### Variable Descriptions
+
+- **VITE_API_URL**: The backend API URL (Fly.io backend). All HTTP requests go here.
+- **VITE_WS_URL**: The WebSocket endpoint. Usually the same domain as the API but with wss:// protocol.
 
 ---
 
-## 💻 Development Setup
+## 🚀 Development Setup
 
-### Step 1: Install Dependencies
+### 1. Install dependencies
 
-```bash
+`ash
 cd frontend
 npm install
-# or with pnpm
-pnpm install
-```
+`
 
-### Step 2: Create Environment File
+### 2. Configure environment variables
 
-```bash
+Copy .env.example to .env and configure:
+
+`ash
 cp .env.example .env
-```
+`
 
-Edit `.env`:
-```bash
-VITE_API_URL=http://localhost:4500
-VITE_WS_URL=http://localhost:4500
-```
+Edit .env with your backend URL.
 
-### Step 3: Start Development Server
+### 3. Start development server
 
-```bash
+`ash
 npm run dev
-```
+`
 
-Output:
-```
-  ➜  Local:   http://localhost:5173/
-  ➜  Press h + enter to show help
-```
+The app will be available at http://localhost:5173
 
-### Step 4: Open in Browser
+### 4. Build for production
 
-Visit `http://localhost:5173` - you should see the Snitch home page.
-
-### Step 5: Test Backend Connection
-
-1. Try signing up or logging in
-2. Check browser console for any errors
-3. Open DevTools Network tab to verify API calls to backend
-
----
-
-## 🔨 Build for Production
-
-### Development Build
-```bash
-npm run dev
-```
-- Hot Module Replacement (HMR) enabled
-- Source maps for debugging
-- Slower, but better DX
-
-### Production Build
-```bash
+`ash
 npm run build
-```
+`
 
-This creates an optimized production bundle:
-- Minified HTML, CSS, JavaScript
-- Code splitting for lazy loading
-- Tree-shaking to remove unused code
-- Outputs to `dist/` folder
-
-### Preview Production Build Locally
-```bash
-npm run preview
-```
-Starts a local server serving the `dist` folder (simulates production).
+This creates an optimized production build in the dist/ directory.
 
 ---
 
-## 🚀 Deployment to Vercel
+## 🌐 Deployment (Vercel)
 
-Vercel handles all the deployment complexity automatically!
+### Automatic Deployment
 
-### Option 1: Connect GitHub Repository (Recommended)
+1. Connect your GitHub repository to Vercel
+2. Select the rontend directory as the root directory
+3. Configure environment variables in Vercel dashboard:
+   - VITE_API_URL: Your production backend URL
+   - VITE_WS_URL: Your production WebSocket URL
+4. Deploy on push to main branch
 
-1. **Push to GitHub**
-   ```bash
-   git add .
-   git commit -m "Initial commit"
-   git push origin main
-   ```
+### Manual Deployment
 
-2. **Import to Vercel**
-   - Go to [vercel.com/dashboard](https://vercel.com/dashboard)
-   - Click "Add New..." → "Project"
-   - Select your GitHub repository
-   - Click "Import"
-
-3. **Configure Environment Variables**
-   - In Vercel dashboard, go to Project → Settings → Environment Variables
-   - Add:
-     ```
-     VITE_API_URL=https://api.snitch.fly.dev
-     VITE_WS_URL=wss://api.snitch.fly.dev
-     ```
-   - Apply to: Production, Preview, Development
-
-4. **Deploy**
-   - Click "Deploy"
-   - Vercel automatically runs `npm run build`
-   - Your app is live at `https://snitch.vercel.app`
-
-### Option 2: Manual Deployment with Vercel CLI
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel
-
-# For production
+`ash
+npm run build
 vercel --prod
-```
-
-### What Vercel Does Automatically
-
-✅ Runs `npm install`  
-✅ Runs `npm run build`  
-✅ Serves `dist/` as static files  
-✅ HTTPS with auto-renewing certificates  
-✅ CDN for global distribution  
-✅ Preview deployments for PRs  
-✅ Auto-rollback on error  
-✅ Analytics & monitoring  
-
-### Preview Deployments
-
-Every time you open a PR:
-1. Vercel automatically builds and deploys
-2. You get a unique preview URL (e.g., `https://snitch-preview-123.vercel.app`)
-3. Test features before merging to main
+`
 
 ---
 
-## 🐛 Troubleshooting
+## 🔧 Troubleshooting
 
-### Issue: "Cannot GET /"
-**Cause**: Vercel serving a route that doesn't exist  
-**Solution**: The `src/App.jsx` and React Router must have a catch-all route
+### CORS Errors
 
-### Issue: CORS Error in Browser Console
-```
-Access to XMLHttpRequest blocked by CORS policy
-```
-**Causes & Solutions**:
-1. **Wrong API URL**: Check `VITE_API_URL` in `.env`
-2. **Backend not running**: Ensure backend is on `localhost:4500`
-3. **Backend CORS not configured**: Check backend's CORS origin whitelist
+If you see CORS errors:
+- Ensure CLIENT_URL in backend .env matches your Vercel domain
+- Check that the backend CORS configuration allows your frontend domain
 
-### Issue: WebSocket Connection Fails
-```
-WebSocket connection failed
-```
-**Causes**:
-1. **Wrong WS URL**: Ensure `VITE_WS_URL` matches backend
-2. **Auth token not sent**: Verify token is in localStorage
-3. **Backend not running**: Check backend server status
+### Case-Sensitive Imports on Linux
 
-**Debug**:
-```javascript
-// In browser console
-import io from 'socket.io-client';
-const socket = io('http://localhost:4500', {
-  query: { token: 'your-token-here' },
-});
-socket.on('connect', () => console.log('Connected!'));
-socket.on('error', (err) => console.log('Error:', err));
-```
+If you encounter import errors on Linux/Vercel:
+- Ensure all import paths match the exact file/folder casing
+- All relative imports should include file extensions (.js, .jsx, .ts, .tsx)
+- Index files should be explicitly referenced (e.g., ./components/index.jsx)
 
-### Issue: Import Errors (e.g., "Cannot find module './component'")
-**Cause**: Case-sensitivity issues on Linux/Mac  
-**Solution**: Ensure file names match imports exactly
+### WebSocket Connection Drops
 
-```javascript
-// ❌ Wrong (component.jsx)
-import Component from './Component';
+If WebSocket connections drop frequently:
+- Check that VITE_WS_URL uses wss:// for HTTPS
+- Verify backend WebSocket server is running
+- Check browser console for connection errors
 
-// ✅ Correct
-import Component from './component';
-```
+### Build Failures
 
-### Issue: "Module not found: react"
-```bash
-npm install
-npm run dev
-```
-
-### Issue: Slow Hot Module Replacement (HMR)
-**Solution**: Vite can be slow with lots of files. Try:
-```bash
-npm run dev -- --host 0.0.0.0  # Expose to network
-```
-
-### Issue: Dark Mode Not Persisting
-**Check**: TailwindCSS theme config in `tailwind.config.js`
-```javascript
-module.exports = {
-  darkMode: 'class', // or 'media'
-  // ...
-};
-```
+If builds fail:
+- Clear node_modules and reinstall: m -rf node_modules && npm install
+- Check for TypeScript errors: 
+pm run type-check
+- Verify all imports have correct extensions
 
 ---
 
-## ⚡ Performance Tips
+## 📝 Additional Notes
 
-### 1. **Code Splitting**
-Vite automatically splits routes:
-```javascript
-import { lazy, Suspense } from 'react';
+### State Management
 
-const ChatPage = lazy(() => import('./pages/Chat'));
+The app uses Zustand for state management. Stores are located in src/store/:
+- useAuthStore: Authentication state and user data
+- useChatStore: Chat messages, conversations, and typing state
+- useUserStore: User profiles and search results
+- useMediaStore: Media upload state and progress
 
-<Suspense fallback={<div>Loading...</div>}>
-  <ChatPage />
-</Suspense>
-```
+### Routing
 
-### 2. **Image Optimization**
-- Compress images before upload
-- Use WebP format where possible
-- Lazy load below-the-fold images
+Routes are defined in App.jsx using React Router:
+- /: Home feed
+- /profile/:username: User profile
+- /post/:postId: Post detail
+- /chat: Chat interface
+- /search: Search page
+- /auth/*: Authentication pages
 
-### 3. **State Management**
-- Avoid prop drilling → use Context
-- Memoize expensive computations → `useMemo`
-- Memoize component renders → `React.memo`
+### Styling
 
-### 4. **Bundle Analysis**
-See what's bloating your bundle:
-```bash
-npm install --save-dev vite-plugin-visualizer
-# Then configure in vite.config.ts
-```
-
-### 5. **Monitoring**
-Monitor real-time performance in production:
-- Check Vercel Analytics → Performance
-- Use browser DevTools Lighthouse audit
-
----
-
-## 📚 Useful Resources
-
-- [React 18 Docs](https://react.dev)
-- [Vite Guide](https://vitejs.dev/guide/)
-- [TailwindCSS Documentation](https://tailwindcss.com/docs)
-- [DaisyUI Components](https://daisyui.com)
-- [Axios Documentation](https://axios-http.com)
-- [Socket.IO Client](https://socket.io/docs/v4/client-api/)
-- [Vercel Deployment Docs](https://vercel.com/docs)
+The app uses TailwindCSS with DaisyUI components. Theme customization is done via 	ailwind.config.js and DaisyUI theme classes.
 
 ---
 
 ## 🤝 Contributing
 
-1. Create a feature branch: `git checkout -b feature/new-feature`
-2. Make changes and test locally
-3. Commit: `git commit -m 'Add new feature'`
-4. Push: `git push origin feature/new-feature`
-5. Open a Pull Request
-6. Vercel will automatically create a preview deployment
-
----
-
-## 💡 Quick Commands Reference
-
-```bash
-# Development
-npm run dev              # Start dev server on port 5173
-npm run build            # Build for production → dist/
-npm run preview          # Preview production build locally
-
-# Linting & Formatting
-npm run lint             # ESLint check
-npm run format           # Prettier format
-
-# Deployment
-vercel                   # Deploy to preview (Vercel CLI)
-vercel --prod            # Deploy to production
-```
-
----
-
-**Questions?** Check [root README](../README.md) or [Backend README](../backend/README.md) for more context!
-
-Happy building! 🚀
+When contributing to the frontend:
+- Follow the existing code style
+- Use TypeScript for new components
+- Add file extensions to all imports
+- Test on both desktop and mobile viewports
+- Ensure accessibility (ARIA labels, keyboard navigation)

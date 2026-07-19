@@ -130,13 +130,14 @@ dialog.modal .input:focus {
   backdrop-filter: none !important;
 }
 
-/* ensure inputs inside snitch modal are white and don't create large focus rings */
+/* ensure inputs inside snitch modal use theme-aware backgrounds */
 .snitch-modal-wrapper .snitch-modal-box input,
 .snitch-modal-wrapper .snitch-modal-box textarea,
 .snitch-modal-wrapper .snitch-modal-box .input {
-  background-color: #fff !important;
+  background-color: hsl(var(--b2)) !important;
   box-shadow: none !important;
   -webkit-appearance: none !important;
+  color: hsl(var(--bc)) !important;
 }
 
 .snitch-modal-wrapper .snitch-modal-box input:focus,
@@ -150,9 +151,9 @@ dialog.modal .input:focus {
 .snitch-modal-box input:-webkit-autofill,
 .snitch-modal-box textarea:-webkit-autofill,
 .snitch-modal-box .input:-webkit-autofill {
-  -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
-  box-shadow: 0 0 0 1000px #fff inset !important;
-  -webkit-text-fill-color: inherit !important;
+  -webkit-box-shadow: 0 0 0 1000px hsl(var(--b2)) inset !important;
+  box-shadow: 0 0 0 1000px hsl(var(--b2)) inset !important;
+  -webkit-text-fill-color: hsl(var(--bc)) !important;
 }
 
 /* end of adjustments */

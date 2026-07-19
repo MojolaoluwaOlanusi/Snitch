@@ -672,7 +672,7 @@ const PostPage = () => {
                             </div>
                             <div className="flex-1">
                                 <textarea
-                                    className="w-full p-3 border-2 border-base-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/20 transition-all"
+                                    className="w-full p-3 border-2 border-base-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/20 transition-all bg-base-200 text-base-content placeholder:text-base-content/50"
                                     placeholder="Write a comment..."
                                     rows="2"
                                     value={commentData.text}

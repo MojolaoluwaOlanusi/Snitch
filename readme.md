@@ -1,222 +1,271 @@
-[![Realtime integration](https://github.com/olanu/Snitch/actions/workflows/realtime-integration.yml/badge.svg?branch=main)](https://github.com/olanu/Snitch/actions/workflows/realtime-integration.yml)
+﻿# Snitch
 
-# Snitch — Realtime Backend (developer notes)
-
-This repository contains the Snitch realtime backend and related frontend/admin code. The backend implements a WebSocket + WebRTC realtime system built with Socket.IO, Redis, and MongoDB; it also includes Redis-backed room stores and atomic Lua scripts used by the realtime components.
-
-This README combines: quick start & CI info, a concise socket event contract summary (quick table + details), and TypeScript types developers can copy into the frontend.
+**A full-stack social media application with real-time chat, posts, reposts, search, push notifications, and an admin dashboard.**
 
 ---
 
-## Table of contents
-- [Quick status](#quick-status)
-- [Quick start (run integration tests locally)](#quick-start-run-integration-tests-locally)
-- [Files of interest](#files-of-interest)
-- [Socket contract quick table](#socket-contract-quick-table)
-- [Socket event contracts (detailed)](#socket-event-contracts-detailed)
-  - [Core messaging events](#core-messaging-events)
-  - [Typing / presence](#typing--presence)
-  - [Reactions](#reactions)
-  - [WebRTC signaling & call lifecycle](#webrtc-signaling--call-lifecycle)
-  - [Call control events](`#call-control-events-client---server`)
-- [TypeScript API types (copy into frontend)](#typescript-api-types-copy-into-frontend)
-- [HTTP presign endpoint (upload to MINIO / S3)](#http-presign-endpoint-upload-to-minio--s3)
-- [Contributing & notes](#contributing--notes)
+## 🌟 Project Overview
+
+Snitch is a modern, feature-rich social media platform designed for seamless real-time communication and content sharing. Built with a serverless-friendly architecture, it combines the power of React for the frontend, Node.js/Express for the backend, and MongoDB Atlas for data persistence. The application features real-time messaging via WebSockets, Redis-backed caching and pub/sub, and zero-egress object storage via Cloudflare R2.
+
+### What problem does it solve?
+
+Snitch addresses the need for a scalable, real-time social platform that can handle concurrent messaging, content sharing, and moderation without the complexity of traditional monolithic architectures. It's designed for developers who want to build social applications with modern infrastructure patterns.
+
+### Who is it for?
+
+- **Developers** looking for a reference implementation of a full-stack social media application
+- **Teams** needing a scalable real-time communication platform
+- **Organizations** requiring an admin dashboard for content moderation
+
+### Why is it special?
+
+- **Real-time architecture**: WebSocket + Redis Pub/Sub for instant messaging across multiple backend instances
+- **Serverless-friendly design**: Vercel for frontend + Fly.io for backend enables easy scaling
+- **Zero-egress storage**: Cloudflare R2 eliminates bandwidth costs for media uploads
+- **Type-safe**: Full TypeScript implementation across backend and frontend
 
 ---
 
-## Quick status
-- CI workflow: `.github/workflows/realtime-integration.yml` runs Redis-backed integration tests on push/PR to `main`.
+## ✨ Core Features
 
-## Quick start (run integration tests locally)
-Prerequisites:
-- Docker (for Redis) or an available Redis instance
-- Node 18+ and npm
+### User Features
+- **Authentication**: JWT-based auth with secure token management
+- **Posts**: Create, edit, delete, and repost content with media attachments
+- **Real-time messaging**: WebSocket-powered chat with typing indicators, read receipts, and reactions
+- **Search**: Full-text search for users, posts, and hashtags
+- **Push notifications**: Web Push API for browser notifications
+- **File uploads**: Direct-to-R2 uploads via presigned URLs
+- **User profiles**: Customizable profiles with avatars, bios, and social links
+- **Content moderation**: Report system for inappropriate content
 
-1. Start Redis (Docker):
+### Admin Features
+- **Dashboard**: Analytics and system overview
+- **User management**: View, edit, and ban users
+- **Content moderation**: Review and remove reported posts
+- **System analytics**: Monitor platform health and usage
 
-```powershell
-# start Redis locally for tests
-docker run -d --name snitch-redis -p 6379:6379 redis:7
-```
+---
 
-2. Install backend dependencies and run tests:
+## 🏗️ Architecture Overview
 
-```powershell
+`
+┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
+│   Vercel        │         │   Fly.io        │         │   MongoDB Atlas │
+│   (Frontend)    │◄────────►│   (Backend)     │◄────────►│   (Database)    │
+│   React + Vite  │  HTTPS  │   Express + TS  │  TLS    │   Primary DB    │
+└─────────────────┘         └────────┬────────┘         └─────────────────┘
+                                     │
+                                     │ TLS
+                                     ▼
+                            ┌─────────────────┐
+                            │   Redis Cloud   │
+                            │   (Cache + Pub) │
+                            └─────────────────┘
+                                     │
+                                     │ HTTPS
+                                     ▼
+                            ┌─────────────────┐
+                            │  Cloudflare R2  │
+                            │  (Object Store) │
+                            └─────────────────┘
+`
+
+**Flow Description:**
+1. **Frontend (Vercel)**: React applications served via Vercel CDN
+2. **Backend (Fly.io)**: REST API + WebSocket server handles all business logic
+3. **MongoDB Atlas**: Primary database for persistent data
+4. **Redis Cloud**: Caching layer and WebSocket Pub/Sub for real-time sync across instances
+5. **Cloudflare R2**: Object storage for images, videos, and media with zero egress fees
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Frontend** | React 18 + Vite | User-facing UI |
+| | TailwindCSS 3 + DaisyUI 4 | Styling framework |
+| | React Router DOM | Client-side routing |
+| | Axios | HTTP client |
+| | Socket.IO Client | WebSocket client |
+| | Zustand | State management |
+| **Admin Panel** | React 18 + Vite | Admin dashboard UI |
+| | TailwindCSS 3 + DaisyUI 4 | Styling framework |
+| | React Router DOM | Client-side routing |
+| | Axios | HTTP client |
+| **Backend** | Node.js 20+ | Runtime environment |
+| | Express | Web framework |
+| | TypeScript | Type safety |
+| | Socket.IO | WebSocket server |
+| | Mongoose | MongoDB ODM |
+| | ioredis | Redis client |
+| | BullMQ | Job queue |
+| | aws-sdk/client-s3 | R2 storage client |
+| | bcryptjs | Password hashing |
+| | jsonwebtoken | JWT auth |
+| | web-push | Push notifications |
+| **Database** | MongoDB Atlas | Primary database |
+| **Cache/Queue** | Redis Cloud | Caching + Pub/Sub + Job Queue |
+| **Storage** | Cloudflare R2 | Object storage (images/videos) |
+| **Deployment** | Vercel | Frontend & Admin hosting |
+| | Fly.io | Backend hosting |
+
+---
+
+## 📋 Prerequisites
+
+Before you begin, ensure you have the following:
+
+- **Node.js** v20 or higher
+- **npm** or **pnpm** package manager
+- **Git** for version control
+- **Fly.io account** for backend deployment
+- **Vercel account** for frontend/admin deployment
+- **MongoDB Atlas account** for database
+- **Redis Cloud account** for caching and pub/sub
+- **Cloudflare R2 account** for object storage
+
+---
+
+## 🚀 Quick Start (Development)
+
+### 1. Clone the repository
+
+`ash
+git clone https://github.com/olanu/Snitch.git
+cd Snitch
+`
+
+### 2. Install dependencies
+
+`ash
+# Install backend dependencies
 cd backend
 npm install
-# run the atomic create+add integration test
-$env:REDIS_URL = 'redis://127.0.0.1:6379'; npm run test:create-add
-# run the remove-participant reload integration test
-$env:REDIS_URL = 'redis://127.0.0.1:6379'; npm run test:redis-reload
-```
 
-You can run both sequentially in one line:
+# Install frontend dependencies
+cd ../frontend
+npm install
 
-```powershell
-$env:REDIS_URL = 'redis://127.0.0.1:6379'; npm run test:create-add; npm run test:redis-reload
-```
+# Install admin dependencies
+cd ../admin
+npm install
+`
 
-## Files of interest
-- `backend/src/realtime/adapter/redisRoomStore.ts` — RedisRoomStore with Lua scripts and atomic helpers.
-- `backend/test/redis-reload.ts` — integration test for Lua script preload/reload and remove-last-participant behavior.
-- `backend/test/create-add-integration.ts` — integration test for atomic createRoom + addParticipant script.
-- `.github/workflows/realtime-integration.yml` — CI workflow that runs the tests using a Redis service.
+### 3. Configure environment variables
 
----
+See the [Environment Variables](#environment-variables) section below for required variables. Copy the example .env files from each subdirectory and configure them with your credentials.
 
-## Socket contract quick table
-A compact, copyable summary of the most important socket events.
+### 4. Start local development
 
-| Event | Direction | Short payload | Ack | Notes |
-|---|---:|---|---:|---|
-| send_message | client -> server | { receiverId, text?, media?, replyTo? } | yes | Server persists + forwards
-| receive_message | server -> client | Message | n/a | Delivered to recipients
-| message:edit | client -> server | { messageId, newText } | yes | Validates ownership
-| message:delete | client -> server | { messageId } | yes | Validates ownership
-| message:read | client -> server | { messageId } | no | Read receipts
-| typing:start / typing:stop | client -> server | { toUserId?, roomId? } | no | Forwarded to targets
-| reaction:add | client -> server | { messageId, reaction } | no | Updates reactions
-| webrtc:call:create | client -> server | { roomId?, metadata? } | yes | Creates room if needed
-| webrtc:call:join | client -> server | { roomId } | yes | Adds participant to room store
-| webrtc:signaling:* | client -> server | { to, sdp/ice } | no | Offer/answer/ice forwarding
+`ash
+# Terminal 1: Start backend
+cd backend
+npm run dev
 
----
+# Terminal 2: Start frontend
+cd frontend
+npm run dev
 
-## Socket event contracts (detailed)
+# Terminal 3: Start admin (optional)
+cd admin
+npm run dev
+`
 
-### Core messaging events
-
-#### send_message (client -> server)
-- Payload: { receiverId: string, text?: string, media?: Array<{ url: string, mime?: string, size?: number }>, replyTo?: string }
-- Ack: { ok: true, message } or { ok: false, error }
-- Server emits `receive_message` to recipient(s) and `message_sent` to sender.
-
-#### receive_message (server -> client)
-- Payload: Message object (persisted), e.g. { id, from, to, text, media, createdAt }
-
-#### message:edit
-- Payload: { messageId: string, newText: string }
-- Ack: { ok: true, message }
-- Server emits `message:edited` to involved parties.
-
-#### message:delete
-- Payload: { messageId: string }
-- Server emits `message:deleted` with { messageId }.
-
-#### message:read
-- Payload: { messageId: string }
-- Server records read receipt and emits `message:read` to original sender.
-
-### Typing / presence
-- `typing:start` / `typing:stop`: payload { toUserId?: string, roomId?: string }
-- Presence: server emits `user_online` and `user_offline` on `presence` channel.
-
-### Reactions
-- `reaction:add`: payload { messageId: string, reaction: string }
-- Server updates message.reactions and emits `reaction:update` with { messageId, reactions }
-
-### WebRTC signaling & call lifecycle
-- `webrtc:call:create` (client -> server): { roomId?: string, metadata?: object } → ack { ok: true, roomId }
-- `webrtc:call:join` (client -> server): { roomId } → server adds participant and emits `webrtc:call:participant_joined`
-- Signaling: `webrtc:signaling:offer|answer|ice`: payload { to, sdp/ice } forwarded to target socket
-- `webrtc:call:participant_left` (server -> room): { userId }
-- `webrtc:call:ended` (server -> room): { roomId }
-
-### Call control events (client <-> server)
-- `webrtc:control:mute` / `webrtc:control:unmute` -> { roomId, userId }
-- `webrtc:control:screen_share:start` / `webrtc:control:screen_share:stop`
-- `webrtc:control:set_quality` -> { roomId, quality: 'low'|'medium'|'high' }
+For detailed setup instructions for each service, see the respective README files:
+- [Frontend README](./frontend/README.md)
+- [Admin README](./admin/README.md)
+- [Backend README](./backend/README.md)
 
 ---
 
-## TypeScript API types (copy into frontend)
-Copy these into your frontend TypeScript code to get typed socket payloads.
+## 🌐 Deployment Overview
 
-```ts
-// Socket payloads (frontend types)
-export type ID = string;
+### Frontend & Admin (Vercel)
+- Connected to GitHub repository
+- Auto-deploys on push to main branch
+- Environment variables configured in Vercel dashboard
+- CDN caching for static assets
 
-export interface MediaItem {
-  url: string;
-  mime?: string;
-  size?: number;
-}
+### Backend (Fly.io)
+- Deployed via lyctl deploy
+- Configured with ly.toml for WebSocket support
+- Secrets managed via lyctl secrets set
+- Auto-scaling enabled
 
-export interface SendMessagePayload {
-  receiverId: ID;
-  text?: string;
-  media?: MediaItem[];
-  replyTo?: ID;
-}
+### Database (MongoDB Atlas)
+- Free tier available for development
+- Production tier for scaling
+- TLS connections required
+- Atlas Search for full-text search
 
-export interface Message {
-  id: ID;
-  from: ID;
-  to: ID | ID[];
-  text?: string;
-  media?: MediaItem[];
-  replyTo?: ID;
-  createdAt: string;
-  editedAt?: string;
-  reactions?: Record<string, string[]>; // reaction -> userIds
-}
+### Cache (Redis Cloud)
+- Free tier available for development
+- Production tier for scaling
+- TLS connections required (ediss://)
 
-export interface EditMessagePayload { messageId: ID; newText: string }
-export interface DeleteMessagePayload { messageId: ID }
-export interface ReadMessagePayload { messageId: ID }
-
-export interface TypingPayload { toUserId?: ID; roomId?: ID }
-export interface ReactionPayload { messageId: ID; reaction: string }
-
-export interface WebrtcCallCreatePayload { roomId?: ID; metadata?: Record<string, any> }
-export interface WebrtcCallJoinPayload { roomId: ID }
-export interface SignalingPayload { to: ID; sdp?: any; ice?: any }
-
-// Usage (example):
-// socket.emit('send_message', payload as SendMessagePayload, (ack) => { ... })
-```
+### Storage (Cloudflare R2)
+- Zero egress fees
+- Presigned URLs for direct uploads
+- Public URL generation for media access
 
 ---
 
-## HTTP presign endpoint (upload to MINIO / S3)
-The backend exposes an endpoint that returns a presigned URL (or form fields) allowing clients to upload media directly to object storage.
+## 🔐 Environment Variables
 
-- Endpoint: POST /api/media/presign
-  - auth: Bearer JWT
-  - request body: { filename: string, contentType: string, size?: number, folder?: string }
-  - response: { ok: true, uploadUrl: string, method: 'PUT'|'POST', fields?: object, key: string, publicUrl: string }
+### Backend (.env)
+| Variable | Description | Required |
+|----------|-------------|----------|
+| PORT | Server port | Yes |
+| NODE_ENV | Environment (development/production) | Yes |
+| MONGODB_URI | MongoDB connection string (with &tls=true) | Yes |
+| REDIS_URL | Redis connection string (use ediss:// for TLS) | Yes |
+| JWT_SECRET | Secret for JWT signing | Yes |
+| HMAC_VERIFICATION_CODE_SECRET | Secret for HMAC verification | Yes |
+| R2_ACCESS_KEY | Cloudflare R2 access key | Yes |
+| R2_SECRET_KEY | Cloudflare R2 secret key | Yes |
+| R2_ENDPOINT | R2 endpoint (must be https://) | Yes |
+| R2_BUCKET | R2 bucket name | Yes |
+| WEB_PUSH_PUBLIC_KEY | Web Push VAPID public key | Yes |
+| WEB_PUSH_PRIVATE_KEY | Web Push VAPID private key | Yes |
+| CLIENT_URL | Frontend URL for CORS | Yes |
+| GIPHY_API_KEY | Giphy API key for GIF search | No |
+| UNSPLASH_ACCESS_KEY | Unsplash API key for wallpapers | No |
 
-Example: get a presigned PUT URL
+### Frontend (.env)
+| Variable | Description | Required |
+|----------|-------------|----------|
+| VITE_API_URL | Backend API URL (e.g., https://api.snitch.fly.dev) | Yes |
+| VITE_WS_URL | WebSocket URL (usually same as API with wss://) | Yes |
 
-```bash
-curl -X POST \ 
-        curl -X POST \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "Content-Type: application/json" \
-        -d '{"filename":"video.mp4","contentType":"video/mp4","size":123456}' \
-   https://api.example.com/api/media/presign
-```
+### Admin (.env)
+| Variable | Description | Required |
+|----------|-------------|----------|
+| VITE_API_URL | Backend API URL (same as frontend) | Yes |
 
-Client upload (PUT)
+**Note**: See individual README files for detailed .env.example files and configuration instructions.
 
-```js
-await fetch(uploadUrl, {
-  method: 'PUT',
-  headers: { 'Content-Type': 'video/mp4' },
-  body: fileBlob
-});
+---
 
-socket.emit('send_message', { receiverId, text: '', media: [{ url: publicUrl, mime: 'video/mp4', size }] }, ack);
-```
+## 📄 License
 
-## Contributing & notes
-- The project is TypeScript based. Tests use `ts-node` for quick execution in CI/dev.
-- If your GitHub repo path differs from `olanu/Snitch` update the badge URL at the top of this file.
-- For production use, ensure Redis is secured and tuned, and consider placing Lua scripts in a script registry or preloading them during app boot.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-If you want, I can:
-- Replace the badge owner/repo automatically by detecting your git remote and updating the README, or
-- Convert the ad-hoc integration scripts to Jest tests and wire them to CI for better reporting.
+---
 
-Happy to make either change — tell me which one you prefer next.
+## 👤 Author
+
+[Your Name]
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read our contributing guidelines before submitting pull requests.
+
+---
+
+## 📞 Support
+
+For support, please open an issue in the GitHub repository or contact [your-email@example.com].

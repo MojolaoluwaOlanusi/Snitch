@@ -86,7 +86,7 @@ const EditProfileModal = ({ authUser, isOpen, onClose }) => {
                 onClick={handleBackdropClick}
             >
                 <div
-                    className="modal-box border rounded-md border-base-content/40 shadow-md"
+                    className="modal-box border rounded-md border-base-content/40 shadow-md bg-base-200"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div className="flex justify-between items-center mb-4">
@@ -130,7 +130,7 @@ const EditProfileModal = ({ authUser, isOpen, onClose }) => {
                             />
                             <textarea
                                 placeholder="Bio"
-                                className="flex-1 input border border-base-content/40 rounded p-2 input-md"
+                                className="flex-1 input border border-base-content/40 rounded p-2 input-md bg-base-200 text-base-content placeholder:text-base-content/50 focus:border-primary focus:ring-1 focus:ring-primary"
                                 value={formData.bio}
                                 name="bio"
                                 onChange={(e) => setFormData({ ...formData, [e.target.name]: e.target.value })}

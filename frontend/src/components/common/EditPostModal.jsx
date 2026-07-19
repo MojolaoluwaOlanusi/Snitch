@@ -349,7 +349,7 @@ function EditPostModal({ post }) {
                                     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleSubmit(e);
                                 }}
                                 placeholder="Edit your post..."
-                                className="w-full min-h-[10rem] p-4 rounded-lg border-2 border-base-200 focus:outline-none focus:ring-2 focus:ring-primary text-lg resize-none"
+                                className="w-full min-h-[10rem] p-4 rounded-lg border-2 border-base-200 focus:outline-none focus:ring-2 focus:ring-primary text-lg resize-none bg-base-200 text-base-content placeholder:text-base-content/50"
                                 maxLength={MAX_CHARS}
                             />
                             <div className="absolute bottom-2 right-2 text-xs text-base-content/50">

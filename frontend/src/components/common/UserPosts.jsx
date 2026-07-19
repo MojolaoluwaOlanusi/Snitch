@@ -236,7 +236,7 @@ const UserPostItem = ({ post, authUserId }) => {
 
                         {/* Comment modal */}
                         <dialog id={`up_comments_modal${post._id}`} className="modal border-none outline-none">
-                            <div className={`modal-box rounded border border-base-content/30 space-y-2 ${post?.comments.length === 0 ? "w-full max-w-2xl" : ""}`}>
+                            <div className={`modal-box rounded border border-base-content/30 space-y-2 bg-base-200 ${post?.comments.length === 0 ? "w-full max-w-2xl" : ""}`}>
                                 <div className="flex mx-auto items-center justify-between">
                                     <h3 className="font-bold text-lg mb-4">Comments</h3>
                                     <div>
@@ -250,7 +250,7 @@ const UserPostItem = ({ post, authUserId }) => {
                                 <form onSubmit={handlePostComment}>
                                     <div className="flex gap-2 items-center mt-4 border-t border-base-content/30 pt-2">
                     <textarea
-                        className="textarea w-full p-1 rounded text-md resize-none border focus:outline-none border-base-content/30 bg-base-100"
+                        className="textarea w-full p-1 rounded text-md resize-none border focus:outline-none border-base-content/30 bg-base-200 text-base-content placeholder:text-base-content/50 focus:border-primary focus:ring-1 focus:ring-primary"
                         placeholder="Write a comment..."
                         value={commentData.text}
                         onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handlePostComment(e); } }}

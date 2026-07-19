@@ -255,7 +255,7 @@ const LikedPostItem = ({ post, authUserId }) => {
 
                         {/* Comment modal */}
                         <dialog id={`liked_comments_modal${post._id}`} className="modal border-none outline-none">
-                            <div className={`modal-box rounded border border-base-content/30 space-y-2 ${post?.comments.length === 0 ? "w-full max-w-2xl" : ""}`}>
+                            <div className={`modal-box rounded border border-base-content/30 space-y-2 bg-base-200 ${post?.comments.length === 0 ? "w-full max-w-2xl" : ""}`}>
                                 <div className="flex mx-auto items-center justify-between">
                                     <h3 className="font-bold text-lg mb-4">Comments</h3>
                                     <div>

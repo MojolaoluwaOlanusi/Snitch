@@ -402,7 +402,7 @@ function CreatePostPage() {
                     onBlur={handleBlur}
                     onFocus={handleFocus}
                     placeholder="Share something amazing today... Use @ to mention, # for hashtags"
-                    className="w-full min-h-[12rem] p-4 rounded-lg bg-base-300 border-2 border-base-200 focus:outline-none focus:ring-2 focus:ring-primary text-lg resize-none"
+                    className="w-full min-h-[12rem] p-4 rounded-lg bg-base-300 border-2 border-base-200 focus:outline-none focus:ring-2 focus:ring-primary text-lg resize-none text-base-content placeholder:text-base-content/50"
                     maxLength={MAX_CHARS}
                 />
                                 <div className="absolute bottom-2 right-2 text-xs text-base-content/50">

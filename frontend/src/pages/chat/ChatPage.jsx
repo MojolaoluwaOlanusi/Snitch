@@ -3610,7 +3610,7 @@ const ChatPage = () => {
                                 <input
                                     type="text"
                                     placeholder="Search conversations..."
-                                    className="w-full pl-10 pr-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-base-100 transition-all"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-base-100 transition-all text-base-content placeholder:text-base-content/50"
                                     value={conversationSearchQuery}
                                     onChange={(e) => setConversationSearchQuery(e.target.value)}
                                 />
@@ -3867,7 +3867,7 @@ const ChatPage = () => {
                                                 <input
                                                     type="text"
                                                     placeholder="Search messages..."
-                                                    className="flex-1 px-4 py-2 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                                    className="flex-1 px-4 py-2 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-base-content placeholder:text-base-content/50"
                                                     value={searchQuery}
                                                     onChange={(e) => handleSearchInput(e.target.value)}
                                                     autoFocus
@@ -4183,7 +4183,7 @@ const ChatPage = () => {
             }}
             onKeyDown={handleKeyDown}
             placeholder={editingMessageId ? "Edit message..." : "Type a message..."}
-            className="w-full px-3 py-2 sm:px-4 sm:py-2.5 bg-base-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-base-100 transition-all"
+            className="w-full px-3 py-2 sm:px-4 sm:py-2.5 bg-base-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-base-100 transition-all text-base-content placeholder:text-base-content/50"
             rows={1}
             style={{ minHeight: '40px', maxHeight: '120px' }}
         />
@@ -4634,7 +4634,7 @@ const ChatPage = () => {
                                 <input
                                     type="text"
                                     placeholder="Question"
-                                    className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-3"
+                                    className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-3 text-base-content placeholder:text-base-content/50"
                                     value={pollQuestion}
                                     onChange={(e) => setPollQuestion(e.target.value)}
                                 />
@@ -4643,7 +4643,7 @@ const ChatPage = () => {
                                         key={i}
                                         type="text"
                                         placeholder={`Option ${i + 1}`}
-                                        className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-2"
+                                        className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-2 text-base-content placeholder:text-base-content/50"
                                         value={opt}
                                         onChange={(e) => {
                                             const newOpts = [...pollOptions]; newOpts[i] = e.target.value; setPollOptions(newOpts);
@@ -4691,13 +4691,13 @@ const ChatPage = () => {
                                 <input
                                     type="text"
                                     placeholder="Event name"
-                                    className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-3"
+                                    className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-3 text-base-content placeholder:text-base-content/50"
                                     value={eventName}
                                     onChange={(e) => setEventName(e.target.value)}
                                 />
-                                <input type="date" className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-3" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
-                                <input type="time" className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-3" value={eventTime} onChange={(e) => setEventTime(e.target.value)} />
-                                <input type="text" placeholder="Location (optional)" className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-4" value={eventLocation} onChange={(e) => setEventLocation(e.target.value)} />
+                                <input type="date" className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-3 text-base-content" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+                                <input type="time" className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-3 text-base-content" value={eventTime} onChange={(e) => setEventTime(e.target.value)} />
+                                <input type="text" placeholder="Location (optional)" className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-4 text-base-content placeholder:text-base-content/50" value={eventLocation} onChange={(e) => setEventLocation(e.target.value)} />
                                 <div className="flex gap-2">
                                     <button onClick={handleCreateEvent} className="flex-1 py-2.5 text-primary-content rounded-xl font-medium" style={{background: bubbleColor}}>Create Event</button>
                                     <button onClick={() => setShowEventModal(false)} className="flex-1 py-2.5 bg-base-200 rounded-xl font-medium hover:bg-base-300">Cancel</button>
@@ -4930,7 +4930,7 @@ const ChatPage = () => {
                                     <button onClick={() => setShowLockChatModal(false)} className="p-2 hover:bg-base-200 rounded-full"><X className="w-5 h-5" /></button>
                                 </div>
                                 <p className="text-sm text-base-content/60 mb-4">Enter your login password to lock this chat.</p>
-                                <input type="password" placeholder="Enter password" className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-4" value={lockPassword} onChange={(e) => setLockPassword(e.target.value)} autoFocus />
+                                <input type="password" placeholder="Enter password" className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-4 text-base-content placeholder:text-base-content/50" value={lockPassword} onChange={(e) => setLockPassword(e.target.value)} autoFocus />
                                 <div className="flex gap-2">
                                     <button onClick={handleLockChatConfirm} className="flex-1 py-2.5 bg-primary/80 text-primary-content rounded-xl font-medium hover:bg-primary">Lock Chat</button>
                                     <button onClick={() => setShowLockChatModal(false)} className="flex-1 py-2.5 bg-base-200 rounded-xl font-medium hover:bg-base-300">Cancel</button>
@@ -4963,7 +4963,7 @@ const ChatPage = () => {
                                     <button onClick={() => setShowUnlockModal(false)} className="p-2 hover:bg-base-200 rounded-full"><X className="w-5 h-5" /></button>
                                 </div>
                                 <p className="text-sm text-base-content/60 mb-4">Enter your login password to access locked chats.</p>
-                                <input type="password" placeholder="Enter password" className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-4" value={unlockPassword} onChange={(e) => setUnlockPassword(e.target.value)} autoFocus />
+                                <input type="password" placeholder="Enter password" className="w-full px-4 py-2.5 bg-base-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 mb-4 text-base-content placeholder:text-base-content/50" value={unlockPassword} onChange={(e) => setUnlockPassword(e.target.value)} autoFocus />
                                 <div className="flex gap-2">
                                     <button onClick={unlockContext === 'section' ? handleUnlockSection : handleUnlockSpecificChat} className="flex-1 py-2.5 bg-primary/80 text-primary-content rounded-xl font-medium hover:bg-primary">Unlock</button>
                                     <button onClick={() => setShowUnlockModal(false)} className="flex-1 py-2.5 bg-base-200 rounded-xl font-medium hover:bg-base-300">Cancel</button>
