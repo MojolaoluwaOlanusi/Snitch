@@ -125,10 +125,18 @@ router.get('/get-profile',authMiddleware, async (req: Request, res: Response) =>
     }
 });
 
-router.get('/get-user-profile/:username',authMiddleware, async (req: Request, res: Response) => {
+router.get('/get-user-profile/:username', authMiddleware, async (req: Request, res: Response) => {
     try {
         const { username } = req.params;
-        const user = await User.findOne({username}).select("-passwordHash");
+
+        // Option A: Case-sensitive (exact match) – fix if needed
+        const user = await User.findOne({ username }).select("-passwordHash");
+
+        // 🔥 CRITICAL FIX: Return 404 if user not found
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
         res.status(200).json(user);
     } catch (err: any) {
         console.error('Error in getUserProfile:', err.message);

@@ -52,7 +52,7 @@ Snitch addresses the need for a scalable, real-time social platform that can han
 `
 ┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
 │   Vercel        │         │   Fly.io        │         │   MongoDB Atlas │
-│   (Frontend)    │◄────────►│   (Backend)     │◄────────►│   (Database)    │
+│   (Frontend)    │◄───────►│   (Backend)     │◄───────►│   (Database)    │
 │   React + Vite  │  HTTPS  │   Express + TS  │  TLS    │   Primary DB    │
 └─────────────────┘         └────────┬────────┘         └─────────────────┘
                                      │
@@ -203,7 +203,8 @@ For detailed setup instructions for each service, see the respective README file
 ### Cache (Redis Cloud)
 - Free tier available for development
 - Production tier for scaling
-- TLS connections required (ediss://)
+- TLS connections required (
+ediss://)
 
 ### Storage (Cloudflare R2)
 - Zero egress fees
@@ -220,7 +221,8 @@ For detailed setup instructions for each service, see the respective README file
 | PORT | Server port | Yes |
 | NODE_ENV | Environment (development/production) | Yes |
 | MONGODB_URI | MongoDB connection string (with &tls=true) | Yes |
-| REDIS_URL | Redis connection string (use ediss:// for TLS) | Yes |
+| REDIS_URL | Redis connection string (use 
+ediss:// for TLS) | Yes |
 | JWT_SECRET | Secret for JWT signing | Yes |
 | HMAC_VERIFICATION_CODE_SECRET | Secret for HMAC verification | Yes |
 | R2_ACCESS_KEY | Cloudflare R2 access key | Yes |
