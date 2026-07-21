@@ -1,0 +1,47 @@
+# Vercel Web Analytics Installation
+
+Successfully installed and configured Vercel Web Analytics for the Snitch frontend project.
+
+## Changes Made
+
+### 1. Package Installation
+- Installed `@vercel/analytics` v2.0.1 via npm
+- Updated `package.json` with the new dependency
+- Updated `package-lock.json` with the resolved dependency tree
+
+### 2. Analytics Configuration
+**Modified: `frontend/src/App.jsx`**
+- Added import statement: `import { Analytics } from '@vercel/analytics/react';`
+- Added `<Analytics />` component to the main App component's JSX structure
+- Component placed alongside the Toaster component at the root level
+
+## Implementation Details
+
+The installation followed the latest official Vercel Analytics documentation from:
+https://vercel.com/docs/analytics/quickstart
+
+For this Vite + React project:
+1. The Analytics component was imported from `@vercel/analytics/react`
+2. The component was added to the root App.jsx file to track analytics across all routes
+3. The component requires no additional configuration and will automatically start tracking when deployed to Vercel
+
+## Framework Context
+- **Framework**: Vite 6.4.3 with React 18.3.1
+- **Package Manager**: npm
+- **Entry Point**: frontend/src/main.jsx
+- **App Component**: frontend/src/App.jsx
+
+## Verification
+- Build completed successfully with `npm run build`
+- No errors or warnings introduced
+- All existing functionality preserved
+- Build artifacts are optimized and compressed
+
+## Next Steps
+To enable analytics tracking:
+1. Deploy the application to Vercel using `vercel deploy`
+2. Enable Web Analytics in the Vercel dashboard under the Analytics section
+3. Verify tracking in the browser's Network tab for requests to `/<unique-path>/view`
+4. Analytics data will be available in the Vercel dashboard after deployment
+
+Note: Analytics will only function when deployed to Vercel. Local development will not generate tracked data.

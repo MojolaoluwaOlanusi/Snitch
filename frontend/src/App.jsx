@@ -2,6 +2,7 @@ import {Navigate, Route, Routes} from "react-router-dom";
 import {useAuthStore} from "./store/useAuthStore.js";
 import { Toaster } from 'sonner'
 import { Suspense, lazy, useEffect } from "react";
+import { Analytics } from '@vercel/analytics/react';
 // 👇 lazy load every page
 const HomePage = lazy(() => import("./pages/home/HomePage.jsx"));
 const LoginPage = lazy(() => import("./pages/auth/login/LoginPage.jsx"));
@@ -57,6 +58,7 @@ function App () {
             </Suspense>
 
             <Toaster position="top-right" richColors />
+            <Analytics />
         </div>
     );
 }
