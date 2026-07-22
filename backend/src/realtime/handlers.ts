@@ -6,6 +6,7 @@ import Conversation from '../models/Conversation.js';
 import {User} from '../models/User.js';
 import { registerSignaling } from './signaling.js';
 import { cacheMessage, cacheOnlineStatus, getOnlineUsers, removeCachedMessage, updateCachedMessage } from '../utils/redisCache.js';
+import { sendMessagePushNotification } from '../utils/pushNotifications.js';
 import {randomUUID} from "crypto";
 
 export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: RoomStore) => {
@@ -218,6 +219,23 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
                     .map((p: any) => p._id?.toString())
                     .filter((id: string) => id !== userId);
 
+                // Send push notifications to recipients (new feature)
+                for (const recipientId of participantIds) {
+                    sendMessagePushNotification(
+                        recipientId,
+                        populatedMessage,
+                        convId.toString(),
+                        {
+                            username: user.username,
+                            displayName: user.displayName || user.username,
+                            avatarUrl: user.avatarUrl,
+                        },
+                        conversationPopulated.isGroup,
+                        conversationPopulated.groupName
+                    ).catch(err => console.error('Push notification send error:', err));
+                }
+
+                // Emit to foreground users (in-app message)
                 participantIds.forEach((pid: string) => {
                     const receivers = Array.from(io.sockets.sockets.values())
                         .filter((s) => s.data?.userId === pid);
