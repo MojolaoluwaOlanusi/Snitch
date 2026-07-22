@@ -14,7 +14,8 @@
     "isolatedModules": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "bundler",
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "types": ["vite/client"]
   },
   "include": [
     "src"
