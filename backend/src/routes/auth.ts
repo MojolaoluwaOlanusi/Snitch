@@ -20,10 +20,12 @@ router.post('/signup', async (req: Request, res: Response)=> {
 
     if(!email||!username||!password||!accountType||!displayName) return res.status(400).json({ error:'missing', message: "Please fill all fields!" });
 
+    const trimmedUsername = username.trim();
+
     const h = await bcrypt.hash(password, 10);
 
     try {
-        const u = await User.create({ email, username, passwordHash: h, displayName, accountType });
+        const u = await User.create({ email, trimmedUsername, passwordHash: h, displayName, accountType });
         const access = signAccess(String(u._id));
         const refresh = signRefresh(String(u._id));
         res.json({ access, refresh, user: { id: u._id, username: u.username } });
@@ -148,10 +150,11 @@ router.put('/update-profile',authMiddleware, async (req: Request, res: Response)
     try {
         const { email, username, gender, socialHandles, theme, displayName, bio, avatarUrl, coverImg, accountType, accountVisibility, link, location } = req.body;
         const user = await User.findById(req.userId).select("-passwordHash");
+        const trimmedUsername = username.trim();
         const updatedProfile = await User.findByIdAndUpdate(
             // @ts-ignore
             user._id,
-            { email , username, displayName, bio, avatarUrl, gender, socialHandles, theme, accountType, coverImg, link, location, accountVisibility },
+            { email , trimmedUsername, displayName, bio, avatarUrl, gender, socialHandles, theme, accountType, coverImg, link, location, accountVisibility },
             { new: true }
         ).select("-passwordHash");
         res.status(200).json(updatedProfile);

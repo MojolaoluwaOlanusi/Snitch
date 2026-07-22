@@ -59,7 +59,8 @@ export interface UserDocument extends Document {
 const UserSchema = new Schema<UserDocument>({
     email: { type: String, unique: true, index: true },
     passwordHash: String,
-    username: { type: String, unique: true, index: true },
+    displayName: { type: String, trim: true },
+    username: { type: String, unique: true, index: true, trim: true },
     usernameLower: { type: String, unique: true, index: true },
     accountType: {
         type: String,
@@ -167,8 +168,21 @@ UserSchema.pre('save', function (next) {
 // 🔥 Also handle findOneAndUpdate operations
 UserSchema.pre('findOneAndUpdate', function (next) {
     const update = this.getUpdate() as any;
-    if (update.username) {
-        update.usernameLower = update.username.toLowerCase();
+
+    // Handle direct update or $set
+    let username = update.username || (update.$set && update.$set.username);
+
+    if (username) {
+        username = username.trim(); // 🔥 Trim the username
+        const usernameLower = username.toLowerCase();
+
+        if (update.$set) {
+            update.$set.username = username;
+            update.$set.usernameLower = usernameLower;
+        } else {
+            update.username = username;
+            update.usernameLower = usernameLower;
+        }
     }
     next();
 });
