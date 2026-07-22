@@ -24,6 +24,7 @@ const VerifyVerificationCodePage = lazy(() =>
     import("./pages/auth/verification/VerifyVerificationCodePage.jsx")
 );
 const PostPage = lazy(() => import("./pages/post/PostPage.jsx"));
+import { useAppTheme } from "./hooks/useAppTheme.js";
 
 function App () {
     const { checkAuthentication, isCheckingAuth, authUserId } = useAuthStore();
@@ -31,6 +32,8 @@ function App () {
     useEffect(() => {
         checkAuthentication();
     }, [checkAuthentication]);
+
+    useAppTheme();
 
     if (isCheckingAuth) return null;
 
