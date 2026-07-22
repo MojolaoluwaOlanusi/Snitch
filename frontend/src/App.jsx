@@ -3,6 +3,7 @@ import {useAuthStore} from "./store/useAuthStore.js";
 import { Toaster } from 'sonner'
 import { Suspense, lazy, useEffect } from "react";
 import { Analytics } from '@vercel/analytics/react';
+import { usePushNotifications } from "./hooks/usePushNotifications.js";
 // 👇 lazy load every page
 const HomePage = lazy(() => import("./pages/home/HomePage.jsx"));
 const LoginPage = lazy(() => import("./pages/auth/login/LoginPage.jsx"));
@@ -28,10 +29,21 @@ import { useAppTheme } from "./hooks/useAppTheme.js";
 
 function App () {
     const { checkAuthentication, isCheckingAuth, authUserId } = useAuthStore();
+    const { setupPushNotifications } = usePushNotifications();
 
     useEffect(() => {
         checkAuthentication();
     }, [checkAuthentication]);
+
+    // Setup push notifications when user is logged in
+    useEffect(() => {
+        if (authUserId && authUserId._id) {
+            // Setup push notifications on login
+            setupPushNotifications().catch(err => 
+                console.error('Push setup during login:', err)
+            );
+        }
+    }, [authUserId?._id, setupPushNotifications]);
 
     useAppTheme();
 
