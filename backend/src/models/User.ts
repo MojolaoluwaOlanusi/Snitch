@@ -4,56 +4,27 @@ export interface UserDocument extends Document {
     email: string;
     passwordHash: string;
     username: string;
+    usernameLower: string;
     displayName?: string;
     accountType: 'Work' | 'Personal' | 'Business';
     accountVisibility: 'Private' | 'Public' | 'Friends';
-    followers: [
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-            default: [],
-        },
-    ];
-    blockedBy: [
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-            default: [],
-        },
-    ];
-    blocked: [
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-            default: [],
-        },
-    ];
-    following: [
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-            default: [],
-        },
-    ];
-    likedPosts: [
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Post",
-            default: [],
-        }
-    ];
+    followers: mongoose.Types.ObjectId[];
+    blockedBy: mongoose.Types.ObjectId[];
+    blocked: mongoose.Types.ObjectId[];
+    following: mongoose.Types.ObjectId[];
+    likedPosts: mongoose.Types.ObjectId[];
     pushSubscriptions: {
         endpoint: string;
         keys: {
             p256dh: string;
-            auth: string
-        }
+            auth: string;
+        };
     }[];
     bio: string;
     avatarUrl: string;
     coverImg: string;
     link: string;
-    location: string,
+    location: string;
     incognito: boolean;
     isBanned: boolean;
     followerCount: number;
@@ -67,31 +38,29 @@ export interface UserDocument extends Document {
     forgotPasswordCode?: string;
     forgotPasswordCodeValidation?: Date;
     adminInvite: {
-        codeHash: String,
-        createdAt: Date,
-        expiresAt: Date,
-        issuedBy: Schema.Types.ObjectId,
-        targetEmail: String
+        codeHash: string;
+        createdAt: Date;
+        expiresAt: Date;
+        issuedBy: mongoose.Types.ObjectId;
+        targetEmail: string;
     };
-    chatReportCount: { type: Number, default: 0 };
-    chatRestrictedUntil: { type: Date };
-    lastSeen: { type: Date };
-    gender: { type: String, default: '' },
-    socialHandles: [
-        {
-            platform: { type: String },
-            url: { type: String },
-        },
-    ];
+    chatReportCount: number;
+    chatRestrictedUntil: Date;
+    lastSeen: Date;
+    gender: string;
+    socialHandles: {
+        platform: string;
+        url: string;
+    }[];
     bookmarkedPosts: mongoose.Types.ObjectId[];
-    theme: { type: String, default: 'winter' };
+    theme: string;
 }
 
 const UserSchema = new Schema<UserDocument>({
     email: { type: String, unique: true, index: true },
     passwordHash: String,
     username: { type: String, unique: true, index: true },
-    displayName: String,
+    usernameLower: { type: String, unique: true, index: true },
     accountType: {
         type: String,
         enum: ['Work', 'Personal', 'Business'],
@@ -105,46 +74,48 @@ const UserSchema = new Schema<UserDocument>({
     followers: [
         {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
+            ref: 'User',
             default: [],
         },
     ],
     blockedBy: [
         {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
+            ref: 'User',
             default: [],
         },
     ],
     blocked: [
         {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
+            ref: 'User',
             default: [],
         },
     ],
     following: [
         {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
+            ref: 'User',
             default: [],
         },
     ],
     likedPosts: [
         {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "Post",
+            ref: 'Post',
             default: [],
-        }
+        },
     ],
     pushSubscriptions: {
-        type: [{
-            endpoint: { type: String },
-            keys: {
-                p256dh: { type: String },
-                auth: { type: String },
+        type: [
+            {
+                endpoint: { type: String },
+                keys: {
+                    p256dh: { type: String },
+                    auth: { type: String },
+                },
             },
-        }],
+        ],
         default: [],
     },
     coverImg: String,
@@ -169,7 +140,7 @@ const UserSchema = new Schema<UserDocument>({
         createdAt: Date,
         expiresAt: Date,
         issuedBy: Schema.Types.ObjectId,
-        targetEmail: String
+        targetEmail: String,
     },
     chatReportCount: { type: Number, default: 0 },
     chatRestrictedUntil: { type: Date },
@@ -185,11 +156,29 @@ const UserSchema = new Schema<UserDocument>({
     theme: { type: String, default: 'winter' },
 });
 
+// 🔥 Pre‑save middleware: Automatically set usernameLower on creation/update
+UserSchema.pre('save', function (next) {
+    if (this.isModified('username')) {
+        this.usernameLower = this.username.toLowerCase();
+    }
+    next();
+});
+
+// 🔥 Also handle findOneAndUpdate operations
+UserSchema.pre('findOneAndUpdate', function (next) {
+    const update = this.getUpdate() as any;
+    if (update.username) {
+        update.usernameLower = update.username.toLowerCase();
+    }
+    next();
+});
+
+// Text search index (keep as-is)
 UserSchema.index(
     {
-        username: "text",
-        displayName: "text",
-        bio: "text",
+        username: 'text',
+        displayName: 'text',
+        bio: 'text',
     },
     {
         weights: {
@@ -197,9 +186,8 @@ UserSchema.index(
             displayName: 3,
             bio: 1,
         },
-        name: "UserSearchIndex",
+        name: 'UserSearchIndex',
     }
 );
 
-// @ts-ignore
 export const User = model<UserDocument>('User', UserSchema);

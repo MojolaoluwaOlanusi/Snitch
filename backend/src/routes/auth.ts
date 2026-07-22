@@ -129,12 +129,12 @@ router.get('/get-user-profile/:username', authMiddleware, async (req: Request, r
     try {
         const { username } = req.params;
 
-        // Option A: Case-sensitive (exact match) – fix if needed
-        const user = await User.findOne({ username }).select("-passwordHash");
+        const user = await User.findOne({
+            usernameLower: username.toLowerCase()
+        }).select('-passwordHash');
 
-        // 🔥 CRITICAL FIX: Return 404 if user not found
         if (!user) {
-            return res.status(404).json({ message: "User not found" });
+            return res.status(404).json({ message: 'User not found' });
         }
 
         res.status(200).json(user);
