@@ -337,8 +337,6 @@ const SearchPage = () => {
         <div className="w-full flex flex-col md:flex-row h-screen bg-base-200">
             <Sidebar/>
             <main className="flex-1 flex flex-col h-screen overflow-hidden">
-                {/* Hamburger spacer */}
-                <div className="h-14 lg:hidden" />
 
                 <div className="sticky top-0 z-10 bg-base-200 p-4 md:p-6 border-b border-base-300">
                     <div className="w-full">
