@@ -9,9 +9,9 @@ async function cleanupDisplayNames() {
         await mongoose.connect(process.env.MONGO_URI!);
         console.log('✅ Connected to MongoDB');
 
-        // Find users with trailing whitespace in displayName
+        // Only find documents where displayName exists and ends with a space
         const usersWithWhitespace = await User.find({
-            displayName: { $regex: /\s$/ } // Ends with space
+            displayName: { $exists: true, $regex: /\s$/ }
         });
 
         console.log(`🔍 Found ${usersWithWhitespace.length} users with trailing whitespace in displayName.`);
@@ -19,12 +19,12 @@ async function cleanupDisplayNames() {
         let updatedCount = 0;
 
         for (const user of usersWithWhitespace) {
-            const trimmedDisplayName = user.displayName.trim();
+            // Safety check for TypeScript (and runtime)
+            if (!user.displayName) continue;
 
-            // Skip if already trimmed
+            const trimmedDisplayName = user.displayName.trim();
             if (trimmedDisplayName === user.displayName) continue;
 
-            // Update the user
             user.displayName = trimmedDisplayName;
             await user.save();
             updatedCount++;
