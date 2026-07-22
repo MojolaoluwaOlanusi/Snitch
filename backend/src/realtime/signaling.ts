@@ -106,6 +106,12 @@ export const registerSignaling = (io: Server, socket: Socket, roomStore: RoomSto
             socket.join(roomId);
             // notify others
             socket.to(roomId).emit('webrtc:call:participant_joined', { userId, socketId: socket.id });
+
+            socket.to(roomId).emit('webrtc:call:accepted', {
+                userId,
+                callId
+            });
+
             const participants = roomStore.listParticipants(roomId);
             ack?.({ ok: true, participants });
         } catch (err: any) {
