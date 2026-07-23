@@ -14,26 +14,40 @@ self.addEventListener('push', (event) => {
         }
     }
 
-    const { title, body, icon, badge, tag, data, actions, requireInteraction } = notificationData;
+    const {
+        title,
+        body,
+        icon,
+        badge,
+        tag,
+        data,
+        actions,
+        requireInteraction,
+        image,
+    } = notificationData;
+
+    // 🔥 Use the provided icon or fallback to default
+    const notificationIcon = icon || '/avatar-placeholder.png';
+    const notificationBadge = badge || '/badge-icon.png';
 
     const options = {
         body: body || 'You have a new notification',
-        icon: icon || '/snitch-icon.png',
-        badge: badge || '/badge-icon.png',
-        tag: tag || 'default', // Replace previous notification with same tag
+        icon: notificationIcon,
+        badge: notificationBadge,
+        tag: tag || 'default',
         requireInteraction: requireInteraction !== undefined ? requireInteraction : true,
-        data: data || {}, // Store data for click handler
+        data: data || {},
         actions: actions || [
             { action: 'open', title: 'Open' },
             { action: 'close', title: 'Close' },
         ],
+        image: image || null, // For rich notifications with images
     };
 
     event.waitUntil(
         self.registration.showNotification(title || 'Snitch', options)
     );
 });
-
 // Handle notification click
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
