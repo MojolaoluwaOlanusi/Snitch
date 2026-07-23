@@ -1,7 +1,6 @@
 import webpush from 'web-push';
 import { User } from '../models/User.js';
-import Message from '../models/Message.js';
-import Conversation from '../models/Conversation.js';
+import { generateGroupAvatar } from './generateGroupAvatar.js';
 
 webpush.setVapidDetails(
     process.env.VAPID_SUBJECT || 'mailto:test@test.com',
@@ -81,10 +80,8 @@ export const sendMessagePushNotification = async (
             title = senderInfo.displayName || senderInfo.username;
         }
 
-        // Determine notification icon
-        const notificationIcon = isGroup
-            ? (groupAvatar || `${process.env.CLIENT_URL}/group-placeholder.png`)
-            : (senderInfo.avatarUrl || `${process.env.CLIENT_URL}/avatar-placeholder.png`);
+        const groupAvatarUrl = groupAvatar || generateGroupAvatar(groupName || 'Group', '#6366f1');
+        const notificationIcon = isGroup ? groupAvatarUrl : (senderInfo.avatarUrl || `${process.env.CLIENT_URL}/avatar-placeholder.png`);
 
         // Construct rich notification payload
         const payload = {
@@ -168,5 +165,3 @@ function generateMessagePreview(message: any): string {
 
     return 'New message';
 }
-
-export default { sendPushNotification, sendMessagePushNotification };
