@@ -337,6 +337,44 @@ const handleEnableNotifications = async () => {
 
                             {activeTab === "appearance" && (
                                 <div className="space-y-3">
+                                    <div className="flex items-center justify-between px-4 py-3 hover:bg-base-200 rounded-xl">
+            <div>
+                <p className="text-sm font-medium">Push Notifications</p>
+                <p className="text-xs text-base-content/60">
+                    {notificationStatus === 'granted' && '✅ Enabled'}
+                    {notificationStatus === 'denied' && '🔕 Blocked in browser'}
+                    {notificationStatus === 'default' && '🔔 Not enabled'}
+                </p>
+            </div>
+            {notificationStatus === 'granted' ? (
+                <span className="badge badge-success badge-sm">Enabled</span>
+            ) : notificationStatus === 'denied' ? (
+                <button 
+                    onClick={() => {
+                        toast.info('Please enable notifications in your browser settings (Safari/Chrome settings → Notifications)');
+                    }}
+                    className="btn btn-ghost btn-xs text-error"
+                >
+                    Fix
+                </button>
+            ) : (
+                <button 
+                    onClick={handleEnableNotifications}
+                    disabled={isEnablingNotifications}
+                    className="btn btn-primary btn-xs"
+                >
+                    {isEnablingNotifications ? '...' : 'Enable'}
+                </button>
+            )}
+        </div>
+
+        {notificationStatus === 'denied' && (
+            <div className="px-4 py-2 bg-error/10 rounded-xl border border-error/20">
+                <p className="text-xs text-error/80">
+                    Notifications are blocked. To enable, go to your browser settings → Notifications → Allow for Snitch.
+                </p>
+            </div>
+        )}
                                     {/* Incognito toggle */}
                                     <button
                                         onClick={toggleIncognito}
