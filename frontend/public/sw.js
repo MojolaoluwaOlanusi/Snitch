@@ -109,3 +109,22 @@ self.addEventListener('sync', (event) => {
         );
     }
 });
+
+// Add this to sw.js – fallback group avatar generator
+function generateGroupAvatar(groupName) {
+    if (!groupName) return '/group-placeholder.png';
+    
+    const firstLetter = groupName.charAt(0).toUpperCase();
+    const colors = [
+        '#10b981', '#3b82f6', '#8b5cf6', '#f43f5e', 
+        '#f97316', '#14b8a6', '#6366f1', '#ec4899',
+        '#06b6d4', '#84cc16', '#f59e0b', '#ef4444'
+    ];
+    // Simple hash to pick a consistent color
+    const hash = groupName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const color = colors[hash % colors.length];
+    
+    // For service worker, we return a data URI or use the group placeholder
+    // Since we can't generate images in SW, we'll use a placeholder endpoint
+    return `/api/group-avatar/${groupName}?color=${color}&letter=${firstLetter}`;
+}
