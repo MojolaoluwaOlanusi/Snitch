@@ -25,7 +25,14 @@ self.addEventListener('push', (event) => {
         requireInteraction,
     } = notificationData;
 
-    console.log('📦 Push data:', notificationData); // ← temporarily
+    self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+            client.postMessage({
+                type: 'SW_LOG',
+                data: notificationData
+            });
+        });
+    });
 
     const options = {
         body: body || 'You have a new notification',

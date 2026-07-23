@@ -16,6 +16,12 @@ if (import.meta.env.DEV || window.location.search.includes('debug')) {
     new VConsole();
 }
 
+navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data.type === 'SW_LOG') {
+        console.log('📦 From SW:', event.data.data);
+    }
+});
+
 ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>
         <BrowserRouter>
