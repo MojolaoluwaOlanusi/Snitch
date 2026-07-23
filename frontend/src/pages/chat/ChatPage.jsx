@@ -3928,7 +3928,7 @@ const ChatPage = () => {
                                     ) : messages.length === 0 ? (
                                         <EmptyChatPlaceholder />
                                     ) : (
-                                        <div className="flex-1 py-4">
+                                        <div className="flex-1">
                                             <Virtuoso
                                                 ref={virtuosoRef}
                                                 style={{ height: "100%" }}                  // fills the flex container
