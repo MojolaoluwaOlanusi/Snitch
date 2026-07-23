@@ -341,6 +341,8 @@ const ChatPage = () => {
     const [isVideoMode, setIsVideoMode] = useState(true);
 
     // --- Refs ---
+    const translationTimeoutRef = useRef(null);
+    const translationCache = useRef(new Map());
     const virtuosoRef = useRef(null);
     const expressionMenuRef = useRef(null);
     const sendContactRef = useRef(null);
@@ -1193,27 +1195,67 @@ useEffect(() => {
         return mentionedUsers.map(u => u._id);
     };
 
-    const handleTranslate = async (messageId, text, targetLang = 'en') => {
-        if (!text) return;
+    const handleTranslate = useCallback(async (messageId, text, targetLang = 'en') => {
+    if (!text) return;
 
+    // 🔥 Clear any pending translation (debounce)
+    if (translationTimeoutRef.current) {
+        clearTimeout(translationTimeoutRef.current);
+    }
+
+    // 🔥 Check frontend cache first
+    const cacheKey = `${text.trim()}_${targetLang}`;
+    if (translationCache.current.has(cacheKey)) {
+        setTranslations(prev => ({
+            ...prev,
+            [messageId]: { 
+                text: translationCache.current.get(cacheKey), 
+                lang: targetLang,
+                cached: true 
+            },
+        }));
+        return;
+    }
+
+    // 🔥 Debounce: wait 500ms before sending request
+    translationTimeoutRef.current = setTimeout(async () => {
         setTranslating(prev => ({ ...prev, [messageId]: true }));
         setTranslations(prev => ({ ...prev, [messageId]: null }));
+
         try {
             const token = localStorage.getItem('access-token');
             const res = await axiosInstance.post('/chat/translate',
                 { text, targetLang },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
+
+            // 🔥 Store in frontend cache
+            if (res.data.translated) {
+                translationCache.current.set(cacheKey, res.data.translated);
+            }
+
             setTranslations(prev => ({
                 ...prev,
-                [messageId]: { text: res.data.translated, lang: targetLang },
+                [messageId]: { 
+                    text: res.data.translated, 
+                    lang: targetLang,
+                    cached: res.data.cached || false 
+                },
             }));
+
         } catch (error) {
-            toast.error('Translation failed');
+            if (error.response?.status === 429) {
+                toast.error('Translation limit reached. Please wait a moment.');
+            } else if (error.response?.status === 503) {
+                toast.error('Translation service unavailable. Please try again later.');
+            } else {
+                toast.error('Translation failed');
+            }
         } finally {
             setTranslating(prev => ({ ...prev, [messageId]: false }));
         }
-    };
+    }, 500); // 🔥 500ms debounce
+    }, []);
 
     const handleSearchInput = (value) => {
         setSearchQuery(value);
