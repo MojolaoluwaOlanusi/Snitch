@@ -262,7 +262,7 @@ export const useAuthStore = create((set, get) => ({
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
         try {
-            const registration = await navigator.serviceWorker.register('/service-worker.js');
+            const registration = await navigator.serviceWorker.register('/sw.js');
 
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
