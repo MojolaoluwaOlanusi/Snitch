@@ -154,7 +154,7 @@ const FollowingPostItem = ({ post, authUserId }) => {
                     <Link to={`/profile/${post?.author?.username}`} className="font-bold">
                         {post?.author?.displayName}
                     </Link>
-                    <span className="text-gray-700 flex gap-1 text-sm">
+                    <span className="text-base-content/80 flex gap-1 text-sm">
             <Link to={`/profile/${post?.author?.username}`}>@{post?.author?.username}</Link>
             <span>·</span>
             <span>{formatPostDate(post?.createdAt)}</span>
@@ -197,7 +197,7 @@ const FollowingPostItem = ({ post, authUserId }) => {
                             <div className="flex flex-wrap gap-2 mt-2">
                                 {post.hashtags.map((hashtag, index) => (
                                     <button key={index} onClick={(e) => { e.preventDefault(); handleHashtagClick(hashtag); }}
-                                            className="flex items-center gap-1 px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded-full text-sm text-blue-700 hover:text-blue-800 transition-all duration-200">
+                                            className="flex items-center gap-1 px-3 py-1 bg-primary/10 hover:bg-primary/20 rounded-full text-sm text-primary hover:text-primary transition-all duration-200"
                                         <Hash className="w-3 h-3" /><span>{hashtag}</span>
                                     </button>
                                 ))}
