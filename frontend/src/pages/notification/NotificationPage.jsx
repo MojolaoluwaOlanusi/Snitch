@@ -31,6 +31,8 @@ const NotificationPage = () => {
                 return <BiRepost className={`${iconClass} text-primary`} />;
             case "bookmark":
                 return <Bookmark className={`${iconClass} text-primary`} />;
+            case "message":
+                return <MessageCircle className={`${iconClass} text-primary`} />;
             default:
                 return null;
         }
@@ -48,6 +50,8 @@ const NotificationPage = () => {
                 return "reposted your post";
             case "bookmark":
                 return "bookmarked your post";
+            case "message":
+                return "sent you a message";
             default:
                 return "";
         }
@@ -121,8 +125,8 @@ const NotificationPage = () => {
                             className="border-b border-base-300 hover:bg-base-200 transition-colors duration-200"
                             key={notification._id}
                         >
-                            {notification.type === "mention" ? (
-                                // Mention notification – link to the chat conversation
+                            {notification.type === "mention" || notification.type === "message" ? (
+                                // Mention/Message notification – link to the chat conversation
                                 <Link
                                     to={`/chat`}
                                     state={{
@@ -133,7 +137,7 @@ const NotificationPage = () => {
                                 >
                                     <div className="flex items-center gap-3 sm:gap-4 p-4 sm:p-5">
                                         <div className="flex-shrink-0">
-                                            <MessageCircle className="w-6 h-6 text-primary" />
+                                            {getNotificationIcon(notification.type)}
                                         </div>
                                         <div className="avatar flex-shrink-0">
                                             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full ring-1 ring-primary/20 ring-offset-2">
@@ -153,7 +157,7 @@ const NotificationPage = () => {
                                                     @{notification.from?.username}
                                                 </span>
                                                 <span className="text-base-content/60 ml-1">
-                                                    mentioned you in a chat
+                                                    {notification.type === "mention" ? "mentioned you in a chat" : "sent you a message"}
                                                 </span>
                                             </p>
                                             {notification.text && (

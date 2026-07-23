@@ -189,12 +189,36 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
             }
         }
 
+        // Create message notifications for all recipients (except sender)
+        const conversation = await Conversation.findById(convId);
+        if (conversation) {
+            const recipients = conversation.participants
+                .map((p: any) => p.toString())
+                .filter((id: string) => id !== userId);
+
+            for (const recipientId of recipients) {
+                // Generate message preview
+                const messagePreview = text?.substring(0, 50) + (text?.length > 50 ? '...' : '') ||
+                    (media?.length > 0 ? '📎 Media' : '') ||
+                    (isVoiceMessage ? '🎤 Voice message' : 'New message');
+
+                await Notification.create({
+                    type: 'message',
+                    from: userId,
+                    to: recipientId,
+                    message: message._id,
+                    conversationId: convId,
+                    text: messagePreview,
+                    fromAvatarUrl: user.avatarUrl || null,
+                });
+            }
+        }
+
         await Conversation.findByIdAndUpdate(convId, {
             lastMessage: message._id,
             updatedAt: new Date()
         });
 
-        const conversation = await Conversation.findById(convId);
         if (conversation) {
             const otherParticipants = conversation.participants
                 .map((p: any) => p.toString())

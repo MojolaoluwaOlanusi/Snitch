@@ -51,4 +51,26 @@ router.delete('/delete-notification', authMiddleware, async (req: Request, res: 
     }
 });
 
+router.put('/read-by-conversation', authMiddleware, async (req: Request, res: Response) => {
+    try {
+        const userId = req.userId;
+        const { conversationId } = req.body;
+
+        if (!conversationId) {
+            return res.status(400).json({ error: "conversationId is required" });
+        }
+
+        // Mark all message notifications for this conversation as read
+        await Notification.updateMany(
+            { to: userId, conversationId, type: 'message' },
+            { read: true }
+        );
+
+        res.status(200).json({ message: "Notifications marked as read" });
+    } catch (err: any) {
+        console.log("Error in readByConversation function", err.message);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
 export default router;

@@ -2094,6 +2094,11 @@ useEffect(() => {
     };
     const handleContextMenu = (e, messageId) => {
         e.preventDefault();
+        // Close menu if clicking on the same message again
+        if (showMenu === messageId) {
+            setShowMenu(null);
+            return;
+        }
         setMenuPosition({
             x: e.clientX,
             y: e.clientY

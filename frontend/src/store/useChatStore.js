@@ -481,6 +481,8 @@ export const useChatStore = create((set, get) => ({
             // Reset unread count when selecting a conversation
             get().resetUnread(conversation._id);
             get().markConversationAsRead(conversation._id);
+            // 🔥 Mark message notifications as read for this conversation
+            get().markNotificationsAsReadByConversation(conversation._id);
         }
     },
 
@@ -569,6 +571,26 @@ export const useChatStore = create((set, get) => ({
             get().resetUnread(conversationId);
             await get().getConversations();
         } catch (error) { console.error('Error marking conversation as read:', error); }
+    },
+
+    // ==================== Notification Management ====================
+
+    markNotificationsAsReadByConversation: async (conversationId) => {
+        try {
+            const token = localStorage.getItem('access-token');
+            await axiosInstance.put('/notifications/read-by-conversation', {
+                conversationId,
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            // Optionally update the badge count after marking as read
+            const { totalUnread } = get();
+            if (window.updateAppBadge) {
+                window.updateAppBadge(totalUnread);
+            }
+        } catch (error) {
+            console.error('Failed to mark notifications as read:', error);
+        }
     },
 
     clearChat: async (conversationId) => {
