@@ -1,6 +1,7 @@
 import webpush from 'web-push';
 import { User } from '../models/User.js';
 import Message from '../models/Message.js';
+import Conversation from '../models/Conversation.js';
 
 webpush.setVapidDetails(
     process.env.VAPID_SUBJECT || 'mailto:test@test.com',
@@ -8,7 +9,12 @@ webpush.setVapidDetails(
     process.env.VAPID_PRIVATE_KEY || ''
 );
 
-export const sendPushNotification = async (userId: string, payload: { title: string; body: string; url: string }) => {
+// ==================== Generic Push Notification ====================
+
+export const sendPushNotification = async (
+    userId: string,
+    payload: { title: string; body: string; url: string }
+) => {
     try {
         const user = await User.findById(userId).select('pushSubscriptions');
         if (!user || !user.pushSubscriptions?.length) return;
@@ -19,27 +25,32 @@ export const sendPushNotification = async (userId: string, payload: { title: str
             url: payload.url,
         });
 
-        // Cast to any[] here
         const subscriptions = user.pushSubscriptions as any[];
+        let validSubscriptions: any[] = [];
 
         for (const subscription of subscriptions) {
             try {
                 await webpush.sendNotification(subscription, message);
+                validSubscriptions.push(subscription);
             } catch (err: any) {
                 if (err.statusCode === 410 || err.statusCode === 404) {
-                    user.pushSubscriptions = subscriptions.filter(
-                        (s: any) => s.endpoint !== subscription.endpoint
-                    );
+                    console.log(`Removing expired subscription for user ${userId}`);
+                } else {
+                    validSubscriptions.push(subscription);
                 }
             }
         }
+
+        user.pushSubscriptions = validSubscriptions;
         await user.save();
     } catch (error) {
         console.error('Push notification error:', error);
     }
 };
 
-// WhatsApp-style message notification functionexport const sendMessagePushNotification = async (
+// ==================== Message Push Notification ====================
+
+export const sendMessagePushNotification = async (
     recipientId: string,
     message: any,
     conversationId: string,
@@ -70,8 +81,8 @@ export const sendPushNotification = async (userId: string, payload: { title: str
             title = senderInfo.displayName || senderInfo.username;
         }
 
-        // 🔥 Determine the notification icon (FIXED)
-        const notificationIcon = isGroup 
+        // Determine notification icon
+        const notificationIcon = isGroup
             ? (groupAvatar || `${process.env.CLIENT_URL}/group-placeholder.png`)
             : (senderInfo.avatarUrl || `${process.env.CLIENT_URL}/avatar-placeholder.png`);
 
@@ -127,7 +138,8 @@ export const sendPushNotification = async (userId: string, payload: { title: str
     }
 };
 
-// Helper: Generate message preview with media detection
+// ==================== Helper: Generate Message Preview ====================
+
 function generateMessagePreview(message: any): string {
     if (message.text) {
         return message.text.substring(0, 50) + (message.text.length > 50 ? '...' : '');
@@ -148,21 +160,12 @@ function generateMessagePreview(message: any): string {
         return `🎤 Voice message (${duration}s)`;
     }
 
-    if (message.location) {
-        return '📍 Location';
-    }
-
-    if (message.contact) {
-        return `👤 Contact: ${message.contact.name}`;
-    }
-
-    if (message.poll) {
-        return `📊 Poll: ${message.poll.question}`;
-    }
-
-    if (message.call) {
-        return `📞 ${message.call.type} call`;
-    }
+    if (message.location) return '📍 Location';
+    if (message.contact) return `👤 Contact: ${message.contact.name}`;
+    if (message.poll) return `📊 Poll: ${message.poll.question}`;
+    if (message.call) return `📞 ${message.call.type} call`;
 
     return 'New message';
 }
+
+export default { sendPushNotification, sendMessagePushNotification };
