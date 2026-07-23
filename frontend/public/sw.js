@@ -25,6 +25,8 @@ self.addEventListener('push', (event) => {
         requireInteraction,
     } = notificationData;
 
+    console.log('📦 Push data:', notificationData); // ← temporarily
+
     const options = {
         body: body || 'You have a new notification',
         icon: icon || '/avatar-placeholder.png',
