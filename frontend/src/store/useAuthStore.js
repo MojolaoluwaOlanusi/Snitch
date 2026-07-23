@@ -2,8 +2,7 @@ import { create } from "zustand";
 import axiosInstance from "../lib/axios.js";
 import { toast } from 'sonner'
 import { io } from 'socket.io-client';
-import useChatStore from './useChatStore';
-
+import { useChatStore } from './useChatStore';
 
 export const useAuthStore = create((set, get) => ({
     authUserId: null,
