@@ -914,7 +914,7 @@ useEffect(() => {
         }
     }, [showEmojiPicker]);
 
-useEffect(() => {
+    useEffect(() => {
     const h = (e) => {
         if (menuRef.current && !menuRef.current.contains(e.target)) {
             setShowMenu(null);
