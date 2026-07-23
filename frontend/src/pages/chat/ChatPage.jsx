@@ -364,7 +364,6 @@ const ChatPage = () => {
     const fileInputRef = useRef(null);
     const messageInputRef = useRef(null);
     const recordingIntervalRef = useRef(null);
-    const typingTimeoutRef = useRef(null);
     const audioRef = useRef(null);
     const peerConnectionsRef = useRef(new Map());
     const localVideoRef = useRef(null);
