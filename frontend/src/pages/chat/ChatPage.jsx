@@ -1808,6 +1808,20 @@ useEffect(() => {
         }
     };
 
+    const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => setSelectedFile({
+        file,
+        url: reader.result,
+        type: file.type,
+        size: file.size,
+        name: file.name
+    });
+    reader.readAsDataURL(file);
+};
+
     const sendMediaMessage = async (fileOrUrl, options = {}) => {
         try {
             let finalMedia;
