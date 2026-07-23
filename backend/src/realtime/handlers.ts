@@ -215,62 +215,61 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
 
         // ==================== PUSH NOTIFICATIONS & FOREGROUND EMITS ====================
 
-        const conversationPopulated = await Conversation.findById(convId).populate('participants');
-        if (conversationPopulated) {
-            const participantIds = conversationPopulated.participants
-                .map((p: any) => p._id?.toString())
-                .filter((id: string) => id !== userId);
+const conversationPopulated = await Conversation.findById(convId).populate('participants');
+if (conversationPopulated) {
+    const participantIds = conversationPopulated.participants
+        .map((p: any) => p._id?.toString())
+        .filter((id: string) => id !== userId);
 
-            // Send push notifications to recipients
-            for (const recipientId of participantIds) {
-                try {
-                    if (conversationPopulated.isGroup) {
-                        const groupAvatar = conversationPopulated.groupAvatar || 
-                                            conversationPopulated.groupAvatarUrl || 
-                                            null;
-                        
-                        await sendMessagePushNotification(
-                            recipientId,
-                            populatedMessage,
-                            convId.toString(),
-                            {
-                                username: user.username,
-                                displayName: user.displayName || user.username,
-                                avatarUrl: user.avatarUrl,
-                            },
-                            true,
-                            conversationPopulated.groupName || 'Group',
-                            groupAvatar
-                        );
-                    } else {
-                        await sendMessagePushNotification(
-                            recipientId,
-                            populatedMessage,
-                            convId.toString(),
-                            {
-                                username: user.username,
-                                displayName: user.displayName || user.username,
-                                avatarUrl: user.avatarUrl,
-                            },
-                            false,
-                            undefined,
-                            undefined
-                        );
-                    }
-                } catch (err) {
-                    console.error('Push notification send error:', err);
-                }
+    // Send push notifications to recipients
+    for (const recipientId of participantIds) {
+        try {
+            if (conversationPopulated.isGroup) {
+                // 🔥 Only use groupAvatar (no groupAvatarUrl)
+                const groupAvatar = conversationPopulated.groupAvatar || null;
+                
+                await sendMessagePushNotification(
+                    recipientId,
+                    populatedMessage,
+                    convId.toString(),
+                    {
+                        username: user.username,
+                        displayName: user.displayName || user.username,
+                        avatarUrl: user.avatarUrl,
+                    },
+                    true,
+                    conversationPopulated.groupName || 'Group',
+                    groupAvatar
+                );
+            } else {
+                await sendMessagePushNotification(
+                    recipientId,
+                    populatedMessage,
+                    convId.toString(),
+                    {
+                        username: user.username,
+                        displayName: user.displayName || user.username,
+                        avatarUrl: user.avatarUrl,
+                    },
+                    false,
+                    undefined,
+                    undefined
+                );
             }
-
-            // Emit to foreground users (in-app message)
-            participantIds.forEach((pid: string) => {
-                const receivers = Array.from(io.sockets.sockets.values())
-                    .filter((s) => s.data?.userId === pid);
-                receivers.forEach((rs) => {
-                    rs.emit('receive_message', populatedMessage);
-                });
-            });
+        } catch (err) {
+            console.error('Push notification send error:', err);
         }
+    }
+
+    // Emit to foreground users (in-app message)
+    participantIds.forEach((pid: string) => {
+        const receivers = Array.from(io.sockets.sockets.values())
+            .filter((s) => s.data?.userId === pid);
+        receivers.forEach((rs) => {
+            rs.emit('receive_message', populatedMessage);
+        });
+    });
+}
 
         // ==================== END PUSH NOTIFICATIONS ====================
 
