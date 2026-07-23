@@ -1509,7 +1509,7 @@ router.delete("/wallpapers/:id", protectRoute, async (req: Request, res: Respons
 });
 
 // GET /api/chat/unread-counts
-router.get('/unread-counts', authMiddleware, async (req: Request, res: Response) => {
+router.get('/unread-counts', protectRoute, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
         
@@ -1540,7 +1540,7 @@ router.get('/unread-counts', authMiddleware, async (req: Request, res: Response)
 });
 
 // POST /api/chat/mark-read
-router.post('/mark-read', authMiddleware, async (req: Request, res: Response) => {
+router.post('/mark-read', protectRoute, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
         const { conversationId } = req.body;
