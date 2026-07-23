@@ -12,6 +12,7 @@ import { ThemeColor } from '../models/ThemeColor.js';
 import axios from 'axios';
 import {randomUUID} from 'crypto';
 import * as cheerio from 'cheerio';
+import NodeCache from 'node-cache';
 // Declare global io type so TypeScript knows it exists
 declare global {
     var io: any;
@@ -19,20 +20,102 @@ declare global {
 
 const router = express.Router();
 
-// Translate message text
-router.post("/translate", protectRoute, async (req: Request, res: Response) => {
-    try {
-        const { text, targetLang } = req.body;
-        if (!text) return res.status(400).json({ error: "Text required" });
+const translationCache = new NodeCache({ stdTTL: 3600 });
 
-        const response = await axios.get(
-            `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang || 'en'}&dt=t&q=${encodeURIComponent(text)}`
-        );
-        const translated = response.data[0][0][0];
-        res.json({ translated });
+// Translate message text
+router.post('/translate', authMiddleware, async (req: Request, res: Response) => {
+    try {
+        const { text, targetLang = 'en' } = req.body;
+        
+        if (!text || text.trim().length === 0) {
+            return res.status(400).json({ message: 'Text is required' });
+        }
+
+        // 🔥 STEP 1: Check cache first
+        const cacheKey = `${text.trim()}_${targetLang}`;
+        const cachedTranslation = translationCache.get(cacheKey);
+        if (cachedTranslation) {
+            console.log(`✅ Translation cache hit: "${text}" → "${cachedTranslation}"`);
+            return res.json({ translated: cachedTranslation, cached: true });
+        }
+
+        let translatedText: string | null = null;
+
+        // 🔥 STEP 2: Try Google Translate (if API key exists)
+        const googleApiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
+        if (googleApiKey) {
+            try {
+                const url = `https://translation.googleapis.com/language/translate/v2?key=${googleApiKey}`;
+                const response = await axios.post(url, {
+                    q: text,
+                    target: targetLang,
+                    format: 'text'
+                });
+
+                if (response.data?.data?.translations?.length > 0) {
+                    translatedText = response.data.data.translations[0].translatedText;
+                    console.log(`✅ Google Translate success: "${text}" → "${translatedText}"`);
+                }
+            } catch (googleError: any) {
+                console.warn('⚠️ Google Translate failed, falling back to LibreTranslate:', googleError.message);
+                // Fall through to LibreTranslate
+            }
+        }
+
+        // 🔥 STEP 3: Fallback to LibreTranslate (free, no API key required)
+        if (!translatedText) {
+            try {
+                const libreResponse = await fetch('https://libretranslate.com/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        q: text,
+                        source: 'auto',
+                        target: targetLang,
+                        format: 'text'
+                    })
+                });
+
+                if (!libreResponse.ok) {
+                    const errorText = await libreResponse.text();
+                    console.error('LibreTranslate error:', errorText);
+                    
+                    if (libreResponse.status === 429) {
+                        return res.status(429).json({ 
+                            message: 'Translation rate limit reached. Please wait a moment.' 
+                        });
+                    }
+                    
+                    throw new Error(`LibreTranslate returned ${libreResponse.status}`);
+                }
+
+                const libreData = await libreResponse.json();
+                if (libreData.translatedText) {
+                    translatedText = libreData.translatedText;
+                    console.log(`✅ LibreTranslate success: "${text}" → "${translatedText}"`);
+                }
+            } catch (libreError: any) {
+                console.error('LibreTranslate error:', libreError.message);
+                return res.status(503).json({ 
+                    message: 'Translation service temporarily unavailable. Please try again later.' 
+                });
+            }
+        }
+
+        // 🔥 STEP 4: Check if translation succeeded
+        if (!translatedText) {
+            return res.status(500).json({ message: 'Translation failed' });
+        }
+
+        // 🔥 STEP 5: Cache the result
+        translationCache.set(cacheKey, translatedText);
+        console.log(`💾 Translation cached: "${text}" → "${translatedText}"`);
+
+        res.json({ translated: translatedText, cached: false });
+
     } catch (error: any) {
-        console.error("Translation error:", error.message);
-        res.status(500).json({ error: "Translation failed" });
+        console.error('Translation error:', error.message);
+        res.status(500).json({ message: 'Translation failed' });
     }
 });
 
