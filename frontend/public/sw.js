@@ -11,23 +11,13 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-    let notificationData = {};
-
-    if (event.data) {
-        try {
-            notificationData = event.data.json();
-        } catch (e) {
-            notificationData = {
-                title: 'Snitch',
-                body: event.data.text(),
-            };
-        }
-    }
+    let notificationData = event.data ? event.data.json() : {};
 
     const {
         title,
         body,
         icon,
+        image,           // ← NEW: receive the full image URL
         badge,
         tag,
         data,
@@ -38,6 +28,7 @@ self.addEventListener('push', (event) => {
     const options = {
         body: body || 'You have a new notification',
         icon: icon || '/avatar-placeholder.png',
+        image: image || icon || '/avatar-placeholder.png', // ✅ iOS uses this
         badge: badge || '/badge-icon.png',
         tag: tag || 'default',
         requireInteraction: requireInteraction !== undefined ? requireInteraction : true,

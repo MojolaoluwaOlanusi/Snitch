@@ -91,6 +91,7 @@ export const sendMessagePushNotification = async (
             title,
             body: preview,
             icon: notificationIcon,
+            image: notificationIcon,   // 🔥 iOS uses this for the big picture
             badge: `${process.env.CLIENT_URL}/badge-icon.png`,
             tag: `message-${conversationId}`,
             timestamp: Date.now(),
