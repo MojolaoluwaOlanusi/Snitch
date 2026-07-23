@@ -1163,11 +1163,11 @@ useEffect(() => {
             case 'read':
                 return <CheckCheck className="w-3.5 h-3.5 text-primary" />;
             case 'delivered':
-                return <CheckCheck className="w-3.5 h-3.5 text-base-content/60" />;
+                return <CheckCheck className="w-3.5 h-3.5 text-gray-500" />;
             case 'sent':
-                return <Check className="w-3.5 h-3.5 text-base-content/60" />;
+                return <Check className="w-3.5 h-3.5 text-gray-500" />;
             case 'sending':
-                return <Clock className="w-3.5 h-3.5 text-base-content/50" />;
+                return <Clock className="w-3.5 h-3.5 text-gray-400" />;
             case 'failed':
                 return <Clock className="w-3.5 h-3.5 text-error" />;
             default:
@@ -2994,7 +2994,7 @@ useEffect(() => {
                     >
                         {playingVoiceId === message._id ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                     </button>
-                    <span className={`text-xs flex-shrink-0 w-10 text-right tabular-nums ${isOwn ? 'text-primary-content' : 'text-base-content/70'}`}>
+                    <span className={`text-xs flex-shrink-0 w-10 text-right tabular-nums ${isOwn ? 'text-primary-content' : 'text-gray-700'}`}>
                     {formatVoiceTime(voiceCurrentTimes[message._id] || 0)}
                     </span>
                     <div
@@ -3034,7 +3034,7 @@ useEffect(() => {
                             }}
                         />
                     </div>
-                    <span className={`text-xs flex-shrink-0 w-10 tabular-nums ${isOwn ? 'text-primary-content' : 'text-base-content/70'}`}>
+                    <span className={`text-xs flex-shrink-0 w-10 tabular-nums ${isOwn ? 'text-primary-content' : 'text-gray-700'}`}>
                         {formatVoiceTime(voiceDurations[message._id] || 0)}
                     </span>
                 </div>
@@ -3170,8 +3170,8 @@ useEffect(() => {
     )}
 >
                     <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${isOwn ? 'order-1 mr-1' : 'order-2 ml-1'}`}>
-                        <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setReactionPickerPos({ top: rect.top - 60, left: rect.left }); setShowReactionPicker(message._id); }} className="p-1 hover:bg-base-200 rounded-full" title="React"><Smile className="w-4 h-4 text-base-content/50" /></button>
-                        <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setMenuPosition({ x: rect.left, y: rect.bottom + 4 }); setShowMenu(message._id); }} className="p-1 hover:bg-base-200 rounded-full" title="More"><MoreHorizontal className="w-4 h-4 text-base-content/50" /></button>
+                        <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setReactionPickerPos({ top: rect.top - 60, left: rect.left }); setShowReactionPicker(message._id); }} className="p-1 hover:bg-base-200 rounded-full" title="React"><Smile className="w-4 h-4 text-gray-500" /></button>
+                        <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setMenuPosition({ x: rect.left, y: rect.bottom + 4 }); setShowMenu(message._id); }} className="p-1 hover:bg-base-200 rounded-full" title="More"><MoreHorizontal className="w-4 h-4 text-gray-500" /></button>
                     </div>
                     <div className={`relative ${isOwn ? 'order-2' : 'order-1'}`}>
                         {message.pinned && <div className="absolute -top-5 left-0 flex items-center gap-1 z-10"><Pin className="w-3 h-3 text-primary" /><span className="text-[10px] text-primary">Pinned</span></div>}
@@ -3238,7 +3238,7 @@ useEffect(() => {
                                 </div>
                             </div>
                         </div>
-                        <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end text-emerald-100' : 'justify-end text-base-content/50'}`}>
+                        <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end text-emerald-100' : 'justify-end text-gray-500'}`}>
                             {message.editedAt && <span className="text-[10px]">edited</span>}
                             {isStarred && <Star className="w-3 h-3 text-warning fill-yellow-400" />}
                             {isBookmarked && <Bookmark className="w-3 h-3 text-primary fill-primary" />}
@@ -3393,8 +3393,8 @@ useEffect(() => {
     )}
 >
                 <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${isOwn ? 'order-1 mr-1' : 'order-2 ml-1'}`}>
-                    <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setReactionPickerPos({ top: rect.top - 60, left: rect.left }); setShowReactionPicker(message._id); }} className="p-1 hover:bg-base-200 rounded-full" aria-label="react" title="React"><Smile className="w-4 h-4 text-base-content/50" /></button>
-                    <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setMenuPosition({ x: rect.left, y: rect.bottom + 4 }); setShowMenu(message._id); }} className="p-1 hover:bg-base-200 rounded-full" aria-label="actions" title="More"><MoreHorizontal className="w-4 h-4 text-base-content/50" /></button>
+                    <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setReactionPickerPos({ top: rect.top - 60, left: rect.left }); setShowReactionPicker(message._id); }} className="p-1 hover:bg-base-200 rounded-full" aria-label="react" title="React"><Smile className="w-4 h-4 text-gray-500" /></button>
+                    <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setMenuPosition({ x: rect.left, y: rect.bottom + 4 }); setShowMenu(message._id); }} className="p-1 hover:bg-base-200 rounded-full" aria-label="actions" title="More"><MoreHorizontal className="w-4 h-4 text-gray-500" /></button>
                 </div>
 
                 <div className={`relative ${isOwn ? 'order-2' : 'order-1'} ${
@@ -3407,7 +3407,7 @@ useEffect(() => {
                     {selectedConversation?.isGroup && !isOwn && message.senderId && (
                         <div className="flex items-center gap-1 mb-0.5">
                             <img src={message.senderId.avatarUrl || '/avatar.png'} className="w-6 h-6 rounded-full" alt="" />
-                            <p className="text-[14px] font-semibold text-base-content/60">
+                            <p className="text-[14px] font-semibold text-gray-600">
                                 {message.senderId.displayName || message.senderId.username}
                             </p>
                         </div>
@@ -3420,7 +3420,7 @@ useEffect(() => {
                         {/* Poll */}
                         {message.poll?.question && (
                             <div className="mb-2 rounded-lg p-3" style={{ minWidth: '220px', backgroundColor: isOwn ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.03)' }}>
-                                <p className="font-semibold text-sm mb-3">📊 {message.poll.question}</p>
+                                <p className={`font-semibold text-sm mb-3 ${isOwn ? '' : 'text-gray-900'}`}>📊 {message.poll.question}</p>
                                 <div className="space-y-2">
                                     {message.poll?.options?.map((opt, i) => {
                                         const votes = message.poll?.votes || {};
@@ -3451,8 +3451,8 @@ useEffect(() => {
                                                     />
                                                 )}
                                                 <div className="relative px-3 py-2.5 flex items-center justify-between z-10">
-                                                    <span className={`text-xs font-medium ${userVotedForThis ? 'font-bold' : ''}`}>{opt}</span>
-                                                    <span className={`text-xs ml-2 flex-shrink-0 ${userVotedForThis ? 'font-bold' : ''}`}>
+                                                    <span className={`text-xs font-medium ${userVotedForThis ? 'font-bold' : ''} ${isOwn ? '' : 'text-gray-900'}`}>{opt}</span>
+                                                    <span className={`text-xs ml-2 flex-shrink-0 ${userVotedForThis ? 'font-bold' : ''} ${isOwn ? '' : 'text-gray-700'}`}>
                     {totalUsers > 0 ? `${percentage}%` : ''}
                 </span>
                                                 </div>
@@ -3462,7 +3462,7 @@ useEffect(() => {
                                 </div>
                                 {Object.keys(message.poll?.votes || {}).length > 0 && (
                                     <p
-                                        className="text-[10px] opacity-60 mt-2 text-center cursor-pointer hover:underline"
+                                        className={`text-[10px] mt-2 text-center cursor-pointer hover:underline ${isOwn ? 'opacity-60' : 'text-gray-600'}`}
                                         onClick={() => {
                                             setShowPollVoters(message._id);
                                             fetchPollVoterDetails(message.poll.votes);
@@ -3477,8 +3477,8 @@ useEffect(() => {
                         {/* Event */}
                         {message.event?.name && (
                             <div className="mb-2 bg-base-100/10 rounded-lg p-2">
-                                <p className="font-semibold text-sm">📅 {message.event.name}</p>
-                                <p className="text-xs opacity-80">
+                                <p className={`font-semibold text-sm ${isOwn ? '' : 'text-gray-900'}`}>📅 {message.event.name}</p>
+                                <p className={`text-xs ${isOwn ? 'opacity-80' : 'text-gray-700'}`}>
                                     Date: {message.event.date}{message.event.time ? ` • Time: ${message.event.time}` : ''}{message.event.location ? ` • Location: ${message.event.location}` : ''}
                                 </p>
                             </div>
@@ -3519,7 +3519,7 @@ useEffect(() => {
                                     >
                                         {playingVoiceId === message._id ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                                     </button>
-                                    <span className={`text-xs flex-shrink-0 w-10 text-right tabular-nums ${isOwn ? 'text-primary-content' : 'text-base-content/70'}`}>
+                                    <span className={`text-xs flex-shrink-0 w-10 text-right tabular-nums ${isOwn ? 'text-primary-content' : 'text-gray-700'}`}>
                                     {formatVoiceTime(voiceCurrentTimes[message._id] || 0)}
                                 </span>
                                     <div
@@ -3536,12 +3536,12 @@ useEffect(() => {
                                             onMouseDown={(e) => { /* drag handler unchanged */ }}
                                         />
                                     </div>
-                                    <span className={`text-xs flex-shrink-0 w-10 tabular-nums ${isOwn ? 'text-primary-content' : 'text-base-content/70'}`}>
+                                    <span className={`text-xs flex-shrink-0 w-10 tabular-nums ${isOwn ? 'text-primary-content' : 'text-gray-700'}`}>
                                     {formatVoiceTime(voiceDurations[message._id] || message.voiceDuration || 0)}
                                 </span>
                                     <div className="relative flex-shrink-0">
                                         <button
-                                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded hover:bg-base-100/20 ${isOwn ? 'text-primary-content' : 'text-base-content/70'}`}
+                                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded hover:bg-base-100/20 ${isOwn ? 'text-primary-content' : 'text-gray-700'}`}
                                             onClick={(e) => { e.stopPropagation(); setShowVoiceMenu(showVoiceMenu === message._id ? null : message._id); }}
                                         >
                                             {voicePlaybackRates[message._id] || 1}x
@@ -3551,7 +3551,7 @@ useEffect(() => {
                                                  onClick={(e) => e.stopPropagation()}>
                                                 {[0.5, 1, 1.5, 2].map(speed => (
                                                     <button key={speed} onClick={() => { if (audioRef.current) audioRef.current.playbackRate = speed; setVoicePlaybackRates(prev => ({ ...prev, [message._id]: speed })); setShowVoiceMenu(null); }}
-                                                            className={`w-full px-3 py-1.5 text-left text-xs hover:bg-base-200 ${voicePlaybackRates[message._id] === speed || (!voicePlaybackRates[message._id] && speed === 1) ? 'text-primary font-medium' : 'text-base-content/70'}`}>
+                                                            className={`w-full px-3 py-1.5 text-left text-xs hover:bg-base-200 ${voicePlaybackRates[message._id] === speed || (!voicePlaybackRates[message._id] && speed === 1) ? 'text-primary font-medium' : 'text-gray-700'}`}>
                                                         {speed}x
                                                     </button>
                                                 ))}
@@ -3560,7 +3560,7 @@ useEffect(() => {
                                     </div>
                                     <button
                                         aria-label="download"
-                                        className={`p-1 hover:bg-base-100/20 rounded-full flex-shrink-0 ${isOwn ? 'text-primary-content' : 'text-base-content/70'}`}
+                                        className={`p-1 hover:bg-base-100/20 rounded-full flex-shrink-0 ${isOwn ? 'text-primary-content' : 'text-gray-700'}`}
                                         onClick={(e) => { e.stopPropagation(); handleVoiceDownload(message.media[0].url); }}
                                     >
                                         <Download className="w-4 h-4" />
@@ -3591,10 +3591,10 @@ useEffect(() => {
                                 >
                                     <div className="w-1 flex-shrink-0" style={{ backgroundColor: isOwn ? 'rgba(255,255,255,0.3)' : '#9ca3af' }} />
                                     <div className="px-3 py-1.5 flex-1 min-w-0">
-                                        <p className={`text-[11px] font-semibold truncate ${isOwn ? 'text-primary-content' : 'text-base-content/60'}`}>
+                                        <p className={`text-[11px] font-semibold truncate ${isOwn ? 'text-primary-content' : 'text-gray-700'}`}>
                                             {replySenderName}
                                         </p>
-                                        <p className={`text-[11px] truncate ${isOwn ? 'text-primary-content' : 'text-base-content/60'}`}>
+                                        <p className={`text-[11px] truncate ${isOwn ? 'text-primary-content' : 'text-gray-700'}`}>
                                             {replyText ? replyText : replyMedia ? '📎 Media' : replyVoice ? '🎤 Voice message' : 'Message'}
                                         </p>
                                     </div>
@@ -3632,9 +3632,9 @@ useEffect(() => {
                                onClick={(e) => e.stopPropagation()}>
                                 {message.linkPreview.image && <img src={message.linkPreview.image} alt="" className="w-full h-32 object-cover" />}
                                 <div className="p-2">
-                                    <p className="text-xs font-semibold truncate">{message.linkPreview.title}</p>
-                                    {message.linkPreview.description && <p className="text-[10px] opacity-75 truncate mt-0.5">{message.linkPreview.description}</p>}
-                                    <p className="text-[10px] opacity-50 mt-1">{message.linkPreview.domain}</p>
+                                    <p className={`text-xs font-semibold truncate ${isOwn ? '' : 'text-gray-900'}`}>{message.linkPreview.title}</p>
+                                    {message.linkPreview.description && <p className={`text-[10px] truncate mt-0.5 ${isOwn ? 'opacity-75' : 'text-gray-700'}`}>{message.linkPreview.description}</p>}
+                                    <p className={`text-[10px] mt-1 ${isOwn ? 'opacity-50' : 'text-gray-500'}`}>{message.linkPreview.domain}</p>
                                 </div>
                             </a>
                         )}
@@ -3672,13 +3672,13 @@ useEffect(() => {
 
                         {/* Sender view‑once status */}
                         {message.viewOnce && isOwn && !message.media?.length && (
-                            <div className="text-xs text-base-content/50 italic">
+                            <div className="text-xs text-gray-500 italic">
                                 {message.viewedBy?.length > 0 ? 'Viewed' : 'Sent as view‑once'}
                             </div>
                         )}
 
                         {/* Meta */}
-                        <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end text-primary-content' : 'justify-end text-base-content/50'}`}>
+                        <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end text-primary-content' : 'justify-end text-gray-500'}`}>
                             {message.editedAt && <span className="text-[10px]">edited</span>}
                             {isStarred && <Star className="w-3 h-3 text-warning fill-yellow-400" />}
                             {isBookmarked && <Bookmark className="w-3 h-3 text-primary fill-primary" />}
