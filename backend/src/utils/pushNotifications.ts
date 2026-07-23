@@ -50,7 +50,8 @@ export const sendMessagePushNotification = async (
         avatarUrl?: string;
     },
     isGroup?: boolean,
-    groupName?: string
+    groupName?: string,
+    groupAvatar?: string
 ) => {
     try {
         const recipient = await User.findById(recipientId).select('pushSubscriptions');
@@ -72,34 +73,33 @@ export const sendMessagePushNotification = async (
 
         // Construct rich notification payload
         const payload = {
-            title,
-            body: preview,
-            icon: senderInfo.avatarUrl || `${process.env.CLIENT_URL}/default-avatar.png`,
-            badge: `${process.env.CLIENT_URL}/badge-icon.png`,
-            tag: `message-${conversationId}`, // Replaces previous notification from same conversation
-            timestamp: Date.now(),
-            requireInteraction: true, // Keep notification until user clicks
-            data: {
-                type: 'message',
-                conversationId: conversationId.toString(),
-                senderId: message.senderId.toString(),
-                senderUsername: senderInfo.username,
-                messageId: message._id.toString(),
-                timestamp: message.createdAt.toISOString(),
-                isGroup: isGroup || false,
-                groupName: groupName || null,
-            },
-            actions: [
-                {
-                    action: 'open',
-                    title: 'Open',
-                },
-                {
-                    action: 'close',
-                    title: 'Close',
-                },
-            ],
-        };
+        title,
+        body: preview,
+        // 🔥 Use sender's avatar for 1-on-1, group avatar for group chats
+        icon: isGroup 
+            ? (groupAvatar || '/group-placeholder.png')  // 🔥 Group avatar
+            : (senderInfo.avatarUrl || '/avatar-placeholder.png'), // User avatar
+        badge: `${process.env.CLIENT_URL}/badge-icon.png`,
+        tag: `message-${conversationId}`,
+        timestamp: Date.now(),
+        requireInteraction: true,
+        data: {
+            type: 'message',
+            conversationId: conversationId.toString(),
+            senderId: message.senderId.toString(),
+            senderUsername: senderInfo.username,
+            messageId: message._id.toString(),
+            timestamp: message.createdAt.toISOString(),
+            isGroup: isGroup || false,
+            groupName: groupName || null,
+            // 🔥 Store avatar for click handling if needed
+            avatarUrl: isGroup ? (groupAvatar || '') : (senderInfo.avatarUrl || ''),
+        },
+        actions: [
+            { action: 'open', title: 'Open' },
+            { action: 'close', title: 'Close' },
+        ],
+    };
 
         const subscriptions = recipient.pushSubscriptions as any[];
         let validSubscriptions: any[] = [];
