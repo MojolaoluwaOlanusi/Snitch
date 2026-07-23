@@ -1,6 +1,7 @@
 // @ts-nocheck
 import {useCallback, useEffect, useRef, useState, Suspense} from "react";
 import React from "react";
+import Color from 'color';
 import {useChatStore} from "../../store/useChatStore.js";
 import {useAuthStore} from "../../store/useAuthStore.js";
 import Sidebar from "../../components/common/Sidebar.jsx";
@@ -2826,7 +2827,7 @@ useEffect(() => {
     };
     const themeColor = convoSettings.themeColor || 'emerald';
     const bubbleColor = themeColor.startsWith('#') ? themeColor : (themeColorMap[themeColor] || themeColorMap.emerald);
-    const bubbleColorDark = bubbleColor;
+    const bubbleColorDark = Color(bubbleColor).darken(0.3).hex();
 
     // ==================== Conversation Filtering ====================
 
