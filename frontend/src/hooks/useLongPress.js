@@ -1,6 +1,6 @@
-import { useCallback, useRef } from 'react';
+import { useRef, useCallback } from 'react';
 
-export function useLongPress(onLongPress, onClick, { shouldPreventDefault = true, delay = 500 } = {}) {
+export const useLongPress = (onLongPress, onClick, { delay = 500, shouldPreventDefault = true } = {}) => {
     const timeoutRef = useRef(null);
     const isLongPressRef = useRef(false);
 
@@ -30,9 +30,8 @@ export function useLongPress(onLongPress, onClick, { shouldPreventDefault = true
         },
         onMouseUp: clear,
         onMouseLeave: clear,
-        onTouchStart: (e) => {
-            start(e);
-        },
+        onTouchStart: (e) => start(e),
         onTouchEnd: clear,
+        onTouchCancel: clear,
     };
-}
+};
