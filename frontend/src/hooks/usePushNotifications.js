@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import axiosInstance from '../services/axios';
+import axiosInstance from '../lib/axios';
 
 const VAPID_PUBLIC_KEY = process.env.REACT_APP_VAPID_PUBLIC_KEY || '';
 
