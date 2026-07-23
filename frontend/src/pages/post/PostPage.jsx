@@ -266,8 +266,6 @@ const PostPage = () => {
         <div className="w-full flex flex-col md:flex-row h-screen bg-base-200">
             <Sidebar />
             <main className="flex-1 flex flex-col bg-base-100 overflow-auto">
-                {/* Hamburger spacer */}
-                <div className="h-14 lg:hidden" />
 
                 {/* Header */}
                 <div className="sticky top-0 z-10 bg-base-100 border-b border-base-200 px-4 py-3 flex items-center justify-between">
