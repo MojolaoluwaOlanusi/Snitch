@@ -1508,6 +1508,66 @@ router.delete("/wallpapers/:id", protectRoute, async (req: Request, res: Respons
     }
 });
 
+// GET /api/chat/unread-counts
+router.get('/unread-counts', authMiddleware, async (req: Request, res: Response) => {
+    try {
+        const userId = req.userId;
+        
+        // Get all conversations for this user
+        const conversations = await Conversation.find({
+            participants: userId,
+        }).select('_id');
+        
+        const conversationIds = conversations.map(c => c._id);
+        
+        // Count unread messages for each conversation
+        const unreadCounts = {};
+        
+        for (const convId of conversationIds) {
+            const count = await Message.countDocuments({
+                conversationId: convId,
+                senderId: { $ne: userId },
+                readBy: { $ne: userId },
+            });
+            unreadCounts[convId.toString()] = count;
+        }
+        
+        res.status(200).json(unreadCounts);
+    } catch (error: any) {
+        console.error('Error fetching unread counts:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// POST /api/chat/mark-read
+router.post('/mark-read', authMiddleware, async (req: Request, res: Response) => {
+    try {
+        const userId = req.userId;
+        const { conversationId } = req.body;
+        
+        if (!conversationId) {
+            return res.status(400).json({ message: 'Conversation ID required' });
+        }
+        
+        // Mark all messages in this conversation as read for this user
+        await Message.updateMany(
+            {
+                conversationId,
+                senderId: { $ne: userId },
+                readBy: { $ne: userId },
+            },
+            {
+                $addToSet: { readBy: userId },
+            }
+        );
+        
+        res.status(200).json({ success: true });
+    } catch (error: any) {
+        console.error('Error marking messages as read:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 router.get("/wallpapers/search", protectRoute, async (req: Request, res: Response) => {
     try {
         const { query = "nature", page = 1, per_page = 20 } = req.query;
