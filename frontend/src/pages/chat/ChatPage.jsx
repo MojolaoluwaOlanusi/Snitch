@@ -946,20 +946,20 @@ useEffect(() => {
     }, [showEmojiPicker]);
 
     useEffect(() => {
-    const h = (e) => {
-        if (menuRef.current && !menuRef.current.contains(e.target)) {
-            setShowMenu(null);
-        }
-    };
-    if (showMenu) {
-        document.addEventListener("mousedown", h);
-        document.addEventListener("touchstart", h);
-        return () => {
-            document.removeEventListener("mousedown", h);
-            document.removeEventListener("touchstart", h);
+        const handleClickOutside = (e) => {
+            if (menuRef.current && !menuRef.current.contains(e.target)) {
+                setShowMenu(null);
+            }
         };
-    }
-}, [showMenu]);
+        if (showMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('touchstart', handleClickOutside);
+            return () => {
+                document.removeEventListener('mousedown', handleClickOutside);
+                document.removeEventListener('touchstart', handleClickOutside);
+            };
+        }
+    }, [showMenu]);
 
     useEffect(() => {
         const h = (e) => {
@@ -2094,15 +2094,11 @@ useEffect(() => {
     };
     const handleContextMenu = (e, messageId) => {
         e.preventDefault();
-        // Close menu if clicking on the same message again
-        if (showMenu === messageId) {
+        if (showMenu) {
             setShowMenu(null);
             return;
         }
-        setMenuPosition({
-            x: e.clientX,
-            y: e.clientY
-        });
+        setMenuPosition({ x: e.clientX, y: e.clientY });
         setShowMenu(messageId);
     };
 

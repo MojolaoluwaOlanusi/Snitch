@@ -56,33 +56,23 @@ self.addEventListener('push', (event) => {
 // 🔥 CRITICAL: Handle notification click for navigation
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-
-    const { action, notification } = event;
-    const { data } = notification;
-
-    if (action === 'close') return;
-
-    // Build the target URL
-    let targetUrl = '/';
+    const { data } = event.notification;
 
     if (data?.type === 'message' && data?.conversationId) {
-        targetUrl = `/chat?conversationId=${data.conversationId}`;
-    } else if (data?.url) {
-        targetUrl = data.url;
-    }
-
-    event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-            // Try to focus an existing chat window
-            for (let client of clientList) {
-                if (client.url.includes('/chat')) {
-                    return client.focus();
+        const url = `/chat?conversationId=${data.conversationId}`;
+        event.waitUntil(
+            clients.matchAll({ type: 'window' }).then((clientList) => {
+                // Try to focus an existing chat tab
+                for (let client of clientList) {
+                    if (client.url.includes('/chat')) {
+                        return client.focus();
+                    }
                 }
-            }
-            // Open new window if none exists
-            return clients.openWindow(targetUrl);
-        })
-    );
+                // Otherwise open a new one
+                return clients.openWindow(url);
+            })
+        );
+    }
 });
 
 self.addEventListener('notificationclose', (event) => {
