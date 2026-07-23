@@ -62,7 +62,7 @@ const messageSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
-        readBy: [{ type: Schema.Types.ObjectId, ref: 'User', default: [] }],
+        readBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', default: [] }],
         // reply to message
         replyTo: {
             type: mongoose.Schema.Types.ObjectId,
