@@ -197,7 +197,7 @@ const FollowingPostItem = ({ post, authUserId }) => {
                             <div className="flex flex-wrap gap-2 mt-2">
                                 {post.hashtags.map((hashtag, index) => (
                                     <button key={index} onClick={(e) => { e.preventDefault(); handleHashtagClick(hashtag); }}
-                                            className="flex items-center gap-1 px-3 py-1 bg-primary/10 hover:bg-primary/20 rounded-full text-sm text-primary hover:text-primary transition-all duration-200"
+                                            className="flex items-center gap-1 px-3 py-1 bg-primary/10 hover:bg-primary/20 rounded-full text-sm text-primary hover:text-primary transition-all duration-200">
                                         <Hash className="w-3 h-3" /><span>{hashtag}</span>
                                     </button>
                                 ))}
