@@ -221,17 +221,42 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
 
                 // Send push notifications to recipients (new feature)
                 for (const recipientId of participantIds) {
-                    sendMessagePushNotification(
-                        recipientId,
-                        populatedMessage,
-                        convId.toString(),
-                        {
-                            username: user.username,
-                            displayName: user.displayName || user.username,
-                            avatarUrl: user.avatarUrl,
-                        },
-                        conversationPopulated.isGroup,
-                        conversationPopulated.groupName
+                    // For group chat – fetch group avatar from conversation
+if (conversationPopulated.isGroup) {
+    // Try to get group avatar from conversation
+    const groupAvatar = conversationPopulated.groupAvatar || 
+                        conversationPopulated.groupAvatarUrl || 
+                        null;
+    
+    sendMessagePushNotification(
+        recipientId,
+        populatedMessage,
+        convId.toString(),
+        {
+            username: user.username,
+            displayName: user.displayName || user.username,
+            avatarUrl: user.avatarUrl,
+        },
+        true, // isGroup
+        conversationPopulated.groupName || 'Group',
+        groupAvatar // 🔥 Pass group avatar
+    );
+} else {
+    // 1-on-1 chat
+    sendMessagePushNotification(
+        recipientId,
+        populatedMessage,
+        convId.toString(),
+        {
+            username: user.username,
+            displayName: user.displayName || user.username,
+            avatarUrl: user.avatarUrl,
+        },
+        false, // isGroup
+        undefined,
+        undefined
+    );
+}
                     ).catch(err => console.error('Push notification send error:', err));
                 }
 
