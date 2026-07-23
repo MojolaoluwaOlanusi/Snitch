@@ -23,7 +23,7 @@ const router = express.Router();
 const translationCache = new NodeCache({ stdTTL: 3600 });
 
 // Translate message text
-router.post('/translate', authMiddleware, async (req: Request, res: Response) => {
+router.post('/translate', protectRoute, async (req: Request, res: Response) => {
     try {
         const { text, targetLang = 'en' } = req.body;
         
