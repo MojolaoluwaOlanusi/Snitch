@@ -1,6 +1,9 @@
-
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { useAuthStore } from "./useAuthStore.js";
+import { toast } from 'sonner'
+import axiosInstance from "../lib/axios.js";
+import axios from "../lib/axios.js";
 
 const UNREAD_STORAGE_KEY = 'snitch_unread_counts';
 
@@ -28,11 +31,6 @@ const calculateTotal = (counts) => {
     return Object.values(counts).reduce((sum, val) => sum + (val || 0), 0);
 };
 
-import { useAuthStore } from "./useAuthStore.js";
-import { toast } from 'sonner'
-import axiosInstance from "../lib/axios.js";
-import axios from "../lib/axios.js";
-
 export const useChatStore = create((set, get) => ({
     conversations: [],
     currentConversation: null,
@@ -42,8 +40,89 @@ export const useChatStore = create((set, get) => ({
     isConversationsLoading: false,
     onlineUsers: [],
     typingUsers: [],
-    unreadCounts: {},
-    totalUnread: 0,
+    unreadCounts: loadUnreadCounts(),
+    totalUnread: calculateTotal(loadUnreadCounts()),
+
+    // ==================== Unread Count Actions with Persistence ====================
+
+    updateUnreadCount: (conversationId, count) => {
+        const newCounts = {
+            ...get().unreadCounts,
+            [conversationId]: Math.max(0, count),
+        };
+        saveUnreadCounts(newCounts);
+        set({
+            unreadCounts: newCounts,
+            totalUnread: calculateTotal(newCounts),
+        });
+    },
+
+    incrementUnread: (conversationId) => {
+        const current = get().unreadCounts[conversationId] || 0;
+        const newCounts = {
+            ...get().unreadCounts,
+            [conversationId]: current + 1,
+        };
+        saveUnreadCounts(newCounts);
+        set({
+            unreadCounts: newCounts,
+            totalUnread: calculateTotal(newCounts),
+        });
+    },
+
+    resetUnread: (conversationId) => {
+        const newCounts = {
+            ...get().unreadCounts,
+            [conversationId]: 0,
+        };
+        saveUnreadCounts(newCounts);
+        set({
+            unreadCounts: newCounts,
+            totalUnread: calculateTotal(newCounts),
+        });
+    },
+
+    syncUnreadCounts: async () => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const response = await axiosInstance.get('/chat/unread-counts', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            const serverCounts = response.data || {};
+            const localCounts = loadUnreadCounts();
+            const mergedCounts = { ...serverCounts };
+            
+            // If there are local counts that are higher, keep the higher value
+            // (this could happen if user got messages while offline)
+            for (const [id, count] of Object.entries(localCounts)) {
+                if (mergedCounts[id] === undefined || count > mergedCounts[id]) {
+                    mergedCounts[id] = count;
+                }
+            }
+            
+            saveUnreadCounts(mergedCounts);
+            set({
+                unreadCounts: mergedCounts,
+                totalUnread: calculateTotal(mergedCounts),
+            });
+            
+            return mergedCounts;
+        } catch (error) {
+            console.error('Failed to sync unread counts:', error);
+            // Fallback to local counts
+            const localCounts = loadUnreadCounts();
+            return localCounts;
+        }
+    },
+
+    clearAllUnread: () => {
+        saveUnreadCounts({});
+        set({
+            unreadCounts: {},
+            totalUnread: 0,
+        });
+    },
 
     // ==================== Real-time Messaging ====================
 
@@ -368,9 +447,23 @@ export const useChatStore = create((set, get) => ({
         try {
             const token = localStorage.getItem('access-token');
             const res = await axiosInstance.get('/chat/conversations', { headers: { Authorization: `Bearer ${token}` } });
+            
+            // When conversations load, also sync unread counts
+            const unreadCounts = await get().syncUnreadCounts();
+            
+            // Update unread counts for each conversation
+            res.data.forEach(conv => {
+                const count = unreadCounts[conv._id] || 0;
+                get().updateUnreadCount(conv._id, count);
+            });
+            
             set({ conversations: res.data, isConversationsLoading: false });
             return res.data;
-        } catch (error) { console.error('Error fetching conversations:', error); set({ isConversationsLoading: false }); return []; }
+        } catch (error) { 
+            console.error('Error fetching conversations:', error); 
+            set({ isConversationsLoading: false }); 
+            return []; 
+        }
     },
 
     getConversation: async (userId) => {
@@ -384,7 +477,11 @@ export const useChatStore = create((set, get) => ({
 
     selectConversation: (conversation) => {
         set({ selectedConversation: conversation, currentConversation: conversation, messages: [] });
-        if (conversation?._id) get().markConversationAsRead(conversation._id);
+        if (conversation?._id) {
+            // Reset unread count when selecting a conversation
+            get().resetUnread(conversation._id);
+            get().markConversationAsRead(conversation._id);
+        }
     },
 
     getMessages: async (conversationId, before = null) => {
@@ -468,6 +565,8 @@ export const useChatStore = create((set, get) => ({
             await axiosInstance.put(`/chat/conversation/${conversationId}/read`, {}, { headers: { Authorization: `Bearer ${token}` } });
             const socket = useAuthStore.getState().socket;
             if (socket?.connected) socket.emit('conversation:read', { conversationId });
+            // Reset unread count locally
+            get().resetUnread(conversationId);
             await get().getConversations();
         } catch (error) { console.error('Error marking conversation as read:', error); }
     },
@@ -532,40 +631,6 @@ export const useChatStore = create((set, get) => ({
         } catch (error) { console.error('Error changing theme color:', error); toast.error('Failed to change theme color'); }
     },
 
-    const updateUnreadCount = (conversationId, count) => {
-        set((state) => {
-            const newUnreadCounts = { ...state.unreadCounts, [conversationId]: count };
-            const total = Object.values(newUnreadCounts).reduce((sum, val) => sum + val, 0);
-            return {
-                unreadCounts: newUnreadCounts,
-                totalUnread: total,
-            };
-        });
-    };
-
-    const incrementUnread = (conversationId) => {
-        set((state) => {
-            const current = state.unreadCounts[conversationId] || 0;
-            const newUnreadCounts = { ...state.unreadCounts, [conversationId]: current + 1 };
-            const total = Object.values(newUnreadCounts).reduce((sum, val) => sum + val, 0);
-            return {
-                unreadCounts: newUnreadCounts,
-                totalUnread: total,
-            };
-        });
-    };
-
-    const resetUnread = (conversationId) => {
-        set((state) => {
-            const newUnreadCounts = { ...state.unreadCounts, [conversationId]: 0 };
-            const total = Object.values(newUnreadCounts).reduce((sum, val) => sum + val, 0);
-            return {
-                unreadCounts: newUnreadCounts,
-                totalUnread: total,
-            };
-        });
-    };
-
     // ==================== Socket Event State Updaters ====================
 
     addMessage: (message) => {
@@ -573,6 +638,17 @@ export const useChatStore = create((set, get) => ({
             if (state.messages.find(m => m._id === message._id)) return state;
             return { messages: [...state.messages, message] };
         });
+        
+        // Increment unread count if this message is for a different conversation
+        const { selectedConversation } = get();
+        const conversationId = message.conversationId;
+        const isCurrentConversation = selectedConversation?._id === conversationId;
+        const isChatPage = window.location.pathname === '/chat';
+        const isThisConversationOpen = isCurrentConversation && isChatPage;
+        
+        if (!isThisConversationOpen && conversationId) {
+            get().incrementUnread(conversationId);
+        }
     },
 
     updateMessage: (messageId, updates) => {
