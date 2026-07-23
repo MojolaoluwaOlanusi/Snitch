@@ -34,7 +34,7 @@
     "mongodb": "^6.20.0",
     "mongoose": "^7.8.11",
     "multer": "^2.0.2",
-    "node-cache": "^5.1.2"
+    "node-cache": "^5.1.2",
     "node-cron": "^4.2.1",
     "nodemailer": "7.0.11",
     "pino": "^8.0.0",
@@ -51,7 +51,7 @@
     "@types/minio": "^7.1.0",
     "@types/multer": "^2.0.0",
     "@types/node": "^20.19.43",
-    "@types/node-cache": "^4.0.1"
+    "@types/node-cache": "^4.0.1",
     "@types/nodemailer": "^7.0.3",
     "@types/web-push": "^3.6.4",
     "nodemon": "^3.1.10",
