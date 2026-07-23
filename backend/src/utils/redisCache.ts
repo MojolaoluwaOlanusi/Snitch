@@ -131,6 +131,7 @@ export const warmCacheForActiveConversations = async () => {
                 .sort({ createdAt: -1 })
                 .limit(50)
                 .populate('senderId', 'username displayName avatarUrl')
+                .populate('replyTo')   // ✅ add this line
                 .lean();
             // Clear the existing cache and repopulate
             await redis.del(key);

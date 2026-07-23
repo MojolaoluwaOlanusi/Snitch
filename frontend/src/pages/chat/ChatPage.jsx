@@ -585,14 +585,45 @@ const ChatPage = () => {
         });
         socket.on('webrtc:call:participant_joined', ({ userId }) => {
             toast.success(`${userId} joined`, { icon: '👋' });
-            if (activeCall?.isGroupCall && localStream) {
+
+            // ✅ Handle BOTH group calls AND 1-on-1 calls
+            if (activeCall && localStream) {
+                // Transition from ringing to in-call
+                if (isRinging) {
+                    setIsRinging(false);
+                    setCallAnswered(true);
+                    callAnsweredRef.current = true;
+                    isRingingRef.current = false;
+                    clearTimeout(callTimeoutRef.current);
+                }
+
                 const pc = createPeerConnection(userId);
                 localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
                 pc.createOffer().then(offer => {
                     pc.setLocalDescription(offer);
-                    socket?.emit('webrtc:signal', { toUserId: userId, type: 'offer', data: offer });
+                    socket?.emit('webrtc:signal', {
+                        toUserId: userId,
+                        type: 'offer',
+                        data: offer
+                    });
                 });
             }
+        });
+        socket.on('webrtc:call:accepted', ({ userId, callId }) => {
+            console.log(`✅ Call ${callId} accepted by ${userId}`);
+
+            // Transition UI to in-call
+            if (isRinging) {
+                setIsRinging(false);
+                setCallAnswered(true);
+                callAnsweredRef.current = true;
+                isRingingRef.current = false;
+                clearTimeout(callTimeoutRef.current);
+            }
+
+            // Optionally show a toast
+            toast.success('Call accepted!', { icon: '📞' });
         });
     }, [socket]);
 
