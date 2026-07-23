@@ -165,3 +165,5 @@ function generateMessagePreview(message: any): string {
 
     return 'New message';
 }
+
+export default { sendPushNotification, sendMessagePushNotification };
