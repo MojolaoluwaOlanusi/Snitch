@@ -1455,24 +1455,9 @@ useEffect(() => {
 
     // ---------- NEW: mobile‑friendly conversation selector ----------
     const handleSelectConversation = (conv) => {
-        selectConversation(conv);
-        if (window.innerWidth < 1024) setMobileChatVisible(true);
-        if (conversation?._id) {
-        useChatStore.getState().resetUnread(conversation._id);
-        
-        // 🔥 Mark messages as read on server
-        const markMessagesAsRead = async () => {
-            try {
-                await axiosInstance.post('/chat/mark-read', {
-                    conversationId: conversation._id,
-                });
-            } catch (error) {
-                console.error('Failed to mark messages as read:', error);
-            }
-        };
-        markMessagesAsRead();
-    }
-    };
+    selectConversation(conv);
+    if (window.innerWidth < 1024) setMobileChatVisible(true);
+};
 
     const handleBackToList = () => {
         setMobileChatVisible(false);
