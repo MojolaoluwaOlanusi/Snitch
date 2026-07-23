@@ -46,15 +46,14 @@ const DEEPL_LANG_MAP: Record<string, string> = {
     'he': 'HE',
 };
 
-router.post('/translate', protectRoute, async (req: Request, res: Response) => {
+router.post('/translate', authMiddleware, async (req: Request, res: Response) => {
     try {
         const { text, targetLang = 'en' } = req.body;
-        
         if (!text || text.trim().length === 0) {
             return res.status(400).json({ message: 'Text is required' });
         }
 
-        // 🔥 Cache check
+        // Cache check
         const cacheKey = `${text.trim()}_${targetLang}`;
         const cached = translationCache.get(cacheKey);
         if (cached) {
@@ -66,18 +65,17 @@ router.post('/translate', protectRoute, async (req: Request, res: Response) => {
             return res.status(500).json({ message: 'DeepL API key not configured' });
         }
 
-        // 🔥 Convert language code to DeepL format
-        const deepLLang = DEEPL_LANG_MAP[targetLang] || targetLang.toUpperCase();
+        // Convert language code (e.g., 'en' → 'EN')
+        const deepLLang = targetLang.toUpperCase();
 
-        // 🔥 Call DeepL API
+        // ✅ Use header authentication
         const response = await axios.post(
             'https://api-free.deepl.com/v2/translate',
-            null,
+            { text: [text], target_lang: deepLLang },
             {
-                params: {
-                    auth_key: apiKey,
-                    text: text,
-                    target_lang: deepLLang,
+                headers: {
+                    'Authorization': `DeepL-Auth-Key ${apiKey}`,
+                    'Content-Type': 'application/json',
                 },
                 timeout: 10000,
             }
@@ -88,26 +86,14 @@ router.post('/translate', protectRoute, async (req: Request, res: Response) => {
             return res.status(500).json({ message: 'Translation failed' });
         }
 
-        // 🔥 Cache result
         translationCache.set(cacheKey, translated);
-
         res.json({ translated, cached: false });
 
     } catch (error: any) {
         console.error('Translation error:', error.response?.data || error.message);
-        
         if (error.response?.status === 429) {
-            return res.status(429).json({ 
-                message: 'Translation rate limit reached. Please try again later.' 
-            });
+            return res.status(429).json({ message: 'Rate limit reached. Please try again later.' });
         }
-        
-        if (error.code === 'ECONNABORTED' || error.response?.status === 504) {
-            return res.status(504).json({ 
-                message: 'Translation service timeout. Please try again.' 
-            });
-        }
-        
         res.status(500).json({ message: 'Translation failed' });
     }
 });
