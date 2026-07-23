@@ -417,11 +417,13 @@ const ChatPage = () => {
 
             getConversations();
             const conversationId = message.conversationId;
-            const isCurrentConversation = selectedConversation?._id === conversationId;
+    const isCurrentConversation = selectedConversation?._id === conversationId;
+    const isChatPage = window.location.pathname === '/chat';
+    const isThisConversationOpen = isCurrentConversation && isChatPage;
     
-            if (!isCurrentConversation && conversationId) { 
-                useChatStore.getState().incrementUnread(conversationId);
-            }
+    if (!isThisConversationOpen && conversationId) {
+        useChatStore.getState().incrementUnread(conversationId);
+    }
         });
 
         socket.on('message_sent', (message) => {
@@ -1395,7 +1397,21 @@ const ChatPage = () => {
     const handleSelectConversation = (conv) => {
         selectConversation(conv);
         if (window.innerWidth < 1024) setMobileChatVisible(true);
+        if (conversation?._id) {
         useChatStore.getState().resetUnread(conversation._id);
+        
+        // 🔥 Mark messages as read on server
+        const markMessagesAsRead = async () => {
+            try {
+                await axiosInstance.post('/chat/mark-read', {
+                    conversationId: conversation._id,
+                });
+            } catch (error) {
+                console.error('Failed to mark messages as read:', error);
+            }
+        };
+        markMessagesAsRead();
+    }
     };
 
     const handleBackToList = () => {
