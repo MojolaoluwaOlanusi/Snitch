@@ -23,7 +23,7 @@ const router = express.Router();
 const translationCache = new NodeCache({ stdTTL: 3600 });
 
 // Translate message text
-router.post('/translate', protectRoute, async (req: Request, res: Response) => {
+router.post('/translate', authMiddleware, async (req: Request, res: Response) => {
     try {
         const { text, targetLang = 'en' } = req.body;
         
@@ -31,90 +31,54 @@ router.post('/translate', protectRoute, async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'Text is required' });
         }
 
-        // 🔥 STEP 1: Check cache first
+        // 🔥 Check cache first
         const cacheKey = `${text.trim()}_${targetLang}`;
         const cachedTranslation = translationCache.get(cacheKey);
         if (cachedTranslation) {
-            console.log(`✅ Translation cache hit: "${text}" → "${cachedTranslation}"`);
             return res.json({ translated: cachedTranslation, cached: true });
         }
 
-        let translatedText: string | null = null;
-
-        // 🔥 STEP 2: Try Google Translate (if API key exists)
-        const googleApiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
-        if (googleApiKey) {
-            try {
-                const url = `https://translation.googleapis.com/language/translate/v2?key=${googleApiKey}`;
-                const response = await axios.post(url, {
-                    q: text,
-                    target: targetLang,
-                    format: 'text'
-                });
-
-                if (response.data?.data?.translations?.length > 0) {
-                    translatedText = response.data.data.translations[0].translatedText;
-                    console.log(`✅ Google Translate success: "${text}" → "${translatedText}"`);
-                }
-            } catch (googleError: any) {
-                console.warn('⚠️ Google Translate failed, falling back to LibreTranslate:', googleError.message);
-                // Fall through to LibreTranslate
-            }
+        const apiKey = process.env.DEEPL_API_KEY;
+        
+        if (!apiKey) {
+            return res.status(500).json({ message: 'DeepL API key not configured' });
         }
 
-        // 🔥 STEP 3: Fallback to LibreTranslate (free, no API key required)
-        if (!translatedText) {
-            try {
-                const libreResponse = await fetch('https://libretranslate.com/translate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        q: text,
-                        source: 'auto',
-                        target: targetLang,
-                        format: 'text'
-                    })
-                });
-
-                if (!libreResponse.ok) {
-                    const errorText = await libreResponse.text();
-                    console.error('LibreTranslate error:', errorText);
-                    
-                    if (libreResponse.status === 429) {
-                        return res.status(429).json({ 
-                            message: 'Translation rate limit reached. Please wait a moment.' 
-                        });
-                    }
-                    
-                    throw new Error(`LibreTranslate returned ${libreResponse.status}`);
+        // 🔥 Call DeepL API (free endpoint)
+        const response = await axios.post(
+            'https://api-free.deepl.com/v2/translate',
+            null,
+            {
+                params: {
+                    auth_key: apiKey,
+                    text: text,
+                    target_lang: targetLang.toUpperCase(), // DeepL expects uppercase (EN, ES, FR)
+                    // source_lang: 'EN' // Optional - auto-detects if omitted
                 }
-
-                const libreData = await libreResponse.json();
-                if (libreData.translatedText) {
-                    translatedText = libreData.translatedText;
-                    console.log(`✅ LibreTranslate success: "${text}" → "${translatedText}"`);
-                }
-            } catch (libreError: any) {
-                console.error('LibreTranslate error:', libreError.message);
-                return res.status(503).json({ 
-                    message: 'Translation service temporarily unavailable. Please try again later.' 
-                });
             }
-        }
+        );
 
-        // 🔥 STEP 4: Check if translation succeeded
-        if (!translatedText) {
+        const translated = response.data.translations[0].text;
+
+        if (!translated) {
             return res.status(500).json({ message: 'Translation failed' });
         }
 
-        // 🔥 STEP 5: Cache the result
-        translationCache.set(cacheKey, translatedText);
-        console.log(`💾 Translation cached: "${text}" → "${translatedText}"`);
+        // 🔥 Cache the result
+        translationCache.set(cacheKey, translated);
 
-        res.json({ translated: translatedText, cached: false });
+        res.json({ translated, cached: false });
 
     } catch (error: any) {
-        console.error('Translation error:', error.message);
+        console.error('DeepL translation error:', error.response?.data || error.message);
+        
+        // Handle rate limiting
+        if (error.response?.status === 429) {
+            return res.status(429).json({ 
+                message: 'Translation rate limit reached. Please try again later.' 
+            });
+        }
+        
         res.status(500).json({ message: 'Translation failed' });
     }
 });
