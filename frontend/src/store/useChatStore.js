@@ -1,4 +1,33 @@
-import { create } from "zustand";
+
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+
+const UNREAD_STORAGE_KEY = 'snitch_unread_counts';
+
+// Helper to load unread counts from localStorage
+const loadUnreadCounts = () => {
+    try {
+        const saved = localStorage.getItem(UNREAD_STORAGE_KEY);
+        return saved ? JSON.parse(saved) : {};
+    } catch {
+        return {};
+    }
+};
+
+// Helper to save unread counts to localStorage
+const saveUnreadCounts = (counts) => {
+    try {
+        localStorage.setItem(UNREAD_STORAGE_KEY, JSON.stringify(counts));
+    } catch (error) {
+        console.error('Failed to save unread counts:', error);
+    }
+};
+
+// Helper to calculate total from counts object
+const calculateTotal = (counts) => {
+    return Object.values(counts).reduce((sum, val) => sum + (val || 0), 0);
+};
+
 import { useAuthStore } from "./useAuthStore.js";
 import { toast } from 'sonner'
 import axiosInstance from "../lib/axios.js";
