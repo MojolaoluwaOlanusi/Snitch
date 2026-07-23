@@ -4017,7 +4017,7 @@ useEffect(() => {
                                                 style={{ height: "100%" }}                  // fills the flex container
                                                 data={messages}
                                                 itemContent={(index, message) => (
-                                                    <div className="py-1" id={`msg-${message._id}`}>
+                                                    <div className="py-1" id={`msg-${message._id}`} onDoubleClick={() => handleReply(message)}>
                                                         <MessageBubble message={message} />
                                                     </div>
                                                 )}
