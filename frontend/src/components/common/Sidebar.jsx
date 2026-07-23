@@ -15,6 +15,7 @@ const Sidebar = () => {
     const [isChatRestricted, setIsChatRestricted] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [framerModule, setFramerModule] = useState(null);
+    const { totalUnread } = useChatStore();
 
     useEffect(() => {
         getProfile();
