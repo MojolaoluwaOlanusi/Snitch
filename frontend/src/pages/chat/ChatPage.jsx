@@ -416,6 +416,12 @@ const ChatPage = () => {
             useChatStore.setState({ messages: filtered });
 
             getConversations();
+            const conversationId = message.conversationId;
+            const isCurrentConversation = selectedConversation?._id === conversationId;
+    
+            if (!isCurrentConversation && conversationId) { 
+                useChatStore.getState().incrementUnread(conversationId);
+            }
         });
 
         socket.on('message_sent', (message) => {
@@ -1389,6 +1395,7 @@ const ChatPage = () => {
     const handleSelectConversation = (conv) => {
         selectConversation(conv);
         if (window.innerWidth < 1024) setMobileChatVisible(true);
+        useChatStore.getState().resetUnread(conversation._id);
     };
 
     const handleBackToList = () => {
