@@ -913,15 +913,23 @@ useEffect(() => {
             return () => document.removeEventListener("mousedown", h);
         }
     }, [showEmojiPicker]);
-    useEffect(() => {
-        const h = (e) => {
-            if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(null);
-        };
-        if (showMenu) {
-            document.addEventListener("mousedown", h);
-            return () => document.removeEventListener("mousedown", h);
+
+useEffect(() => {
+    const h = (e) => {
+        if (menuRef.current && !menuRef.current.contains(e.target)) {
+            setShowMenu(null);
         }
-    }, [showMenu]);
+    };
+    if (showMenu) {
+        document.addEventListener("mousedown", h);
+        document.addEventListener("touchstart", h);
+        return () => {
+            document.removeEventListener("mousedown", h);
+            document.removeEventListener("touchstart", h);
+        };
+    }
+}, [showMenu]);
+
     useEffect(() => {
         const h = (e) => {
             if (attachmentRef.current && !attachmentRef.current.contains(e.target)) setShowAttachmentMenu(false);
