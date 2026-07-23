@@ -2,6 +2,8 @@ import { create } from "zustand";
 import axiosInstance from "../lib/axios.js";
 import { toast } from 'sonner'
 import { io } from 'socket.io-client';
+import useChatStore from './useChatStore';
+
 
 export const useAuthStore = create((set, get) => ({
     authUserId: null,
@@ -42,6 +44,7 @@ export const useAuthStore = create((set, get) => ({
             }
             // Register push notifications after auth
             await get().registerPushNotifications();
+            await useChatStore.getState().syncUnreadCounts();
         } catch (error) {
             console.log("Auth check error:", error);
             set({ authUserId: null });
@@ -63,6 +66,7 @@ export const useAuthStore = create((set, get) => ({
             await get().connectSocket();
             toast.success("Account created successfully!");
             await get().registerPushNotifications();
+            await useChatStore.getState().syncUnreadCounts();
         } catch (error) {
             toast.error(error.response?.data?.message || "Signup failed");
         } finally {
@@ -81,6 +85,7 @@ export const useAuthStore = create((set, get) => ({
             await get().connectSocket();
             toast.success("Logged in successfully");
             await get().registerPushNotifications();
+            await useChatStore.getState().syncUnreadCounts();
         } catch (error) {
             toast.error(error.response?.data?.message || "Login failed");
         } finally {
@@ -95,6 +100,7 @@ export const useAuthStore = create((set, get) => ({
             localStorage.removeItem('access-token');
             localStorage.removeItem('user');
             await get().disconnectSocket();
+            useChatStore.getState().clearAllUnread();
             toast.success("Logged out successfully");
         } catch (error) {
             console.log("Logout error:", error);
