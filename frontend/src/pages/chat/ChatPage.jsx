@@ -323,6 +323,7 @@ const ChatPage = () => {
     const [isBlocked, setIsBlocked] = useState(false);
     const [isBlockedBy, setIsBlockedBy] = useState(false);
     const [isChatRestricted, setIsChatRestricted] = useState(false);
+    const [showScrollButton, setShowScrollButton] = useState(false);
 
     // ---------- NEW: mobile chat visibility ----------
     const [mobileChatVisible, setMobileChatVisible] = useState(false);
@@ -341,6 +342,7 @@ const ChatPage = () => {
     const [isVideoMode, setIsVideoMode] = useState(true);
 
     // --- Refs ---
+    const scrollContainerRef = useRef(null); // not needed – we'll use Virtuoso's API
     const typingTimeoutRef = useRef(null);
     const translationTimeoutRef = useRef(null);
     const translationCache = useRef(new Map());
@@ -3104,9 +3106,30 @@ useEffect(() => {
             // Normal hexagon
             return (
                 <div
-                    className={`flex items-end mb-3 px-4 group ${isOwn ? 'justify-end' : 'justify-start'}`}
-                    onContextMenu={(e) => handleContextMenu(e, message._id)}
-                >
+    className={`flex items-end mb-1 px-4 group ${isOwn ? 'justify-end' : 'justify-start'}`}
+    onContextMenu={(e) => handleContextMenu(e, message._id)}
+    {...useLongPress(
+        (e) => {
+            // Long press → open the same menu as right‑click
+            const rect = e.currentTarget?.getBoundingClientRect?.();
+            if (rect) {
+                setMenuPosition({ x: rect.left, y: rect.bottom + 4 });
+                setShowMenu(message._id);
+            } else {
+                // fallback: use current touch position
+                const touch = e.touches?.[0] || e.changedTouches?.[0];
+                if (touch) {
+                    setMenuPosition({ x: touch.clientX, y: touch.clientY });
+                } else {
+                    setMenuPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+                }
+                setShowMenu(message._id);
+            }
+        },
+        null, // onClick – we don't need a separate click handler
+        { delay: 500 }
+    )}
+>
                     <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${isOwn ? 'order-1 mr-1' : 'order-2 ml-1'}`}>
                         <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setReactionPickerPos({ top: rect.top - 60, left: rect.left }); setShowReactionPicker(message._id); }} className="p-1 hover:bg-base-200 rounded-full" title="React"><Smile className="w-4 h-4 text-base-content/50" /></button>
                         <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setMenuPosition({ x: rect.left, y: rect.bottom + 4 }); setShowMenu(message._id); }} className="p-1 hover:bg-base-200 rounded-full" title="More"><MoreHorizontal className="w-4 h-4 text-base-content/50" /></button>
@@ -3305,8 +3328,31 @@ useEffect(() => {
 
         // ==================== REGULAR MESSAGE ====================
         return (
-            <div className={`flex items-end mb-1 px-4 group ${isOwn ? 'justify-end' : 'justify-start'}`}
-                 onContextMenu={(e) => handleContextMenu(e, message._id)}>
+            <div
+    className={`flex items-end mb-1 px-4 group ${isOwn ? 'justify-end' : 'justify-start'}`}
+    onContextMenu={(e) => handleContextMenu(e, message._id)}
+    {...useLongPress(
+        (e) => {
+            // Long press → open the same menu as right‑click
+            const rect = e.currentTarget?.getBoundingClientRect?.();
+            if (rect) {
+                setMenuPosition({ x: rect.left, y: rect.bottom + 4 });
+                setShowMenu(message._id);
+            } else {
+                // fallback: use current touch position
+                const touch = e.touches?.[0] || e.changedTouches?.[0];
+                if (touch) {
+                    setMenuPosition({ x: touch.clientX, y: touch.clientY });
+                } else {
+                    setMenuPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+                }
+                setShowMenu(message._id);
+            }
+        },
+        null, // onClick – we don't need a separate click handler
+        { delay: 500 }
+    )}
+>
                 <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${isOwn ? 'order-1 mr-1' : 'order-2 ml-1'}`}>
                     <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setReactionPickerPos({ top: rect.top - 60, left: rect.left }); setShowReactionPicker(message._id); }} className="p-1 hover:bg-base-200 rounded-full" aria-label="react" title="React"><Smile className="w-4 h-4 text-base-content/50" /></button>
                     <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setMenuPosition({ x: rect.left, y: rect.bottom + 4 }); setShowMenu(message._id); }} className="p-1 hover:bg-base-200 rounded-full" aria-label="actions" title="More"><MoreHorizontal className="w-4 h-4 text-base-content/50" /></button>
@@ -4020,6 +4066,11 @@ useEffect(() => {
                                                         <MessageBubble message={message} />
                                                     </div>
                                                 )}
+                                                onScroll={(e) => {
+        const target = e.target;
+        const distanceFromBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+        setShowScrollButton(distanceFromBottom > 100);
+    }}
                                                 followOutput="auto"                          // auto-scroll when new messages arrive
                                                 components={{
                                                     Footer: () =>
@@ -4028,6 +4079,26 @@ useEffect(() => {
                                                         ) : null,
                                                 }}
                                             />
+                                            {showScrollButton && (
+    <button
+        onClick={() => {
+            // Scroll to the very last message
+            if (virtuosoRef.current) {
+                virtuosoRef.current.scrollToIndex({
+                    index: messages.length - 1,
+                    align: 'end',
+                    behavior: 'smooth',
+                });
+            }
+        }}
+        className="absolute bottom-20 right-4 z-10 p-2 rounded-full bg-primary text-primary-content shadow-lg hover:bg-primary/90 transition-colors"
+        aria-label="Scroll to bottom"
+    >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+        </svg>
+    </button>
+)}
                                         </div>
                                     )}
                                 </div>
