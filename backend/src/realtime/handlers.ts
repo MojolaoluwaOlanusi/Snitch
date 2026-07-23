@@ -53,231 +53,235 @@ export const registerSocketHandlers = (io: Server, socket: Socket, roomStore: Ro
     // ==================== Messaging ====================
 
     socket.on('send_message', async (payload: any, ack?: Function) => {
-        try {
-            const { receiverId, text, media, conversationId, replyTo, mentions, location, contact, isVoiceMessage, voiceDuration } = payload;
+    try {
+        const { receiverId, text, media, conversationId, replyTo, mentions, location, contact, isVoiceMessage, voiceDuration } = payload;
 
-            if (!receiverId && !conversationId) return ack?.({ ok: false, error: 'No receiver or conversation specified' });
-            if (!text && (!media || !media.length) && !location && !contact && !isVoiceMessage && !payload.call) {
-                return ack?.({ ok: false, error: 'Empty message' });
+        if (!receiverId && !conversationId) return ack?.({ ok: false, error: 'No receiver or conversation specified' });
+        if (!text && (!media || !media.length) && !location && !contact && !isVoiceMessage && !payload.call) {
+            return ack?.({ ok: false, error: 'Empty message' });
+        }
+
+        if (receiverId) {
+            const receiver = await User.findById(receiverId);
+            if (receiver?.blocked?.some((id: any) => id.toString() === userId)) {
+                return ack?.({ ok: false, error: 'You have been blocked by this user' });
             }
-
-            if (receiverId) {
-                const receiver = await User.findById(receiverId);
-                if (receiver?.blocked?.some((id: any) => id.toString() === userId)) {
-                    return ack?.({ ok: false, error: 'You have been blocked by this user' });
-                }
-                const sender = await User.findById(userId);
-                if (sender?.blocked?.some((id: any) => id.toString() === receiverId)) {
-                    return ack?.({ ok: false, error: 'You have blocked this user' });
-                }
+            const sender = await User.findById(userId);
+            if (sender?.blocked?.some((id: any) => id.toString() === receiverId)) {
+                return ack?.({ ok: false, error: 'You have blocked this user' });
             }
+        }
 
-            let convId = conversationId;
-            if (!convId && receiverId) {
-                let conversation = await Conversation.findOne({
-                    participants: { $all: [userId, receiverId] },
+        let convId = conversationId;
+        if (!convId && receiverId) {
+            let conversation = await Conversation.findOne({
+                participants: { $all: [userId, receiverId] },
+                isGroup: false,
+            });
+            if (!conversation) {
+                conversation = await Conversation.create({
+                    participants: [userId, receiverId],
                     isGroup: false,
                 });
-                if (!conversation) {
-                    conversation = await Conversation.create({
-                        participants: [userId, receiverId],
-                        isGroup: false,
+            }
+            convId = conversation._id;
+        }
+
+        if (convId) {
+            const conversation = await Conversation.findById(convId);
+            if (conversation?.isGroup && conversation?.adminOnlyMessages) {
+                if (conversation.admin?.toString() !== userId) {
+                    return ack?.({ ok: false, error: 'Only admins can send messages in this group' });
+                }
+            }
+        }
+
+        const message = await Message.create({
+            senderId: userId,
+            receiverId,
+            conversationId: convId,
+            text: text || '',
+            media: (media || []).map((m: any) => ({
+                url: m.url,
+                mime: m.mime || 'video/webm',
+                size: m.size || 0,
+                filename: m.filename || 'video',
+                isHexagon: m.isHexagon || false,
+                caption: m.caption || '',
+            })),
+            replyTo,
+            mentions: mentions || [],
+            location,
+            contact,
+            isVoiceMessage: isVoiceMessage || false,
+            voiceDuration,
+            status: 'sent',
+            ...(payload.poll ? { poll: payload.poll } : {}),
+            ...(payload.event ? { event: payload.event } : {}),
+            ...(payload.call ? { call: payload.call } : {}),
+            viewOnce: payload.viewOnce || false,
+            viewedBy: [],
+        });
+
+        // If receiver is online, mark as delivered immediately
+        if (receiverId) {
+            const receiverSocket = Array.from(io.sockets.sockets.values())
+                .find((s: any) => s.data?.userId === receiverId);
+            if (receiverSocket) {
+                message.deliveredAt = new Date();
+                message.status = 'delivered';
+                await message.save();
+
+                // Notify sender that message was delivered
+                socket.emit('message:delivered', { messageId: message._id, timestamp: message.deliveredAt });
+            }
+        }
+
+        const populatedMessage = await Message.findById(message._id)
+            .populate('senderId', 'username displayName avatarUrl')
+            .populate('replyTo')
+            .populate('mentions', 'username displayName avatarUrl');
+
+        // Create notifications for mentioned users
+        if (payload.mentions && payload.mentions.length > 0) {
+            for (const mentionId of payload.mentions) {
+                if (mentionId === userId) continue;
+
+                await Notification.create({
+                    type: 'mention',
+                    from: userId,
+                    to: mentionId,
+                    message: message._id,
+                    text: `${user.displayName || 'Someone'} mentioned you: "${text?.substring(0, 100)}"`,
+                    conversationId: convId,
+                    fromAvatarUrl: user.avatarUrl || null,
+                });
+
+                const mentionedSocket = Array.from(io.sockets.sockets.values())
+                    .find((s: any) => s.data?.userId === mentionId);
+                if (mentionedSocket) {
+                    mentionedSocket.emit('notification:mention', {
+                        messageId: message._id,
+                        conversationId: convId,
+                        from: userId,
+                        text: `${user.displayName || 'Someone'} mentioned you in a message`,
                     });
                 }
-                convId = conversation._id;
             }
+        }
 
-            if (convId) {
-                const conversation = await Conversation.findById(convId);
-                if (conversation?.isGroup && conversation?.adminOnlyMessages) {
-                    if (conversation.admin?.toString() !== userId) {
-                        return ack?.({ ok: false, error: 'Only admins can send messages in this group' });
-                    }
-                }
-            }
-
-            const message = await Message.create({
-                senderId: userId,
-                receiverId,
-                conversationId: convId,
-                text: text || '',
-                media: (media || []).map((m: any) => ({
-                    url: m.url,
-                    mime: m.mime || 'video/webm',
-                    size: m.size || 0,
-                    filename: m.filename || 'video',
-                    isHexagon: m.isHexagon || false,
-                    caption: m.caption || '',
-                })),
-                replyTo,
-                mentions: mentions || [],
-                location,
-                contact,
-                isVoiceMessage: isVoiceMessage || false,
-                voiceDuration,
-                status: 'sent',
-                ...(payload.poll ? { poll: payload.poll } : {}),
-                ...(payload.event ? { event: payload.event } : {}),
-                ...(payload.call ? { call: payload.call } : {}),
-                viewOnce: payload.viewOnce || false,
-                viewedBy: [],
-            });
-
-            // If receiver is online, mark as delivered immediately
-            if (receiverId) {
-                const receiverSocket = Array.from(io.sockets.sockets.values())
-                    .find((s: any) => s.data?.userId === receiverId);
-                if (receiverSocket) {
-                    message.deliveredAt = new Date();
-                    message.status = 'delivered';
-                    await message.save();
-
-                    // Notify sender that message was delivered
-                    socket.emit('message:delivered', { messageId: message._id, timestamp: message.deliveredAt });
-                }
-            }
-
-            const populatedMessage = await Message.findById(message._id)
-                .populate('senderId', 'username displayName avatarUrl')
-                .populate('replyTo')
-                .populate('mentions', 'username displayName avatarUrl');
-
-            // Create notifications for mentioned users
-            if (payload.mentions && payload.mentions.length > 0) {
-                for (const mentionId of payload.mentions) {
-                    if (mentionId === userId) continue;
-
+        // Inside the mention loop (right after existing mention handling)
+        if (payload.text?.includes('@everyone') && convId) {
+            const conversation = await Conversation.findById(convId);
+            if (conversation?.isGroup) {
+                for (const pid of conversation.participants) {
+                    if (pid.toString() === userId) continue;
                     await Notification.create({
                         type: 'mention',
                         from: userId,
-                        to: mentionId,
+                        to: pid,
                         message: message._id,
-                        text: `${user.displayName || 'Someone'} mentioned you: "${text?.substring(0, 100)}"`,
+                        text: `${user.displayName || 'Someone'} mentioned @everyone`,
                         conversationId: convId,
                         fromAvatarUrl: user.avatarUrl || null,
                     });
-
-                    const mentionedSocket = Array.from(io.sockets.sockets.values())
-                        .find((s: any) => s.data?.userId === mentionId);
-                    if (mentionedSocket) {
-                        mentionedSocket.emit('notification:mention', {
-                            messageId: message._id,
-                            conversationId: convId,
-                            from: userId,
-                            text: `${user.displayName || 'Someone'} mentioned you in a message`,
-                        });
-                    }
                 }
             }
-
-            // Inside the mention loop (right after existing mention handling)
-            if (payload.text?.includes('@everyone') && convId) {
-                const conversation = await Conversation.findById(convId);
-                if (conversation?.isGroup) {
-                    for (const pid of conversation.participants) {
-                        if (pid.toString() === userId) continue;
-                        await Notification.create({
-                            type: 'mention',
-                            from: userId,
-                            to: pid,
-                            message: message._id,
-                            text: `${user.displayName || 'Someone'} mentioned @everyone`,
-                            conversationId: convId,
-                            fromAvatarUrl: user.avatarUrl || null,
-                        });
-                    }
-                }
-            }
-
-            await Conversation.findByIdAndUpdate(convId, {
-                lastMessage: message._id,
-                updatedAt: new Date()
-            });
-
-            const conversation = await Conversation.findById(convId);
-            if (conversation) {
-                const otherParticipants = conversation.participants
-                    .map((p: any) => p.toString())
-                    .filter((id: string) => id !== userId);
-
-                for (const pid of otherParticipants) {
-                    const currentCount = conversation.unreadCount.get(pid) || 0;
-                    conversation.unreadCount.set(pid, currentCount + 1);
-                }
-                await conversation.save();
-            }
-
-            if (convId) {
-                await cacheMessage(convId.toString(), populatedMessage).catch(err =>
-                    console.error('Redis cache error:', err?.message || err)
-                );
-            }
-
-            const conversationPopulated = await Conversation.findById(convId).populate('participants');
-            if (conversationPopulated) {
-                const participantIds = conversationPopulated.participants
-                    .map((p: any) => p._id?.toString())
-                    .filter((id: string) => id !== userId);
-
-                // Send push notifications to recipients (new feature)
-                for (const recipientId of participantIds) {
-                    // For group chat – fetch group avatar from conversation
-if (conversationPopulated.isGroup) {
-    // Try to get group avatar from conversation
-    const groupAvatar = conversationPopulated.groupAvatar || 
-                        conversationPopulated.groupAvatarUrl || 
-                        null;
-    
-    sendMessagePushNotification(
-        recipientId,
-        populatedMessage,
-        convId.toString(),
-        {
-            username: user.username,
-            displayName: user.displayName || user.username,
-            avatarUrl: user.avatarUrl,
-        },
-        true, // isGroup
-        conversationPopulated.groupName || 'Group',
-        groupAvatar // 🔥 Pass group avatar
-    );
-} else {
-    // 1-on-1 chat
-    sendMessagePushNotification(
-        recipientId,
-        populatedMessage,
-        convId.toString(),
-        {
-            username: user.username,
-            displayName: user.displayName || user.username,
-            avatarUrl: user.avatarUrl,
-        },
-        false, // isGroup
-        undefined,
-        undefined
-    );
-}
-                    ).catch(err => console.error('Push notification send error:', err));
-                }
-
-                // Emit to foreground users (in-app message)
-                participantIds.forEach((pid: string) => {
-                    const receivers = Array.from(io.sockets.sockets.values())
-                        .filter((s) => s.data?.userId === pid);
-                    receivers.forEach((rs) => {
-                        rs.emit('receive_message', populatedMessage);
-                    });
-                });
-            }
-
-            socket.emit('message_sent', populatedMessage);
-            ack?.({ ok: true, message: populatedMessage });
-
-        } catch (err: any) {
-            console.error('send_message error:', err);
-            ack?.({ ok: false, error: err.message });
         }
-    });
+
+        await Conversation.findByIdAndUpdate(convId, {
+            lastMessage: message._id,
+            updatedAt: new Date()
+        });
+
+        const conversation = await Conversation.findById(convId);
+        if (conversation) {
+            const otherParticipants = conversation.participants
+                .map((p: any) => p.toString())
+                .filter((id: string) => id !== userId);
+
+            for (const pid of otherParticipants) {
+                const currentCount = conversation.unreadCount.get(pid) || 0;
+                conversation.unreadCount.set(pid, currentCount + 1);
+            }
+            await conversation.save();
+        }
+
+        if (convId) {
+            await cacheMessage(convId.toString(), populatedMessage).catch(err =>
+                console.error('Redis cache error:', err?.message || err)
+            );
+        }
+
+        // ==================== PUSH NOTIFICATIONS & FOREGROUND EMITS ====================
+
+        const conversationPopulated = await Conversation.findById(convId).populate('participants');
+        if (conversationPopulated) {
+            const participantIds = conversationPopulated.participants
+                .map((p: any) => p._id?.toString())
+                .filter((id: string) => id !== userId);
+
+            // Send push notifications to recipients
+            for (const recipientId of participantIds) {
+                try {
+                    if (conversationPopulated.isGroup) {
+                        const groupAvatar = conversationPopulated.groupAvatar || 
+                                            conversationPopulated.groupAvatarUrl || 
+                                            null;
+                        
+                        await sendMessagePushNotification(
+                            recipientId,
+                            populatedMessage,
+                            convId.toString(),
+                            {
+                                username: user.username,
+                                displayName: user.displayName || user.username,
+                                avatarUrl: user.avatarUrl,
+                            },
+                            true,
+                            conversationPopulated.groupName || 'Group',
+                            groupAvatar
+                        );
+                    } else {
+                        await sendMessagePushNotification(
+                            recipientId,
+                            populatedMessage,
+                            convId.toString(),
+                            {
+                                username: user.username,
+                                displayName: user.displayName || user.username,
+                                avatarUrl: user.avatarUrl,
+                            },
+                            false,
+                            undefined,
+                            undefined
+                        );
+                    }
+                } catch (err) {
+                    console.error('Push notification send error:', err);
+                }
+            }
+
+            // Emit to foreground users (in-app message)
+            participantIds.forEach((pid: string) => {
+                const receivers = Array.from(io.sockets.sockets.values())
+                    .filter((s) => s.data?.userId === pid);
+                receivers.forEach((rs) => {
+                    rs.emit('receive_message', populatedMessage);
+                });
+            });
+        }
+
+        // ==================== END PUSH NOTIFICATIONS ====================
+
+        socket.emit('message_sent', populatedMessage);
+        ack?.({ ok: true, message: populatedMessage });
+
+    } catch (err: any) {
+        console.error('send_message error:', err);
+        ack?.({ ok: false, error: err.message });
+    }
+});
 
     // ==================== Typing Indicators ====================
 
