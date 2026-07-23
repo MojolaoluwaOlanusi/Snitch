@@ -13,6 +13,8 @@ export const useChatStore = create((set, get) => ({
     isConversationsLoading: false,
     onlineUsers: [],
     typingUsers: [],
+    unreadCounts: {},
+    totalUnread: 0,
 
     // ==================== Real-time Messaging ====================
 
@@ -500,6 +502,40 @@ export const useChatStore = create((set, get) => ({
             toast.success(`Chat theme color changed to ${data}`)
         } catch (error) { console.error('Error changing theme color:', error); toast.error('Failed to change theme color'); }
     },
+
+    const updateUnreadCount = (conversationId, count) => {
+        set((state) => {
+            const newUnreadCounts = { ...state.unreadCounts, [conversationId]: count };
+            const total = Object.values(newUnreadCounts).reduce((sum, val) => sum + val, 0);
+            return {
+                unreadCounts: newUnreadCounts,
+                totalUnread: total,
+            };
+        });
+    };
+
+    const incrementUnread = (conversationId) => {
+        set((state) => {
+            const current = state.unreadCounts[conversationId] || 0;
+            const newUnreadCounts = { ...state.unreadCounts, [conversationId]: current + 1 };
+            const total = Object.values(newUnreadCounts).reduce((sum, val) => sum + val, 0);
+            return {
+                unreadCounts: newUnreadCounts,
+                totalUnread: total,
+            };
+        });
+    };
+
+    const resetUnread = (conversationId) => {
+        set((state) => {
+            const newUnreadCounts = { ...state.unreadCounts, [conversationId]: 0 };
+            const total = Object.values(newUnreadCounts).reduce((sum, val) => sum + val, 0);
+            return {
+                unreadCounts: newUnreadCounts,
+                totalUnread: total,
+            };
+        });
+    };
 
     // ==================== Socket Event State Updaters ====================
 
