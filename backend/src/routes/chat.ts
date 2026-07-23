@@ -23,6 +23,29 @@ const router = express.Router();
 const translationCache = new NodeCache({ stdTTL: 3600 });
 
 // Translate message text
+const DEEPL_LANG_MAP: Record<string, string> = {
+    'en': 'EN',
+    'fr': 'FR',
+    'es': 'ES',
+    'de': 'DE',
+    'zh-CN': 'ZH',
+    'ja': 'JA',
+    'ko': 'KO',
+    'ar': 'AR',
+    'pt': 'PT',
+    'ru': 'RU',
+    'it': 'IT',
+    'nl': 'NL',
+    'hi': 'HI',
+    'tr': 'TR',
+    'pl': 'PL',
+    'vi': 'VI',
+    'th': 'TH',
+    'sv': 'SV',
+    'uk': 'UK',
+    'he': 'HE',
+};
+
 router.post('/translate', protectRoute, async (req: Request, res: Response) => {
     try {
         const { text, targetLang = 'en' } = req.body;
@@ -31,20 +54,22 @@ router.post('/translate', protectRoute, async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'Text is required' });
         }
 
-        // 🔥 Check cache first
+        // 🔥 Cache check
         const cacheKey = `${text.trim()}_${targetLang}`;
-        const cachedTranslation = translationCache.get(cacheKey);
-        if (cachedTranslation) {
-            return res.json({ translated: cachedTranslation, cached: true });
+        const cached = translationCache.get(cacheKey);
+        if (cached) {
+            return res.json({ translated: cached, cached: true });
         }
 
         const apiKey = process.env.DEEPL_API_KEY;
-        
         if (!apiKey) {
             return res.status(500).json({ message: 'DeepL API key not configured' });
         }
 
-        // 🔥 Call DeepL API (free endpoint)
+        // 🔥 Convert language code to DeepL format
+        const deepLLang = DEEPL_LANG_MAP[targetLang] || targetLang.toUpperCase();
+
+        // 🔥 Call DeepL API
         const response = await axios.post(
             'https://api-free.deepl.com/v2/translate',
             null,
@@ -52,30 +77,34 @@ router.post('/translate', protectRoute, async (req: Request, res: Response) => {
                 params: {
                     auth_key: apiKey,
                     text: text,
-                    target_lang: targetLang.toUpperCase(), // DeepL expects uppercase (EN, ES, FR)
-                    // source_lang: 'EN' // Optional - auto-detects if omitted
-                }
+                    target_lang: deepLLang,
+                },
+                timeout: 10000,
             }
         );
 
-        const translated = response.data.translations[0].text;
-
+        const translated = response.data.translations[0]?.text;
         if (!translated) {
             return res.status(500).json({ message: 'Translation failed' });
         }
 
-        // 🔥 Cache the result
+        // 🔥 Cache result
         translationCache.set(cacheKey, translated);
 
         res.json({ translated, cached: false });
 
     } catch (error: any) {
-        console.error('DeepL translation error:', error.response?.data || error.message);
+        console.error('Translation error:', error.response?.data || error.message);
         
-        // Handle rate limiting
         if (error.response?.status === 429) {
             return res.status(429).json({ 
                 message: 'Translation rate limit reached. Please try again later.' 
+            });
+        }
+        
+        if (error.code === 'ECONNABORTED' || error.response?.status === 504) {
+            return res.status(504).json({ 
+                message: 'Translation service timeout. Please try again.' 
             });
         }
         
