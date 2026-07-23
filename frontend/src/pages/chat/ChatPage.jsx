@@ -69,6 +69,7 @@ import {
     X,
 } from "lucide-react";
 import { useConversationSettings } from '../../hooks/useConversationsettings.js';
+import { useLongPress } from '../../hooks/useLongPress.js';
 import {AnimatePresence, motion} from "framer-motion";
 import axiosInstance from "../../lib/axios.js";
 import { toast } from 'sonner'
