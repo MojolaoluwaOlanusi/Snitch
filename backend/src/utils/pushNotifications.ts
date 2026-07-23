@@ -39,8 +39,7 @@ export const sendPushNotification = async (userId: string, payload: { title: str
     }
 };
 
-// WhatsApp-style message notification function
-export const sendMessagePushNotification = async (
+// WhatsApp-style message notification functionexport const sendMessagePushNotification = async (
     recipientId: string,
     message: any,
     conversationId: string,
@@ -71,33 +70,39 @@ export const sendMessagePushNotification = async (
             title = senderInfo.displayName || senderInfo.username;
         }
 
+        // 🔥 Determine the notification icon (FIXED)
+        const notificationIcon = isGroup 
+            ? (groupAvatar || `${process.env.CLIENT_URL}/group-placeholder.png`)
+            : (senderInfo.avatarUrl || `${process.env.CLIENT_URL}/avatar-placeholder.png`);
+
         // Construct rich notification payload
         const payload = {
-    title,
-    body: preview,
-    icon: notificationIcon,
-    badge: `${process.env.CLIENT_URL}/badge-icon.png`,
-    tag: `message-${conversationId}`,
-    timestamp: Date.now(),
-    requireInteraction: true,
-    data: {
-        type: 'message',
-        conversationId: conversationId.toString(), // ✅ Must be included
-        senderId: message.senderId.toString(),
-        senderUsername: senderInfo.username,
-        messageId: message._id.toString(),
-        timestamp: message.createdAt.toISOString(),
-        isGroup: isGroup || false,
-        groupName: groupName || null,
-        avatarUrl: isGroup ? (groupAvatar || '') : (senderInfo.avatarUrl || ''),
-        url: `${process.env.CLIENT_URL}/chat?conversationId=${conversationId.toString()}`, // 🔥 Fallback URL
-    },
-    actions: [
-        { action: 'open', title: 'Open Chat' },
-        { action: 'close', title: 'Close' },
-    ],
-};
+            title,
+            body: preview,
+            icon: notificationIcon,
+            badge: `${process.env.CLIENT_URL}/badge-icon.png`,
+            tag: `message-${conversationId}`,
+            timestamp: Date.now(),
+            requireInteraction: true,
+            data: {
+                type: 'message',
+                conversationId: conversationId.toString(),
+                senderId: message.senderId.toString(),
+                senderUsername: senderInfo.username,
+                messageId: message._id.toString(),
+                timestamp: message.createdAt.toISOString(),
+                isGroup: isGroup || false,
+                groupName: groupName || null,
+                avatarUrl: notificationIcon,
+                url: `${process.env.CLIENT_URL}/chat?conversationId=${conversationId.toString()}`,
+            },
+            actions: [
+                { action: 'open', title: 'Open Chat' },
+                { action: 'close', title: 'Close' },
+            ],
+        };
 
+        // Send to all subscriptions
         const subscriptions = recipient.pushSubscriptions as any[];
         let validSubscriptions: any[] = [];
 
@@ -106,11 +111,10 @@ export const sendMessagePushNotification = async (
                 await webpush.sendNotification(subscription, JSON.stringify(payload));
                 validSubscriptions.push(subscription);
             } catch (err: any) {
-                // Remove expired subscriptions
                 if (err.statusCode === 410 || err.statusCode === 404) {
                     console.log(`Removing expired subscription for user ${recipientId}`);
                 } else {
-                    validSubscriptions.push(subscription); // Keep if different error
+                    validSubscriptions.push(subscription);
                 }
             }
         }
