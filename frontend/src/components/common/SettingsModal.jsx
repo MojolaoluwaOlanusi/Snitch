@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import { useUserStore } from '@/store/useUserStore.js';
 import { useAuthStore } from '@/store/useAuthStore.js';
 import {Link, useParams} from 'react-router-dom';
+import { usePushNotifications } from '../../hooks/usePushNotifications.js';
 
 const SOCIAL_PLATFORMS = [
     { name: "twitter", label: "Twitter", icon: Twitter },
@@ -62,6 +63,41 @@ const SettingsModal = ({ isOpen, onClose, authUser, onProfileUpdate, onEditProfi
         }
     }, [activeTab]);
 
+    const { setupPushNotifications, requestNotificationPermission } = usePushNotifications();
+    const [notificationStatus, setNotificationStatus] = useState('default');
+    const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
+
+    // Check notification permission status
+    useEffect(() => {
+        if ('Notification' in window) {
+            setNotificationStatus(Notification.permission);
+        }
+    }, []);
+
+const handleEnableNotifications = async () => {
+    setIsEnablingNotifications(true);
+    try {
+        const permission = await requestNotificationPermission();
+        if (permission) {
+            const success = await setupPushNotifications();
+            if (success) {
+                setNotificationStatus('granted');
+                toast.success('Notifications enabled!');
+            } else {
+                toast.error('Failed to setup notifications');
+            }
+        } else {
+            setNotificationStatus('denied');
+            toast.error('Please enable notifications in your browser settings');
+        }
+    } catch (error) {
+        console.error('Notification setup error:', error);
+        toast.error('Failed to enable notifications');
+    } finally {
+        setIsEnablingNotifications(false);
+    }
+};
+    
     const saveProfile = async () => {
         setIsSaving(true);
         try {
