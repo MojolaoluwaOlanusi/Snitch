@@ -46,7 +46,7 @@ const DEEPL_LANG_MAP: Record<string, string> = {
     'he': 'HE',
 };
 
-router.post('/translate', authMiddleware, async (req: Request, res: Response) => {
+router.post('/translate', protectRoute, async (req: Request, res: Response) => {
     try {
         const { text, targetLang = 'en' } = req.body;
         if (!text || text.trim().length === 0) {
