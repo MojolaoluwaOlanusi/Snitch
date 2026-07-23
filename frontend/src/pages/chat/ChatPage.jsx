@@ -341,6 +341,7 @@ const ChatPage = () => {
     const [isVideoMode, setIsVideoMode] = useState(true);
 
     // --- Refs ---
+    const typingTimeoutRef = useRef(null);
     const translationTimeoutRef = useRef(null);
     const translationCache = useRef(new Map());
     const virtuosoRef = useRef(null);
@@ -1862,27 +1863,52 @@ useEffect(() => {
     };
 
     const handleKeyDown = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSendMessage();
+    // Handle Enter key to send message
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+        return;
+    }
+
+    // Handle typing indicator with debounce
+    const otherId = getOtherUser(selectedConversation)?._id;
+    if (!otherId) return;
+
+    const isTypingKey = 
+        e.key.length === 1 ||
+        e.key === 'Backspace' ||
+        e.key === 'Delete';
+
+    if (isTypingKey) {
+        // Clear previous timeout
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
         }
-        const otherId = getOtherUser(selectedConversation)?._id;
-        if (otherId && e.target.value) startTyping({ toUserId: otherId });
-        else if (otherId) stopTyping({ toUserId: otherId });
+
+        const hasText = e.target.value.trim().length > 0;
+        
+        if (hasText) {
+            // Send startTyping immediately (but not too often)
+            startTyping({ toUserId: otherId });
+            
+            // Set a timeout to stop typing if the user stops
+            typingTimeoutRef.current = setTimeout(() => {
+                stopTyping({ toUserId: otherId });
+            }, 1500); // Stop after 1.5 seconds of inactivity
+        } else {
+            stopTyping({ toUserId: otherId });
+        }
+    }
+};
+
+// Cleanup timeout on unmount
+useEffect(() => {
+    return () => {
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
     };
-    const handleFileSelect = (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onloadend = () => setSelectedFile({
-            file,
-            url: reader.result,
-            type: file.type,
-            size: file.size,
-            name: file.name
-        });
-        reader.readAsDataURL(file);
-    };
+}, []);
     const handleEmojiSelect = (emoji) => {
         setMessageText(prev => prev + emoji.native);
     };
