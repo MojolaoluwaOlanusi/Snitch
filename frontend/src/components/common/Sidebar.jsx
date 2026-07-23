@@ -15,6 +15,8 @@ const Sidebar = () => {
     const [isChatRestricted, setIsChatRestricted] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [framerModule, setFramerModule] = useState(null);
+
+    // Get total unread messages from chat store
     const { totalUnread } = useChatStore();
 
     useEffect(() => {
@@ -27,6 +29,7 @@ const Sidebar = () => {
             import("framer-motion").then((mod) => setFramerModule(mod));
         }
     }, [mobileMenuOpen, framerModule]);
+
     const checkChatRestriction = async () => {
         try {
             const token = localStorage.getItem('access-token');
@@ -63,7 +66,7 @@ const Sidebar = () => {
                     <Link
                         key={link.label}
                         to={to}
-                        className={`btn w-full justify-start text-primary-content ${extraClass}`}
+                        className={`btn w-full justify-start text-primary-content ${extraClass} relative`}
                         onClick={(e) => {
                             if (isChat) {
                                 e.preventDefault();
@@ -75,6 +78,12 @@ const Sidebar = () => {
                     >
                         <link.icon className="size-5 shrink-0" />
                         <span className="ml-2 md:hidden lg:inline">{link.label}</span>
+                        {/* 🔥 Unread badge - only show on Chat button */}
+                        {link.label === "Chat" && totalUnread > 0 && !link.restricted && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                                {totalUnread > 99 ? '99+' : totalUnread}
+                            </span>
+                        )}
                     </Link>
                 );
             })}
@@ -171,7 +180,7 @@ const Sidebar = () => {
                                 <Link
                                     key={link.label}
                                     to={to}
-                                    className={`btn w-full justify-center lg:justify-start text-primary-content ${extraClass}`}
+                                    className={`btn w-full justify-center lg:justify-start text-primary-content ${extraClass} relative`}
                                     onClick={(e) => {
                                         if (isChat) {
                                             e.preventDefault();
@@ -182,6 +191,12 @@ const Sidebar = () => {
                                 >
                                     <link.icon className="size-5 shrink-0" />
                                     <span className="hidden lg:inline ml-2">{link.label}</span>
+                                    {/* 🔥 Unread badge - only show on Chat button */}
+                                    {link.label === "Chat" && totalUnread > 0 && !link.restricted && (
+                                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                                            {totalUnread > 99 ? '99+' : totalUnread}
+                                        </span>
+                                    )}
                                 </Link>
                             );
                         })}
