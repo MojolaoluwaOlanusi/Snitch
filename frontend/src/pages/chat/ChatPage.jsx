@@ -75,6 +75,7 @@ import {useLocation, useNavigate} from "react-router-dom";
 import {getLinkPreview} from 'link-preview-js';
 import {TbBookmarkOff} from "react-icons/tb";
 import { Virtuoso } from "react-virtuoso";
+import { useSearchParams } from 'react-router-dom';
 const StickerEditor = React.lazy(() => import("../../components/common/StickerEditor.jsx"));
 const GifStickerPicker = React.lazy(() => import("../../components/common/GifStickerPicker.jsx"));
 const LocationPicker = React.lazy(() => import("../../components/common/LocationPicker.jsx"));
@@ -654,6 +655,19 @@ const ChatPage = () => {
         }
     }, [showAttachmentMenu]);
 
+const [searchParams] = useSearchParams();
+const conversationIdFromUrl = searchParams.get('conversationId');
+
+useEffect(() => {
+    if (conversationIdFromUrl) {
+        // Select the conversation automatically
+        const conversation = conversations.find(c => c._id === conversationIdFromUrl);
+        if (conversation) {
+            selectConversation(conversation);
+        }
+    }
+}, [conversationIdFromUrl, conversations, selectConversation]);
+    
     // Outside click for Send Contact Modal
     useEffect(() => {
         const h = (e) => {
