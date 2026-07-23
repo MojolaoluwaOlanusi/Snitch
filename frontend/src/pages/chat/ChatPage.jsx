@@ -3127,7 +3127,7 @@ useEffect(() => {
             }
         },
         null, // onClick – we don't need a separate click handler
-        { delay: 500 }
+        { delay: 800 }
     )}
 >
                     <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${isOwn ? 'order-1 mr-1' : 'order-2 ml-1'}`}>
@@ -3350,7 +3350,7 @@ useEffect(() => {
             }
         },
         null, // onClick – we don't need a separate click handler
-        { delay: 500 }
+        { delay: 800 }
     )}
 >
                 <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${isOwn ? 'order-1 mr-1' : 'order-2 ml-1'}`}>
@@ -4082,7 +4082,6 @@ useEffect(() => {
                                             {showScrollButton && (
     <button
         onClick={() => {
-            // Scroll to the very last message
             if (virtuosoRef.current) {
                 virtuosoRef.current.scrollToIndex({
                     index: messages.length - 1,
@@ -4091,7 +4090,12 @@ useEffect(() => {
                 });
             }
         }}
-        className="absolute bottom-20 right-4 z-10 p-2 rounded-full bg-primary text-primary-content shadow-lg hover:bg-primary/90 transition-colors"
+        className="absolute right-4 p-2 rounded-full shadow-lg hover:scale-110 transition-transform z-20"
+        style={{
+            backgroundColor: bubbleColor,
+            color: '#ffffff',
+            bottom: replyingTo ? '7rem' : '5rem', // avoids reply preview
+        }}
         aria-label="Scroll to bottom"
     >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
