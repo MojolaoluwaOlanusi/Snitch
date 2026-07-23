@@ -226,7 +226,7 @@ if (conversationPopulated) {
         try {
             if (conversationPopulated.isGroup) {
                 // 🔥 Only use groupAvatar (no groupAvatarUrl)
-                const groupAvatar = conversationPopulated.groupAvatar || null;
+                const groupAvatar = conversationPopulated.groupAvatar || undefined;
                 
                 await sendMessagePushNotification(
                     recipientId,
