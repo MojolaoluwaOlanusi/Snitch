@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useUserStore } from "@/store/useUserStore.js";
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useMemo } from "react";
 import PostSkeleton from "../../components/skeletons/PostSkeleton.jsx";
 import { Link, useNavigate } from "react-router-dom";
 import { Share2, Copy, Check, Bookmark, Sticker } from "lucide-react";
@@ -17,11 +17,11 @@ import { Hash, MoreHorizontal } from "lucide-react";
 import EditPostModal from "../../components/common/EditPostModal.jsx";
 import ReactionEmojiPicker from "./ReactionEmojiPicker.tsx";
 import ReactionsDisplay from "./ReactionsDisplay.jsx";
-import ReportModal from "./ReportModal.jsx"
+import ReportModal from "./ReportModal.jsx";
 import GifStickerPicker from "../../components/common/GifStickerPicker.jsx";
 import { AnimatePresence } from "framer-motion";
 import axiosInstance from "@/lib/axios.js";
-import SuggestionCard from "./suggestionCard.jsx"; // we'll create this next
+import SuggestionCard from "./SuggestionCard.jsx";  // ← NEW
 
 // ── Helper: compute insertion points ──
 const getInsertionPoints = (totalPosts) => {
