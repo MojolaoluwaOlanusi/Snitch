@@ -32,8 +32,24 @@ const WhoToFollowCarousel = ({ users, onFollow }) => {
                 {users.map((user) => {
                     const isFollowed = followed.has(user._id);
                     return (
-                        <div key={user._id} className="flex-shrink-0 w-24 text-center">
-                            <Link to={`/profile/${user.username}`} className="block">
+                        <div
+                            key={user._id}
+                            className="flex-shrink-0 w-32 bg-primary/5 border border-primary/10 rounded-xl p-3 flex flex-col items-center text-center shadow-sm hover:shadow-md transition-shadow"
+                        >
+                            {/* Display Name */}
+                            <Link to={`/profile/${user.username}`} className="w-full">
+                                <p className="text-sm font-semibold text-base-content truncate w-full">
+                                    {user.displayName || user.username}
+                                </p>
+                            </Link>
+
+                            {/* Username */}
+                            <Link to={`/profile/${user.username}`} className="w-full">
+                                <p className="text-xs text-base-content/50 truncate w-full">@{user.username}</p>
+                            </Link>
+
+                            {/* Avatar */}
+                            <Link to={`/profile/${user.username}`} className="mt-1">
                                 <div className="avatar">
                                     <div className="w-14 h-14 rounded-full overflow-hidden border border-base-300">
                                         <img
@@ -42,14 +58,12 @@ const WhoToFollowCarousel = ({ users, onFollow }) => {
                                             className="w-full h-full object-cover"
                                         />
                                     </div>
-                                    <p className="text-xs font-medium truncate mt-1 max-w-full text-base-content">
-                                        {user.displayName || user.username}
-                                    </p>
-                                    <p className="text-[10px] text-base-content/50 truncate">@{user.username}</p>
                                 </div>
                             </Link>
+
+                            {/* Follow Button */}
                             <button
-                                className={`mt-1 btn btn-xs w-full ${isFollowed ? 'btn-success' : 'btn-primary'}`}
+                                className={`mt-2 btn btn-xs w-full ${isFollowed ? 'btn-success' : 'btn-primary'}`}
                                 onClick={() => handleFollow(user._id)}
                                 disabled={isFollowingUser || isFollowed}
                             >
