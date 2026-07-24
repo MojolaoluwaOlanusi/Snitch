@@ -21,7 +21,7 @@ import ReportModal from "./ReportModal.jsx"
 import GifStickerPicker from "../../components/common/GifStickerPicker.jsx";
 import { AnimatePresence } from "framer-motion";
 import axiosInstance from "@/lib/axios.js";
-import SuggestionCard from "../../components/common/SuggestionCard.jsx"; // we'll create this next
+import SuggestionCard from "./suggestionCard.jsx"; // we'll create this next
 
 // ── Helper: compute insertion points ──
 const getInsertionPoints = (totalPosts) => {
