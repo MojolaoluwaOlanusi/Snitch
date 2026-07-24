@@ -588,21 +588,25 @@ const ChatPage = () => {
             // 🔥 Ignore if this is our own userId (prevent self‑toast)
             if (userId === authUser?._id) return;
 
-            toast.success(`${userId} joined`, { icon: '👋' });
-
+            // 🔥 Check if already joined to prevent duplicate toasts
             if (joinedParticipantsRef.current.has(userId)) return;
             joinedParticipantsRef.current.add(userId);
 
+            toast.success(`${userId} joined`, { icon: '👋' });
+
             // ✅ Transition from ringing to in‑call for BOTH group and 1‑on‑1
             if (activeCall && localStream) {
-                // Update UI state
-                if (isRinging) {
-                    setIsRinging(false);
-                    setCallAnswered(true);
-                    callAnsweredRef.current = true;
-                    isRingingRef.current = false;
-                    clearTimeout(callTimeoutRef.current);
-                }
+                // Update UI state using functional updates to avoid stale closures
+                setIsRinging(prev => {
+                    if (prev) {
+                        setCallAnswered(true);
+                        callAnsweredRef.current = true;
+                        isRingingRef.current = false;
+                        clearTimeout(callTimeoutRef.current);
+                        return false;
+                    }
+                    return prev;
+                });
 
                 // Create peer connection and exchange SDP
                 const pc = createPeerConnection(userId);
@@ -2489,7 +2493,11 @@ useEffect(() => {
     };
     const endCall = () => {
         if (activeCall) {
-            socket?.emit('webrtc:call:end', { callId: activeCall.callId });
+            // Emit end event to all participants
+            socket?.emit('webrtc:call:end', { 
+                callId: activeCall.callId,
+                isGroupCall: activeCall.isGroupCall
+            });
         }
         cleanupCall();
     };
@@ -5382,10 +5390,10 @@ useEffect(() => {
                                 <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                                     {incomingCall.isVideo ? <Video className="w-10 h-10 text-primary" /> : <Phone className="w-10 h-10 text-primary" />}
                                 </div>
-                                <h3 className="text-xl font-bold mb-1">
+                                <h3 className="text-xl font-bold mb-1 text-base-content">
                                     {incomingCall.isGroupCall ? `Group Call: ${incomingCall.metadata?.groupName || 'Group'}` : `Incoming ${incomingCall.isVideo ? 'Video' : 'Audio'} Call`}
                                 </h3>
-                                <p className="text-base-content/60 mb-6">
+                                <p className="text-base-content/70 mb-6">
                                     {incomingCall.isGroupCall ? `${incomingCall.callerName} is calling the group` : `${incomingCall.callerName} is calling...`}
                                 </p>
                                 <div className="flex gap-4 justify-center">
@@ -6100,7 +6108,7 @@ useEffect(() => {
                                 )}
 
                                 {isVideoMode && localStream && (
-                                    <div className="absolute top-4 right-4 w-32 h-44 rounded-xl overflow-hidden border-2 border-white/30 shadow-lg">
+                                    <div className="absolute top-4 right-4 w-32 h-44 rounded-xl overflow-hidden border-2 border-base-content/30 shadow-lg">
                                         <video
                                             ref={el => { localVideoRef.current = el; if (el && localStream) el.srcObject = localStream; }}
                                             autoPlay muted playsInline className="w-full h-full object-cover"
@@ -6109,7 +6117,7 @@ useEffect(() => {
                                 )}
 
                                 {/* Call controls – responsive */}
-                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-3 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2 md:px-6 md:py-3 flex-wrap justify-center">
+                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-3 bg-base-content/40 backdrop-blur-sm rounded-full px-3 py-2 md:px-6 md:py-3 flex-wrap justify-center">
                                     <button onClick={toggleMute} className={`p-2 md:p-3 rounded-full transition-colors ${isMicMuted ? 'bg-error text-primary-content' : 'bg-base-100/20 text-primary-content hover:bg-base-100/30'}`}>
                                         {isMicMuted ? <MicOff className="w-4 h-4 md:w-5 md:h-5" /> : <Mic className="w-4 h-4 md:w-5 md:h-5" />}
                                     </button>
@@ -6133,7 +6141,7 @@ useEffect(() => {
                                     </button>
                                 </div>
 
-                                <button onClick={toggleCallMinimize} className="absolute top-4 left-4 p-2 bg-black/40 rounded-full text-primary-content hover:bg-black/60">
+                                <button onClick={toggleCallMinimize} className="absolute top-4 left-4 p-2 bg-base-content/40 rounded-full text-primary-content hover:bg-base-content/60">
                                     {isCallMinimized ? <Maximize2 className="w-5 h-5" /> : <Minimize2 className="w-5 h-5" />}
                                 </button>
                             </div>

@@ -139,6 +139,19 @@ export const sendMessagePushNotification = async (
 // ==================== Helper: Generate Message Preview ====================
 
 function generateMessagePreview(message: any): string {
+    // 🔥 Check for call first (before text, media, location, etc.)
+    if (message.call) {
+        const callType = message.call.type || 'audio';
+        const callStatus = message.call.status;
+        if (callStatus === 'missed') {
+            return `Missed ${callType} call`;
+        } else if (callStatus === 'incoming') {
+            return `Incoming ${callType} call`;
+        } else {
+            return `${callType} call`;
+        }
+    }
+
     if (message.text) {
         return message.text.substring(0, 50) + (message.text.length > 50 ? '...' : '');
     }
@@ -161,7 +174,6 @@ function generateMessagePreview(message: any): string {
     if (message.location) return '📍 Location';
     if (message.contact) return `👤 Contact: ${message.contact.name}`;
     if (message.poll) return `📊 Poll: ${message.poll.question}`;
-    if (message.call) return `📞 ${message.call.type} call`;
 
     return 'New message';
 }
