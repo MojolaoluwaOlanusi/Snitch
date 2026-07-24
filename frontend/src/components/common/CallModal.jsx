@@ -1,11 +1,10 @@
-// frontend/src/components/CallModal.jsx
 import { useEffect, useRef } from 'react';
 import {
     Phone, PhoneOff, Video, VideoOff, Mic, MicOff, RotateCw,
     MonitorUp, Maximize2, Minimize2, UserPlus,
 } from 'lucide-react';
-import { useCallStore } from '../store/useCallStore.js';
-import { useAuthStore } from '../store/useAuthStore.js';
+import { useCallStore } from '../../store/useCallStore.js';
+import { useAuthStore } from '../../store/useAuthStore.js';
 import { toast } from 'sonner';
 
 const formatCallDuration = (seconds) => {
