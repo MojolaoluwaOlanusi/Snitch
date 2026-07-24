@@ -67,8 +67,8 @@ const CallModal = () => {
     // ===== Incoming Call Modal =====
     if (incomingCall && !activeCall) {
         return (
-            <div className="fixed inset-0 z-50 flex items-center border justify-center bg-black/60">
-                <div className="bg-base-100 rounded-2xl p-8 w-[90%] max-w-xs text-center shadow-2xl">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                <div className="bg-base-100 rounded-2xl border p-8 w-[90%] max-w-xs text-center shadow-2xl">
                     <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                         {incomingCall.isVideo ? (
                             <Video className="w-10 h-10 text-primary" />
