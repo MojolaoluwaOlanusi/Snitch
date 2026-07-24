@@ -1,5 +1,6 @@
 import Sidebar from "../../components/common/Sidebar.jsx";
 import RightPanel from "../../components/common/RightPanel.jsx";
+import WhoToFollow from "../../components/common/WhoToFollow.jsx";
 import { useUserStore } from "../../store/useUserStore.js";
 import Posts from "../../components/common/Posts.jsx";
 import { useChatStore } from "../../store/useChatStore.js";
@@ -41,8 +42,18 @@ function HomePage() {
                         </div>
                     </header>
                 </div>
-                {feedType === "forYou" && <Posts />}
-                {feedType === "following" && <FollowingPosts />}
+                {feedType === "forYou" && (
+                    <>
+                        <WhoToFollow />
+                        <Posts />
+                    </>
+                )}
+                {feedType === "following" && (
+                    <>
+                        <WhoToFollow />
+                        <FollowingPosts />
+                    </>
+                )}
             </main>
 
             {/* Right panel – hidden on mobile/tablet, visible on desktop */}

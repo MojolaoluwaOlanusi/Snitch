@@ -5,7 +5,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa6";
 
 function VerifyCodePage() {
-    const [formData, setFormData] = useState({ email: "", providedCode: "" });
+    const [providedCode, setProvidedCode] = useState("");
+    const [isVerifying, setIsVerifying] = useState(false);
     const { verifyVerificationCode, verifiedUser, authUser } = useAuthStore();
     const navigate = useNavigate();
 
@@ -18,7 +19,15 @@ function VerifyCodePage() {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        verifyVerificationCode(formData);
+        // Use logged-in user's email instead of requiring input
+        if (authUser?.email) {
+            setIsVerifying(true);
+            verifyVerificationCode({ email: authUser.email, providedCode }).finally(() => {
+                setIsVerifying(false);
+            });
+        } else {
+            alert("Please log in first to verify your account");
+        }
     };
 
     return (
@@ -41,27 +50,15 @@ function VerifyCodePage() {
                     <p className="text-primary/90 text-sm sm:text-base">
                         Enter The Provided Code To Continue
                     </p>
+                    {authUser?.email && (
+                        <p className="text-base-content/60 text-sm mt-2">
+                            {authUser.email}
+                        </p>
+                    )}
                 </div>
 
                 {/* FORM */}
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* EMAIL INPUT */}
-                    <div>
-                        <label className="auth-input-label">Email</label>
-                        <div className="relative">
-                            <MailIcon className="auth-input-icon" />
-                            <input
-                                type="email"
-                                value={formData.email}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, email: e.target.value })
-                                }
-                                className="input border-gray-400"
-                                placeholder="youremail@gmail.com"
-                            />
-                        </div>
-                    </div>
-
                     {/* PROVIDED CODE */}
                     <div>
                         <label className="auth-input-label">Provided Code</label>
@@ -69,10 +66,8 @@ function VerifyCodePage() {
                             <HashIcon className="auth-input-icon" />
                             <input
                                 type="number"
-                                value={formData.providedCode}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, providedCode: e.target.value })
-                                }
+                                value={providedCode}
+                                onChange={(e) => setProvidedCode(e.target.value)}
                                 className="input border-gray-400"
                                 placeholder="Your verification code"
                             />
@@ -80,8 +75,12 @@ function VerifyCodePage() {
                     </div>
 
                     {/* SUBMIT BUTTON */}
-                    <button className="btn btn-primary w-full" type="submit">
-                        Verify Code
+                    <button className="btn btn-primary w-full" type="submit" disabled={isVerifying}>
+                        {isVerifying ? (
+                            <LoaderIcon className="w-full h-5 animate-spin text-center" />
+                        ) : (
+                            "Verify Code"
+                        )}
                     </button>
                 </form>
 

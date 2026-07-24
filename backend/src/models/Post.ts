@@ -41,8 +41,8 @@ const PostSchema = new Schema({
 
     visibility:{
         type:String,
-        enum:['public','followers','private'],
-        default:'public'
+        enum:['Public','Private','Friends'],
+        default:'Public'
     },
 
     hashtags:[String],

@@ -5,12 +5,17 @@ import { Link } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa6";
 
 function ForgotPasswordPage() {
-    const [formData, setFormData] = useState({ email: "" });
     const { sentVerificationCode, sendVerificationCode, authUser } = useAuthStore();
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        sendVerificationCode(formData);
+        // Use logged-in user's email instead of requiring input
+        if (authUser?.email) {
+            sendVerificationCode({ email: authUser.email });
+        } else {
+            // Fallback if no logged-in user (shouldn't happen in normal flow)
+            alert("Please log in first to verify your account");
+        }
     };
 
     return (
@@ -31,29 +36,17 @@ function ForgotPasswordPage() {
                         Verify Account
                     </h2>
                     <p className="text-primary/90 text-sm sm:text-base">
-                        Enter Your Email To Request A Code
+                        A verification code will be sent to your email
                     </p>
+                    {authUser?.email && (
+                        <p className="text-base-content/60 text-sm mt-2">
+                            {authUser.email}
+                        </p>
+                    )}
                 </div>
 
                 {/* FORM */}
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* EMAIL INPUT */}
-                    <div>
-                        <label className="auth-input-label">Email</label>
-                        <div className="relative">
-                            <MailIcon className="auth-input-icon" />
-                            <input
-                                type="email"
-                                value={formData.email}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, email: e.target.value })
-                                }
-                                className="input border-gray-400"
-                                placeholder="youremail@gmail.com"
-                            />
-                        </div>
-                    </div>
-
                     {/* SUBMIT BUTTON */}
                     <button
                         className="btn btn-primary w-full"
@@ -63,7 +56,7 @@ function ForgotPasswordPage() {
                         {sentVerificationCode ? (
                             <LoaderIcon className="w-full h-5 animate-spin text-center" />
                         ) : (
-                            "Verify Code"
+                            "Send Verification Code"
                         )}
                     </button>
                 </form>

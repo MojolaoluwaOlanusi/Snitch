@@ -139,23 +139,19 @@ export const sendMessagePushNotification = async (
 // ==================== Helper: Generate Message Preview ====================
 
 function generateMessagePreview(message: any): string {
-    // 🔥 Check for call first (before text, media, location, etc.)
-    if (message.call) {
-        const callType = message.call.type || 'audio';
-        const callStatus = message.call.status;
-        if (callStatus === 'missed') {
-            return `Missed ${callType} call`;
-        } else if (callStatus === 'incoming') {
-            return `Incoming ${callType} call`;
-        } else {
-            return `${callType} call`;
-        }
+    // 🔥 Check for a valid call object FIRST
+    if (message.call && typeof message.call === 'object' && message.call.type) {
+        const callType = message.call.type === 'video' ? 'Video' : 'Audio';
+        const status = message.call.status === 'missed' ? 'Missed ' : '';
+        return `${status}${callType} call`.trim();
     }
 
+    // Then check text
     if (message.text) {
         return message.text.substring(0, 50) + (message.text.length > 50 ? '...' : '');
     }
 
+    // Then media
     if (message.media && message.media.length > 0) {
         const mediaType = message.media[0].mime?.split('/')[0];
         if (mediaType === 'image') return '📷 Photo';
@@ -164,6 +160,7 @@ function generateMessagePreview(message: any): string {
         return '📎 Media';
     }
 
+    // Voice message
     if (message.isVoiceMessage) {
         const duration = message.voiceDuration
             ? Math.round(message.voiceDuration / 1000)
@@ -171,10 +168,16 @@ function generateMessagePreview(message: any): string {
         return `🎤 Voice message (${duration}s)`;
     }
 
+    // Location
     if (message.location) return '📍 Location';
+
+    // Contact
     if (message.contact) return `👤 Contact: ${message.contact.name}`;
+
+    // Poll
     if (message.poll) return `📊 Poll: ${message.poll.question}`;
 
+    // Fallback
     return 'New message';
 }
 

@@ -25,7 +25,33 @@ router.post('/', async (req: Request, res: Response)=>{
     res.status(201).json(p);
 });
 
-router.get('/', async (_req: Request, res: Response)=>{ const posts = await Post.find({ isPublished: true }).sort({ createdAt:-1 }).limit(50).populate('author','username displayName avatarUrl'); res.json(posts); });
+router.get('/', async (req: Request, res: Response)=>{
+    const userId = req.userId;
+    let posts;
+    
+    if (userId) {
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        const mutualFollowers = user.following.filter(id => user.followers.includes(id));
+        
+        // Filter posts based on visibility
+        posts = await Post.find({
+            isPublished: true,
+            $or: [
+                { visibility: 'Public' },
+                { visibility: 'Private', author: { $in: user.following } },
+                { visibility: 'Friends', author: { $in: mutualFollowers } },
+                { author: userId } // Always show own posts
+            ]
+        }).sort({ createdAt:-1 }).limit(50).populate('author','username displayName avatarUrl');
+    } else {
+        // Non-authenticated users only see public posts
+        posts = await Post.find({ isPublished: true, visibility: 'Public' }).sort({ createdAt:-1 }).limit(50).populate('author','username displayName avatarUrl');
+    }
+    
+    res.json(posts);
+});
 
 router.get('/trending', async (req: Request, res: Response)=>{
     const parsedLimit = Number(req.query.limit);
@@ -144,13 +170,16 @@ router.delete('/delete/:id', async (req: Request, res: Response) => {
 router.put('/edit-post/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { text, mediaType , url, hashtags, mentions } = req.body;
-        if (!text && !mediaType && !url) return res.status(400).json({ message: "You must update at least a field!" });
+        const { text, mediaType , url, hashtags, mentions, visibility } = req.body;
+        if (!text && !mediaType && !url && !visibility) return res.status(400).json({ message: "You must update at least a field!" });
         const post = await Post.findById(id);
+        const updateData: any = { text, mediaType , url, hashtags, mentions };
+        if (visibility) updateData.visibility = visibility;
+        
         const updatedPost = await Post.findByIdAndUpdate(
             // @ts-ignore
             post._id,
-            { text, mediaType , url, hashtags, mentions },
+            updateData,
             { new: true }
         );
         res.status(200).json(updatedPost);

@@ -13,6 +13,7 @@ const MAX_CHARS = 1000;
 function EditPostModal({ post }) {
     const [open, setOpen] = useState(false);
     const [text, setText] = useState("");
+    const [visibility, setVisibility] = useState("Public");
     const mentions = [...text.matchAll(/@(\w+)/g)].map(m => m[1]);
     const hashtags = [...text.matchAll(/#([\w-]+)/g)].map(m => m[1]);
 
@@ -43,6 +44,7 @@ function EditPostModal({ post }) {
     useEffect(() => {
         if (post) {
             setText(post.text || "");
+            setVisibility(post.visibility || "Public");
             if (post.mediaType && post.url) {
                 setExistingUrl(post.url);
                 setExistingMediaType(post.mediaType);
@@ -296,6 +298,7 @@ function EditPostModal({ post }) {
             hashtags: [...new Set(hashtags)],
             url: finalUrl,
             mediaType: finalMediaType,
+            visibility,
         });
         setOpen(false);
     };
@@ -477,6 +480,32 @@ function EditPostModal({ post }) {
                                 </motion.div>,
                                 document.body
                             )}
+                        </div>
+
+                        {/* Visibility Selector */}
+                        <div className="mb-4">
+                            <p className="text-sm font-medium text-base-content/80 mb-2">Post Visibility</p>
+                            <div className="flex gap-2">
+                                {['Public', 'Private', 'Friends'].map((option) => (
+                                    <button
+                                        key={option}
+                                        type="button"
+                                        onClick={() => setVisibility(option)}
+                                        className={`flex-1 py-2 px-3 rounded-lg border-2 transition-all text-sm ${
+                                            visibility === option
+                                                ? 'border-primary bg-primary/10 text-primary font-medium'
+                                                : 'border-base-300 bg-base-200 text-base-content/70 hover:border-primary/50'
+                                        }`}
+                                    >
+                                        {option}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-xs text-base-content/60 mt-1">
+                                {visibility === 'Public' && 'Visible to everyone'}
+                                {visibility === 'Private' && 'Visible only to your followers'}
+                                {visibility === 'Friends' && 'Visible only to your friends'}
+                            </p>
                         </div>
 
                         {/* buttons */}

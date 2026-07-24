@@ -40,6 +40,7 @@ function CreatePostPage() {
     const dropZoneRef = useRef(null);
     const emojiPickerRef = useRef(null);
     const [scheduledAt, setScheduledAt] = useState("");   // ISO string from datetime-local input
+    const [visibility, setVisibility] = useState("Public"); // Post visibility: Public, Private, Friends
     const fetchPreviewTimeoutRef = useRef(null);
 
     // Prevent suggestions from reappearing immediately after selection
@@ -339,6 +340,7 @@ function CreatePostPage() {
                 url: mediaUrl,
                 mediaType,
                 isWarp: false,
+                visibility,
             };
 
             const token = localStorage.getItem("access-token");
@@ -566,6 +568,32 @@ function CreatePostPage() {
                                 className="w-full border border-primary/20 rounded-lg bg-base-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
                             />
                             <p className="text-xs text-gray-400 mt-1">Leave empty to post immediately</p>
+                        </div>
+
+                        {/* Visibility Selector */}
+                        <div className="rounded-xl bg-base-100 border-2 border-primary/20 p-5 shadow-sm">
+                            <p className="text-gray-700 font-semibold mb-3 text-lg">Post Visibility</p>
+                            <div className="flex gap-3">
+                                {['Public', 'Private', 'Friends'].map((option) => (
+                                    <button
+                                        key={option}
+                                        type="button"
+                                        onClick={() => setVisibility(option)}
+                                        className={`flex-1 py-2 px-4 rounded-lg border-2 transition-all ${
+                                            visibility === option
+                                                ? 'border-primary bg-primary/10 text-primary font-medium'
+                                                : 'border-base-300 bg-base-200 text-base-content/70 hover:border-primary/50'
+                                        }`}
+                                    >
+                                        {option}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-xs text-gray-400 mt-2">
+                                {visibility === 'Public' && 'Visible to everyone'}
+                                {visibility === 'Private' && 'Visible only to your followers'}
+                                {visibility === 'Friends' && 'Visible only to your friends'}
+                            </p>
                         </div>
 
                         {/* Submit button */}

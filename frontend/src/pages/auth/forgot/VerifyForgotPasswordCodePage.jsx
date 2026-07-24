@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 function ForgotPasswordPage() {
     const [formData, setFormData] = useState({ email: "", providedCode: "", newPassword: "" });
+    const [isVerifying, setIsVerifying] = useState(false);
     const { recoveredPassword, verifyForgotPasswordCode } = useAuthStore();
     const navigate = useNavigate();
 
@@ -17,7 +18,10 @@ function ForgotPasswordPage() {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        verifyForgotPasswordCode(formData);
+        setIsVerifying(true);
+        verifyForgotPasswordCode(formData).finally(() => {
+            setIsVerifying(false);
+        });
     };
 
     return (
@@ -81,8 +85,12 @@ function ForgotPasswordPage() {
                     </div>
 
                     {/* SUBMIT BUTTON */}
-                    <button className="btn btn-primary w-full" type="submit">
-                        Recover Password
+                    <button className="btn btn-primary w-full" type="submit" disabled={isVerifying}>
+                        {isVerifying ? (
+                            <LoaderIcon className="w-full h-5 animate-spin text-center" />
+                        ) : (
+                            "Recover Password"
+                        )}
                     </button>
                 </form>
 

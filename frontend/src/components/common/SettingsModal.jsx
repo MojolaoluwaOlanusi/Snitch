@@ -84,7 +84,9 @@ const handleEnableNotifications = async () => {
                 setNotificationStatus('granted');
                 toast.success('Notifications enabled!');
             } else {
-                toast.error('Failed to setup notifications');
+                // Don't show error toast if setupPushNotifications returns false but permission was granted
+                // This might be a case where notifications are already set up
+                setNotificationStatus('granted');
             }
         } else {
             setNotificationStatus('denied');
@@ -102,14 +104,16 @@ const handleEnableNotifications = async () => {
         setIsSaving(true);
         try {
             const token = localStorage.getItem("access-token");
-            await axiosInstance.put("/auth/update-profile",
+            const res = await axiosInstance.put("/auth/update-profile",
                 { gender, socialHandles },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
+            console.log("Profile update response:", res.data);
             toast.success("Profile updated");
             onProfileUpdate?.();
         } catch (err) {
-            toast.error("Failed to update profile");
+            console.error("Profile update error:", err.response?.data || err.message);
+            toast.error(err.response?.data?.message || "Failed to update profile");
         } finally {
             setIsSaving(false);
         }
