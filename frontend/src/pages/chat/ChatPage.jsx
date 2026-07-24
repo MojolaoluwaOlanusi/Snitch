@@ -357,8 +357,6 @@ const ChatPage = () => {
     const fileRef = useRef(null);
     const attachmentRef = useRef(null);
     const conversationRef = useRef(null);
-    const callRef = useRef(null);
-    const activeCallRef = useRef(null);
     const newGroupRef = useRef(null);
     const forwardMessageRef = useRef(null);
     const contactListRef = useRef(null);
@@ -377,7 +375,6 @@ const ChatPage = () => {
     const videoPreviewRef = useRef(null);
     const addedMessageIds = useRef(new Set());
     const groupAvatarColors = useRef(new Map());
-    const joinedParticipantsRef = useRef(new Set());
 
     const [convoSettings, updateConvoSetting] = useConversationSettings(
         selectedConversation?._id,
@@ -524,6 +521,12 @@ const ChatPage = () => {
             useCallStore.getState().handleSignal({ from, type, data });
         });
         socket.on('webrtc:call:ended', () => {
+            // Send call summary before cleaning up
+            const { callDuration, callAnswered, activeCall } = useCallStore.getState();
+            if (activeCall) {
+                const status = callAnswered ? 'ended' : 'missed';
+                sendCallSummary(activeCall.isVideo ? 'video' : 'audio', callDuration, status);
+            }
             useCallStore.getState().handleCallEnded();
         });
         socket.on('webrtc:call:participant_left', ({ userId }) => {
@@ -866,15 +869,6 @@ useEffect(() => {
             return () => document.removeEventListener('click', handleClick);
         }
     }, [showVoiceMenu]);
-    useEffect(() => {
-        if (localVideoRef.current && localStream) localVideoRef.current.srcObject = localStream;
-    }, [localStream]);
-    useEffect(() => {
-        remoteStreams.forEach((stream, userId) => {
-            const el = remoteVideoRefs.current.get(userId);
-            if (el) el.srcObject = stream;
-        });
-    }, [remoteStreams]);
 
     // Outside click handlers
     useEffect(() => {
@@ -2250,56 +2244,6 @@ useEffect(() => {
     };
     const endCall = () => {
         useCallStore.getState().endCall();
-    };
-    const startCallTimer = () => {
-        setCallDuration(0);
-        callTimerRef.current = setInterval(() => {
-            setCallDuration(prev => prev + 1);
-        }, 1000);
-    };
-
-    const stopCallTimer = () => {
-        if (callTimerRef.current) {
-            clearInterval(callTimerRef.current);
-            callTimerRef.current = null;
-        }
-    };
-
-    const toggleVideoMode = async () => {
-        if (!localStream || !activeCall) return;
-        try {
-            if (isVideoMode) {
-                localStream.getVideoTracks().forEach(t => t.stop());
-                const audioStream = await navigator.mediaDevices.getUserMedia({
-                    audio: true
-                });
-                const pc = peerConnectionsRef.current.get(activeCall.otherUserId);
-                const sender = pc?.getSenders().find(s => s.track?.kind === 'audio');
-                if (sender) await sender.replaceTrack(audioStream.getAudioTracks()[0]);
-                setLocalStream(audioStream);
-                setIsVideoMode(false);
-                setIsVideoOff(true);
-            } else {
-                const videoStream = await navigator.mediaDevices.getUserMedia({
-                    audio: true,
-                    video: {
-                        facingMode: isFrontCamera ? 'user' : 'environment'
-                    }
-                });
-                const pc = peerConnectionsRef.current.get(activeCall.otherUserId);
-                const videoTrack = videoStream.getVideoTracks()[0];
-                const sender = pc?.getSenders().find(s => s.track?.kind === 'video');
-                if (sender) await sender.replaceTrack(videoTrack);
-                else pc?.addTrack(videoTrack, videoStream);
-                const audioSender = pc?.getSenders().find(s => s.track?.kind === 'audio');
-                if (audioSender) await audioSender.replaceTrack(videoStream.getAudioTracks()[0]);
-                setLocalStream(videoStream);
-                setIsVideoMode(true);
-                setIsVideoOff(false);
-            }
-        } catch (error) {
-            toast.error('Could not switch');
-        }
     };
 
     // ==================== Conversation Actions ====================
