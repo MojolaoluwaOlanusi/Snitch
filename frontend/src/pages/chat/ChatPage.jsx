@@ -736,8 +736,6 @@ useEffect(() => {
 
     // In ChatPage.jsx
 
-    const [searchParams] = useSearchParams();
-    const conversationIdFromUrl = searchParams.get('conversationId');
     const callBack = searchParams.get('callBack');
 
     // Auto-start call when callBack param is present
