@@ -739,24 +739,6 @@ useEffect(() => {
 
     // In ChatPage.jsx
 
-    const callBack = searchParams.get('callBack');
-
-    // Auto-start call when callBack param is present
-    useEffect(() => {
-        if (callBack === 'true' && selectedConversation) {
-            // We need to get the other user or group details
-            const otherUser = getOtherUser(selectedConversation);
-            if (otherUser) {
-                // Optionally, we can ask the user to confirm before calling
-                // For now, start the call immediately
-                const isVideo = false; // or prompt user
-                startCall(isVideo);
-                // Remove the param to avoid repeated calls
-                window.history.replaceState({}, document.title, '/chat');
-            }
-        }
-    }, [callBack, selectedConversation, getOtherUser, startCall]);
-
     useEffect(() => {
         const h = (e) => {
             if (expressionMenuRef.current && !expressionMenuRef.current.contains(e.target)) {
@@ -2245,6 +2227,24 @@ useEffect(() => {
     const endCall = () => {
         useCallStore.getState().endCall();
     };
+
+    const callBack = searchParams.get('callBack');
+
+    // Auto-start call when callBack param is present
+    useEffect(() => {
+        if (callBack === 'true' && selectedConversation) {
+            // We need to get the other user or group details
+            const otherUser = getOtherUser(selectedConversation);
+            if (otherUser) {
+                // Optionally, we can ask the user to confirm before calling
+                // For now, start the call immediately
+                const isVideo = false; // or prompt user
+                startCall(isVideo);
+                // Remove the param to avoid repeated calls
+                window.history.replaceState({}, document.title, '/chat');
+            }
+        }
+    }, [callBack, selectedConversation, getOtherUser, startCall]);
 
     // ==================== Conversation Actions ====================
 
