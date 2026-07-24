@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useUserStore } from "../../store/useUserStore.js";
 import { useEffect } from "react";
-import { PageLoader } from "./PageLoader.jsx";
+import PageLoader from "./PageLoader.jsx";
 
 const WhoToFollow = () => {
     const { suggestedUsers, getSuggestedUsers, isGettingSuggestedUsers, followUser, isFollowingUser } = useUserStore();
