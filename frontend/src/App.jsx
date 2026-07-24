@@ -6,6 +6,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { usePushNotifications } from "./hooks/usePushNotifications.js";
 import { useUserStore } from "./store/useUserStore.js";
 import { updateAppBadge } from "./utils/appBadge.js";
+import CallModal from "./components/common/CallModal.jsx";
 // 👇 lazy load every page
 const HomePage = lazy(() => import("./pages/home/HomePage.jsx"));
 const LoginPage = lazy(() => import("./pages/auth/login/LoginPage.jsx"));
@@ -81,6 +82,7 @@ function App () {
                 </Routes>
             </Suspense>
 
+            <CallModal />
             <Toaster position="top-right" richColors />
             <Analytics />
         </div>

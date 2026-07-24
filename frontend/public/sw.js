@@ -53,22 +53,44 @@ self.addEventListener('push', (event) => {
     );
 });
 
-// 🔥 CRITICAL: Handle notification click for navigation
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    const { data } = event.notification;
 
+    const { data, action } = event.notification;
+
+    // If the user clicked "Call Back" action
+    if (action === 'callBack') {
+        const url = data?.conversationId
+            ? `/chat?conversationId=${data.conversationId}&callBack=true`
+            : '/chat';
+        event.waitUntil(
+            clients.matchAll({ type: 'window' }).then((clientList) => {
+                for (let client of clientList) {
+                    if (client.url.includes('/chat')) {
+                        client.focus();
+                        // Navigate to the call-back URL
+                        client.navigate(url);
+                        return;
+                    }
+                }
+                return clients.openWindow(url);
+            })
+        );
+        return;
+    }
+
+    // Default: open the conversation (existing logic)
     if (data?.type === 'message' && data?.conversationId) {
         const url = `/chat?conversationId=${data.conversationId}`;
         event.waitUntil(
             clients.matchAll({ type: 'window' }).then((clientList) => {
-                // Try to focus an existing chat tab
                 for (let client of clientList) {
                     if (client.url.includes('/chat')) {
-                        return client.focus();
+                        client.focus();
+                        client.navigate(url);
+                        return;
                     }
                 }
-                // Otherwise open a new one
                 return clients.openWindow(url);
             })
         );

@@ -4,6 +4,7 @@ import React from "react";
 import Color from 'color';
 import {useChatStore} from "../../store/useChatStore.js";
 import {useAuthStore} from "../../store/useAuthStore.js";
+import {useCallStore} from "../../store/useCallStore.js";
 import Sidebar from "../../components/common/Sidebar.jsx";
 import {SnitchLogo} from "../../components/svgs/snitch.jsx";
 import {
@@ -241,12 +242,9 @@ const ChatPage = () => {
     const [showDisappearingModal, setShowDisappearingModal] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [isViewOnce, setIsViewOnce] = useState(false);
-    const [isRinging, setIsRinging] = useState(false);
     const [showPollVoters, setShowPollVoters] = useState(null);
     const [pollVoterDetails, setPollVoterDetails] = useState({});
     const [loadingPollVoters, setLoadingPollVoters] = useState(false);
-    const [callAnswered, setCallAnswered] = useState(false);
-    const [callDuration, setCallDuration] = useState(0);
     const [showDeleteModal, setShowDeleteModal] = useState(null); // stores messageId
     const [voicePlaybackRates, setVoicePlaybackRates] = useState({});
     const [playingVoiceId, setPlayingVoiceId] = useState(null);
@@ -329,19 +327,6 @@ const ChatPage = () => {
     // ---------- NEW: mobile chat visibility ----------
     const [mobileChatVisible, setMobileChatVisible] = useState(false);
 
-    // Call state
-    const [incomingCall, setIncomingCall] = useState(null);
-    const [activeCall, setActiveCall] = useState(null);
-    const [localStream, setLocalStream] = useState(null);
-    const [remoteStreams, setRemoteStreams] = useState(new Map());
-    const [screenStream, setScreenStream] = useState(null);
-    const [isSharingScreen, setIsSharingScreen] = useState(false);
-    const [isCallMinimized, setIsCallMinimized] = useState(false);
-    const [isMicMuted, setIsMicMuted] = useState(false);
-    const [isVideoOff, setIsVideoOff] = useState(false);
-    const [isFrontCamera, setIsFrontCamera] = useState(true);
-    const [isVideoMode, setIsVideoMode] = useState(true);
-
     // --- Refs ---
     const scrollContainerRef = useRef(null); // not needed – we'll use Virtuoso's API
     const typingTimeoutRef = useRef(null);
@@ -357,10 +342,6 @@ const ChatPage = () => {
     const videoNoteRecorderRef = useRef(null);
     const videoNoteChunksRef = useRef([]);
     const navigationHandled = useRef(false);
-    const callAnsweredRef = useRef(false);
-    const isRingingRef = useRef(false);
-    const callTimerRef = useRef(null);
-    const callTimeoutRef = useRef(null);
     const hexagonTimers = useRef({});
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
@@ -368,9 +349,6 @@ const ChatPage = () => {
     const messageInputRef = useRef(null);
     const recordingIntervalRef = useRef(null);
     const audioRef = useRef(null);
-    const peerConnectionsRef = useRef(new Map());
-    const localVideoRef = useRef(null);
-    const remoteVideoRefs = useRef(new Map());
     const socketListenersAttached = useRef(false);
     const emojiPickerRef = useRef(null);
     const menuRef = useRef(null);
@@ -540,83 +518,19 @@ const ChatPage = () => {
             updateMessage(messageId, { viewedBy, media: [] });
         });
         socket.on('webrtc:call:incoming', ({ callId, from, isVideo, metadata }) => {
-            const conv = conversations.find(c => c.participants?.some(p => p._id === from));
-            const caller = conv?.participants?.find(p => p._id === from);
-            setIncomingCall({
-                callId,
-                callerId: from,
-                callerName: caller?.displayName || metadata?.callerName || 'Unknown',
-                isVideo
-            });
+            useCallStore.getState().handleIncomingCall({ callId, from, isVideo, metadata });
         });
         socket.on('webrtc:signal', async ({ from, type, data }) => {
-            const pc = peerConnectionsRef.current.get(from);
-            if (!pc) return;
-            try {
-                if (type === 'offer') {
-                    await pc.setRemoteDescription(new RTCSessionDescription(data));
-                    const answer = await pc.createAnswer();
-                    await pc.setLocalDescription(answer);
-                    socket.emit('webrtc:signal', {
-                        toUserId: from,
-                        type: 'answer',
-                        data: answer
-                    });
-                } else if (type === 'answer') {
-                    await pc.setRemoteDescription(new RTCSessionDescription(data));
-                } else if (type === 'ice' && data) {
-                    await pc.addIceCandidate(new RTCIceCandidate(data));
-                }
-            } catch (e) {
-                console.error('Signal error:', e);
-            }
+            useCallStore.getState().handleSignal({ from, type, data });
         });
-        socket.on('webrtc:call:ended', () => cleanupCall());
+        socket.on('webrtc:call:ended', () => {
+            useCallStore.getState().handleCallEnded();
+        });
         socket.on('webrtc:call:participant_left', ({ userId }) => {
-            setRemoteStreams(prev => {
-                const n = new Map(prev);
-                n.delete(userId);
-                return n;
-            });
-            const pc = peerConnectionsRef.current.get(userId);
-            if (pc) {
-                pc.close();
-                peerConnectionsRef.current.delete(userId);
-            }
+            useCallStore.getState().handleParticipantLeft(userId);
         });
         socket.on('webrtc:call:participant_joined', ({ userId }) => {
-            // 🔥 Ignore if this is our own userId (prevent self‑toast)
-            if (userId === authUser?._id) return;
-
-            // 🔥 Check if already joined to prevent duplicate toasts
-            if (joinedParticipantsRef.current.has(userId)) return;
-            joinedParticipantsRef.current.add(userId);
-
-            toast.success(`${userId} joined`, { icon: '👋' });
-
-            // ✅ Transition from ringing to in‑call for BOTH group and 1‑on‑1
-            if (activeCall && localStream) {
-                // Update UI state using functional updates to avoid stale closures
-                setIsRinging(prev => {
-                    if (prev) {
-                        setCallAnswered(true);
-                        callAnsweredRef.current = true;
-                        isRingingRef.current = false;
-                        clearTimeout(callTimeoutRef.current);
-                        return false;
-                    }
-                    return prev;
-                });
-
-                // Create peer connection and exchange SDP
-                const pc = createPeerConnection(userId);
-                localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-
-                pc.createOffer().then(offer => {
-                    pc.setLocalDescription(offer);
-                    socket?.emit('webrtc:signal', { toUserId: userId, type: 'offer', data: offer });
-                });
-            }
+            useCallStore.getState().handleParticipantJoined(userId);
         });
         socket.on('webrtc:call:accepted', ({ userId, callId }) => {
             console.log(`✅ Call ${callId} accepted by ${userId}`);
@@ -819,6 +733,28 @@ useEffect(() => {
     useEffect(() => {
         fetchCustomColors();
     }, []);
+
+    // In ChatPage.jsx
+
+    const [searchParams] = useSearchParams();
+    const conversationIdFromUrl = searchParams.get('conversationId');
+    const callBack = searchParams.get('callBack');
+
+    // Auto-start call when callBack param is present
+    useEffect(() => {
+        if (callBack === 'true' && selectedConversation) {
+            // We need to get the other user or group details
+            const otherUser = getOtherUser(selectedConversation);
+            if (otherUser) {
+                // Optionally, we can ask the user to confirm before calling
+                // For now, start the call immediately
+                const isVideo = false; // or prompt user
+                startCall(isVideo);
+                // Remove the param to avoid repeated calls
+                window.history.replaceState({}, document.title, '/chat');
+            }
+        }
+    }, [callBack, selectedConversation, getOtherUser, startCall]);
 
     useEffect(() => {
         const h = (e) => {
@@ -2304,202 +2240,18 @@ useEffect(() => {
 
     // ==================== Call Functions ====================
     // [Your existing call functions remain unchanged; I'll keep them for brevity, but they are exactly the same]
-    const createPeerConnection = (targetUserId) => {
-        const pc = new RTCPeerConnection({
-            iceServers: [
-                {
-                    urls: 'stun:stun.l.google.com:19302'
-                }
-            ]
-        });
-        pc.onicecandidate = e => {
-            if (e.candidate) socket?.emit('webrtc:signal', {
-                toUserId: targetUserId,
-                type: 'ice',
-                data: e.candidate
-            });
-        };
-        pc.ontrack = e => {
-            setRemoteStreams(prev => {
-                const n = new Map(prev);
-                n.set(targetUserId, e.streams[0]);
-                return n;
-            });
-        };
-        pc.onconnectionstatechange = () => {
-            if (['disconnected','failed'].includes(pc.connectionState)) {
-                setRemoteStreams(prev => {
-                    const n = new Map(prev);
-                    n.delete(targetUserId);
-                    return n;
-                });
-            }
-        };
-        peerConnectionsRef.current.set(targetUserId, pc);
-        return pc;
-    };
     const startCall = async (isVideo) => {
-        if (!selectedConversation) return;
-
-        const isGroup = selectedConversation.isGroup;
-        let targets;
-        if (isGroup) {
-            targets = selectedConversation.participants
-                .map(p => p._id)
-                .filter(id => id !== authUser?._id);
-        } else {
-            const otherId = getOtherUser(selectedConversation)?._id;
-            if (!otherId) return;
-            targets = [otherId];
-        }
-
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
-                video: isVideo,
-            });
-            setLocalStream(stream);
-            setIsVideoMode(isVideo);
-            setIsVideoOff(false);
-            setIsMicMuted(false);
-
-            for (const targetId of targets) {
-                const pc = createPeerConnection(targetId);
-                stream.getTracks().forEach(t => pc.addTrack(t, stream));
-            }
-
-            const firstTarget = targets[0];
-            if (firstTarget) {
-                const pc = peerConnectionsRef.current.get(firstTarget);
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-            }
-
-            const callId = Date.now().toString();
-            setActiveCall({
-                callId,
-                isVideo,
-                otherUserId: isGroup ? null : targets[0],
-                isGroupCall: isGroup,
-            });
-            setCallAnswered(false);
-            setIsRinging(true);
-            callAnsweredRef.current = false;
-            isRingingRef.current = true;
-            startCallTimer();
-
-            callTimeoutRef.current = setTimeout(() => {
-                if (isRingingRef.current && !callAnsweredRef.current) {
-                    endCall();
-                    sendCallSummary(isVideo ? 'video' : 'audio', callDuration, 'no_answer');
-                    toast.error('Call ended – no answer');
-                }
-            }, 60000);
-
-            socket?.emit('webrtc:call:initiate', {
-                targets,
-                isVideo,
-                isGroupCall: isGroup,
-                metadata: { callerName: authUser?.displayName, groupName: selectedConversation.groupName },
-            });
-
-            setTimeout(() => {
-                for (const targetId of targets) {
-                    const pc = peerConnectionsRef.current.get(targetId);
-                    if (pc && pc.localDescription) {
-                        socket?.emit('webrtc:signal', {
-                            toUserId: targetId,
-                            type: 'offer',
-                            data: pc.localDescription,
-                        });
-                    }
-                }
-            }, 500);
-
-        } catch (error) {
-            toast.error('Camera/mic access denied');
-        }
+        const store = useCallStore.getState();
+        store.startCall(isVideo, selectedConversation, getOtherUser);
     };
     const acceptCall = async () => {
-        if (!incomingCall) return;
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
-                video: incomingCall.isVideo,
-            });
-            setLocalStream(stream);
-            setIsVideoMode(incomingCall.isVideo);
-            setIsVideoOff(false);
-            setIsMicMuted(false);
-
-            const pc = createPeerConnection(incomingCall.callerId);
-            stream.getTracks().forEach(t => pc.addTrack(t, stream));
-
-            setActiveCall({
-                callId: incomingCall.callId,
-                isVideo: incomingCall.isVideo,
-                otherUserId: null,
-                isGroupCall: incomingCall.isGroupCall,
-            });
-            setCallAnswered(true);
-            setIsRinging(false);
-            callAnsweredRef.current = true;
-            isRingingRef.current = false;
-            clearTimeout(callTimeoutRef.current);
-            startCallTimer();
-            setIncomingCall(null);
-
-            socket?.emit('webrtc:call:join', { callId: incomingCall.callId });
-
-        } catch (error) {
-            toast.error('Camera/mic access denied');
-            rejectCall();
-        }
+        useCallStore.getState().acceptCall();
     };
     const rejectCall = () => {
-        if (incomingCall) {
-            socket?.emit('webrtc:call:leave', { callId: incomingCall.callId });
-            setIncomingCall(null);
-        }
-    };
-    const cleanupCall = () => {
-        if (activeCall) {
-            const status = callAnsweredRef.current ? 'ended' : 'missed';
-            sendCallSummary(
-                activeCall.isVideo ? 'video' : 'audio',
-                callDuration,
-                status
-            );
-        }
-        joinedParticipantsRef.current.clear();
-
-        stopCallTimer();
-        clearTimeout(callTimeoutRef.current);
-        setIsRinging(false);
-        isRingingRef.current = false;
-        callAnsweredRef.current = false;
-
-        if (localStream) localStream.getTracks().forEach(t => t.stop());
-        if (screenStream) screenStream.getTracks().forEach(t => t.stop());
-        peerConnectionsRef.current.forEach(pc => pc.close());
-        peerConnectionsRef.current.clear();
-        setLocalStream(null);
-        setRemoteStreams(new Map());
-        setScreenStream(null);
-        setActiveCall(null);
-        setIncomingCall(null);
-        setIsSharingScreen(false);
-        setIsCallMinimized(false);
+        useCallStore.getState().rejectCall();
     };
     const endCall = () => {
-        if (activeCall) {
-            // Emit end event to all participants
-            socket?.emit('webrtc:call:end', { 
-                callId: activeCall.callId,
-                isGroupCall: activeCall.isGroupCall
-            });
-        }
-        cleanupCall();
+        useCallStore.getState().endCall();
     };
     const startCallTimer = () => {
         setCallDuration(0);
@@ -2550,80 +2302,6 @@ useEffect(() => {
         } catch (error) {
             toast.error('Could not switch');
         }
-    };
-    const toggleMute = () => {
-        if (localStream) {
-            localStream.getAudioTracks().forEach(t => {
-                t.enabled = !t.enabled;
-            });
-            setIsMicMuted(!isMicMuted);
-        }
-    };
-    const toggleVideo = () => {
-        if (localStream) {
-            localStream.getVideoTracks().forEach(t => {
-                t.enabled = !t.enabled;
-            });
-            setIsVideoOff(!isVideoOff);
-        }
-    };
-    const flipCamera = async () => {
-        if (!localStream || !isVideoMode) return;
-        try {
-            localStream.getVideoTracks().forEach(t => t.stop());
-            const newStream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: isFrontCamera ? 'environment' : 'user'
-                },
-                audio: true
-            });
-            const pc = peerConnectionsRef.current.get(activeCall?.otherUserId);
-            const sender = pc?.getSenders().find(s => s.track?.kind === 'video');
-            if (sender) await sender.replaceTrack(newStream.getVideoTracks()[0]);
-            setLocalStream(newStream);
-            setIsFrontCamera(!isFrontCamera);
-        } catch (error) {
-            toast.error('Could not flip camera');
-        }
-    };
-    const shareScreen = async () => {
-        if (!activeCall) return;
-        try {
-            if (isSharingScreen) {
-                if (screenStream) screenStream.getTracks().forEach(t => t.stop());
-                setIsSharingScreen(false);
-                const pc = peerConnectionsRef.current.get(activeCall.otherUserId);
-                const sender = pc?.getSenders().find(s => s.track?.kind === 'video');
-                if (sender && localStream) {
-                    const vt = localStream.getVideoTracks()[0];
-                    if (vt) await sender.replaceTrack(vt);
-                }
-            } else {
-                const stream = await navigator.mediaDevices.getDisplayMedia({
-                    video: true
-                });
-                setScreenStream(stream);
-                setIsSharingScreen(true);
-                stream.getVideoTracks()[0].onended = () => {
-                    setIsSharingScreen(false);
-                    const pc = peerConnectionsRef.current.get(activeCall.otherUserId);
-                    const sender = pc?.getSenders().find(s => s.track?.kind === 'video');
-                    if (sender && localStream) {
-                        const vt = localStream.getVideoTracks()[0];
-                        if (vt) sender.replaceTrack(vt);
-                    }
-                };
-                const pc = peerConnectionsRef.current.get(activeCall.otherUserId);
-                const sender = pc?.getSenders().find(s => s.track?.kind === 'video');
-                if (sender) await sender.replaceTrack(stream.getVideoTracks()[0]);
-                else pc?.addTrack(stream.getVideoTracks()[0], stream);
-            }
-        } catch (error) {
-            toast.error('Could not share screen');
-        }
-    };
-    const toggleCallMinimize = () => {
-        setIsCallMinimized(!isCallMinimized);
     };
 
     // ==================== Conversation Actions ====================
@@ -5372,38 +5050,6 @@ useEffect(() => {
                     )}
                 </AnimatePresence>
 
-                {/* ========== Incoming Call ========== */}
-                <AnimatePresence>
-                    {incomingCall && (
-                        <motion.div
-                            ref={callRef}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
-                        >
-                            <motion.div
-                                initial={{ scale: 0.9, y: 20 }}
-                                animate={{ scale: 1, y: 0 }}
-                                className="bg-base-100 border rounded-2xl p-8 w-[90%] max-w-xs text-center shadow-2xl"
-                            >
-                                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    {incomingCall.isVideo ? <Video className="w-10 h-10 text-primary" /> : <Phone className="w-10 h-10 text-primary" />}
-                                </div>
-                                <h3 className="text-xl font-bold mb-1 text-base-content">
-                                    {incomingCall.isGroupCall ? `Group Call: ${incomingCall.metadata?.groupName || 'Group'}` : `Incoming ${incomingCall.isVideo ? 'Video' : 'Audio'} Call`}
-                                </h3>
-                                <p className="text-base-content/70 mb-6">
-                                    {incomingCall.isGroupCall ? `${incomingCall.callerName} is calling the group` : `${incomingCall.callerName} is calling...`}
-                                </p>
-                                <div className="flex gap-4 justify-center">
-                                    <button aria-label="reject call" onClick={rejectCall} className="p-4 bg-error text-primary-content rounded-full hover:bg-red-600 transition-colors shadow-lg"><PhoneOff className="w-6 h-6" /></button>
-                                    <button aria-label="accept call" onClick={acceptCall} className="p-4 bg-success text-primary-content rounded-full hover:bg-green-600 transition-colors shadow-lg"><Phone className="w-6 h-6" /></button>
-                                </div>
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
 
                 {/* ========== Add to Call Modal ========== */}
                 <AnimatePresence>
@@ -6043,111 +5689,6 @@ useEffect(() => {
                     )}
                 </AnimatePresence>
 
-                {/* Active Call */}
-                <AnimatePresence>
-                    {activeCall && (
-                        <motion.div
-                            ref={activeCallRef}
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={
-                                isCallMinimized
-                                    ? { opacity: 1, scale: 1, width: 300, height: 200, bottom: 20, right: 20, position: 'fixed' }
-                                    : { opacity: 1, scale: 1, width: '100%', height: '100%', inset: 0, position: 'fixed' }
-                            }
-                            className="z-50 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl"
-                        >
-                            <div className="relative w-full h-full">
-                                {isVideoMode && remoteStreams.size > 0 ? (
-                                    remoteStreams.size === 1 ? (
-                                        Array.from(remoteStreams.entries()).map(([userId, stream]) => (
-                                            <video
-                                                key={userId}
-                                                ref={el => {
-                                                    if (el) { remoteVideoRefs.current.set(userId, el); el.srcObject = stream; }
-                                                }}
-                                                autoPlay playsInline className="w-full h-full object-cover"
-                                            />
-                                        ))
-                                    ) : (
-                                        <div className={`w-full h-full p-4 grid gap-2 ${
-                                            remoteStreams.size === 2 ? 'grid-cols-2' : remoteStreams.size <= 4 ? 'grid-cols-2' : 'grid-cols-3'
-                                        }`}>
-                                            {Array.from(remoteStreams.entries()).map(([userId, stream]) => (
-                                                <div key={userId} className="relative rounded-xl overflow-hidden bg-gray-800">
-                                                    <video
-                                                        ref={el => {
-                                                            if (el) { remoteVideoRefs.current.set(userId, el); el.srcObject = stream; }
-                                                        }}
-                                                        autoPlay playsInline className="w-full h-full object-cover"
-                                                    />
-                                                    <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded text-primary-content text-xs">
-                                                        {userId === authUser?._id ? 'You' : 'Participant'}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )
-                                ) : (
-                                    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-                                        <div className="w-24 h-24 bg-primary/80 rounded-full flex items-center justify-center mb-4">
-                                            <Phone className="w-12 h-12 text-primary-content" />
-                                        </div>
-                                        <p className="text-primary-content text-lg font-medium">{getOtherUser(selectedConversation)?.displayName || 'Call'}</p>
-                                        <p className="text-base-content/50 text-sm">{isVideoMode ? 'Video call' : 'Audio call'}</p>
-                                        {callAnswered ? (
-                                            <div className="mt-6 w-64">
-                                                <AudioWaveform isActive={true} isMuted={isMicMuted} />
-                                                <p className="text-primary-content text-sm mt-2">{formatCallDuration(callDuration)}</p>
-                                            </div>
-                                        ) : (
-                                            <div className="mt-6">
-                                                <p className="text-primary-content text-lg animate-pulse">Ringing...</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {isVideoMode && localStream && (
-                                    <div className="absolute top-4 right-4 w-32 h-44 rounded-xl overflow-hidden border-2 border-base-content/30 shadow-lg">
-                                        <video
-                                            ref={el => { localVideoRef.current = el; if (el && localStream) el.srcObject = localStream; }}
-                                            autoPlay muted playsInline className="w-full h-full object-cover"
-                                        />
-                                    </div>
-                                )}
-
-                                {/* Call controls – responsive */}
-                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-3 bg-base-content/40 backdrop-blur-sm rounded-full px-3 py-2 md:px-6 md:py-3 flex-wrap justify-center">
-                                    <button onClick={toggleMute} className={`p-2 md:p-3 rounded-full transition-colors ${isMicMuted ? 'bg-error text-primary-content' : 'bg-base-100/20 text-primary-content hover:bg-base-100/30'}`}>
-                                        {isMicMuted ? <MicOff className="w-4 h-4 md:w-5 md:h-5" /> : <Mic className="w-4 h-4 md:w-5 md:h-5" />}
-                                    </button>
-                                    <button onClick={toggleVideo} className={`p-2 md:p-3 rounded-full transition-colors ${isVideoOff ? 'bg-error text-primary-content' : 'bg-base-100/20 text-primary-content hover:bg-base-100/30'}`}
-                                            title={isVideoOff ? "Turn on camera" : "Turn off camera"}>
-                                        {isVideoOff ? <VideoOff className="w-4 h-4 md:w-5 md:h-5" /> : <Video className="w-4 h-4 md:w-5 md:h-5" />}
-                                    </button>
-                                    {isVideoMode && (
-                                        <button aria-label="flip camera" onClick={flipCamera} className="p-2 md:p-3 rounded-full bg-base-100/20 text-primary-content hover:bg-base-100/30">
-                                            <RotateCw className="w-4 h-4 md:w-5 md:h-5" />
-                                        </button>
-                                    )}
-                                    <button onClick={shareScreen} className={`p-2 md:p-3 rounded-full transition-colors ${isSharingScreen ? 'bg-primary text-primary-content' : 'bg-base-100/20 text-primary-content hover:bg-base-100/30'}`}>
-                                        <MonitorUp className="w-4 h-4 md:w-5 md:h-5" />
-                                    </button>
-                                    <button onClick={() => setShowAddToCallModal(true)} className="p-2 md:p-3 rounded-full bg-base-100/20 text-primary-content hover:bg-base-100/30" title="Add participant">
-                                        <UserPlus className="w-4 h-4 md:w-5 md:h-5" />
-                                    </button>
-                                    <button onClick={endCall} className="p-2 md:p-3 rounded-full bg-error text-primary-content hover:bg-red-600">
-                                        <PhoneOff className="w-4 h-4 md:w-5 md:h-5" />
-                                    </button>
-                                </div>
-
-                                <button onClick={toggleCallMinimize} className="absolute top-4 left-4 p-2 bg-base-content/40 rounded-full text-primary-content hover:bg-base-content/60">
-                                    {isCallMinimized ? <Maximize2 className="w-5 h-5" /> : <Minimize2 className="w-5 h-5" />}
-                                </button>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
 
                 {/* Hidden audio element */}
                 <audio
@@ -6170,13 +5711,6 @@ useEffect(() => {
                 }
                 .hexagon-received {
                     filter: drop-shadow(0 0 0 3px #e5e7eb) drop-shadow(0 1px 2px rgba(0,0,0,0.1));
-                }
-                .voice-bubble-container {
-                    min-width: 270px !important;
-                    max-width: 270px !important;
-                    width: 270px !important;
-                    flex-shrink: 0 !important;
-                    flex-grow: 0 !important;
                 }
             `}</style>
 
