@@ -543,7 +543,7 @@ const FollowingPosts = () => {
     const { isGettingFollowingPosts, followingPosts, getFollowingPosts, getPosts } = useUserStore();
     const { authUserId } = useAuthStore();
 
-    const [suggestions, setSuggestions] = useState([]);
+    const { suggestedUsers, getSuggestedUsers } = useUserStore();
     const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
     const [shareModal, setShareModal] = useState({ open: false, postId: null, url: "" });
 
@@ -556,20 +556,11 @@ const FollowingPosts = () => {
 
     // Fetch suggestions (only on mobile)
     useEffect(() => {
-        if (!isMobile) return;
-        const fetchSuggestions = async () => {
-            try {
-                const token = localStorage.getItem('access-token');
-                const res = await axiosInstance.get('/api/users/suggestions?limit=30', {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setSuggestions(res.data);
-            } catch (error) {
-                console.error('Failed to fetch suggestions:', error);
-            }
-        };
-        fetchSuggestions();
-    }, [isMobile]);
+        // Fetch suggestions once (if not already fetched)
+        if (!suggestedUsers || suggestedUsers.length === 0) {
+            getSuggestedUsers();
+        }
+    }, [getSuggestedUsers, suggestedUsers?.length]);
 
     // Merge following posts + suggestions (only on mobile)
     const feedItems = useMemo(() => {
@@ -577,13 +568,13 @@ const FollowingPosts = () => {
         if (!followingPosts.length) return [];
 
         const merged = [];
-        const suggestionsCopy = [...suggestions];
+        const suggestionsCopy = [...suggestedUsers];
         let suggestionIndex = 0;
         const insertionPoints = getInsertionPoints(followingPosts.length);
 
         followingPosts.forEach((post, idx) => {
             merged.push({ type: 'post', data: post });
-            const pos = idx + 1; // 1-based index
+            const pos = idx + 1;
             if (insertionPoints.includes(pos) && suggestionIndex < suggestionsCopy.length) {
                 merged.push({ type: 'suggestion', data: suggestionsCopy[suggestionIndex] });
                 suggestionIndex++;
@@ -597,7 +588,7 @@ const FollowingPosts = () => {
         }
 
         return merged;
-    }, [followingPosts, suggestions, isMobile]);
+    }, [followingPosts, suggestedUsers, isMobile]);
 
     // Fetch posts
     useEffect(() => { getFollowingPosts(); getPosts(); }, [getFollowingPosts, getPosts]);
