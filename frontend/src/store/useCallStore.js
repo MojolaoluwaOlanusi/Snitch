@@ -173,9 +173,6 @@ export const useCallStore = create((set, get) => ({
             get().setCallAnswered(false);
             get().setIsRinging(true);
 
-            // Start timer
-            get().startCallTimer();
-
             // Timeout
             // Inside startCall, after the timeout is set:
             const timeout = setTimeout(() => {
@@ -229,7 +226,6 @@ export const useCallStore = create((set, get) => ({
                 audio: true,
                 video: incomingCall.isVideo,
             });
-
             get().setLocalStream(stream);
             get().setIsVideoMode(incomingCall.isVideo);
             get().setIsVideoOff(false);
@@ -253,10 +249,10 @@ export const useCallStore = create((set, get) => ({
             if (timeout) clearTimeout(timeout);
             get().setCallTimeoutRef(null);
 
+            // ✅ Start timer only now
             get().startCallTimer();
 
             socket?.emit('webrtc:call:join', { callId: incomingCall.callId });
-
         } catch (error) {
             toast.error('Camera/mic access denied');
             get().rejectCall();
@@ -455,18 +451,15 @@ export const useCallStore = create((set, get) => ({
     // ===== Incoming Call from Socket =====
 
     handleIncomingCall: (data) => {
-        const { callId, from, isVideo, metadata } = data;
-        // We need to fetch the caller's name from the conversation, but we'll set it later
-        // For now, just store the incoming call
+        const { callId, from, isVideo, metadata, isGroupCall } = data;
         get().setIncomingCall({
             callId,
             callerId: from,
             callerName: metadata?.callerName || 'Unknown',
             isVideo,
-            isGroupCall: metadata?.isGroupCall || false,
+            isGroupCall: isGroupCall || false,
             metadata,
         });
-        // The name will be updated when we have the conversation data
     },
 
     // ===== Signal Handling =====
@@ -502,10 +495,7 @@ export const useCallStore = create((set, get) => ({
     handleParticipantJoined: (userId) => {
         const { activeCall, localStream, isRinging, callTimeoutRef, peerConnections } = get();
 
-        // Ignore self
         if (userId === useAuthStore.getState().authUser?._id) return;
-
-        // If we already have a peer connection for this user, ignore (prevents duplicate offers)
         if (peerConnections.has(userId)) return;
 
         toast.success(`${userId} joined`, { icon: '👋' });
@@ -518,6 +508,8 @@ export const useCallStore = create((set, get) => ({
                     clearTimeout(callTimeoutRef);
                     get().setCallTimeoutRef(null);
                 }
+                // ✅ Start timer when callee joins (caller side)
+                get().startCallTimer();
             }
 
             const pc = get().createPeerConnection(userId);

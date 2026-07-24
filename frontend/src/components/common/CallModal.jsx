@@ -67,7 +67,7 @@ const CallModal = () => {
     // ===== Incoming Call Modal =====
     if (incomingCall && !activeCall) {
         return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div className="fixed inset-0 z-50 flex items-center border justify-center bg-black/60">
                 <div className="bg-base-100 rounded-2xl p-8 w-[90%] max-w-xs text-center shadow-2xl">
                     <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                         {incomingCall.isVideo ? (
@@ -227,8 +227,8 @@ const CallModal = () => {
                             <div className="w-24 h-24 bg-primary/80 rounded-full flex items-center justify-center mb-4">
                                 <Phone className="w-12 h-12 text-base-content" />
                             </div>
-                            <p className="text-base-content text-lg font-medium">
-                                {activeCall.otherUserId ? 'Call in progress' : 'Group call'}
+                            <p className="text-white text-lg font-medium">
+                                {activeCall.isGroupCall ? 'Group call' : 'Call in progress'}
                             </p>
                             <p className="text-gray-300 text-sm">
                                 {isVideoMode ? 'Video call' : 'Audio call'}
