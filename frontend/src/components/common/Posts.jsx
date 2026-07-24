@@ -20,7 +20,7 @@ import GifStickerPicker from "../../components/common/GifStickerPicker.jsx";
 import { AnimatePresence } from "framer-motion";
 import ReportModal from "./ReportModal.jsx";
 import axiosInstance from "../../lib/axios.js";
-import SuggestionCard from "./suggestionCard.jsx"; // we'll create this next
+import WhoToFollowCarousel from "../../components/common/WhoToFollowCarousel.jsx";
 
 // ── Helper: compute insertion points ──
 const getInsertionPoints = (totalPosts) => {
@@ -576,13 +576,12 @@ const PostItem = ({ post, authUserId }) => {
 const Posts = () => {
     const {
         isGettingPosts, Posts, getPosts, getFollowingPosts,
+        suggestedUsers, getSuggestedUsers
     } = useUserStore();
 
-    const { suggestedUsers, getSuggestedUsers } = useUserStore();
     const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
     const { authUser } = useAuthStore();
-    const navigate = useNavigate();
 
     // Detect mobile viewport
     useEffect(() => {
@@ -591,42 +590,46 @@ const Posts = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Fetch suggestions (only on mobile)
+    // Fetch suggestions once (if not loaded)
     useEffect(() => {
-        // Fetch suggestions once (if not already fetched)
         if (!suggestedUsers || suggestedUsers.length === 0) {
             getSuggestedUsers();
         }
     }, [getSuggestedUsers, suggestedUsers?.length]);
 
-    // Merge posts + suggestions (only on mobile)
+    // Merge feed with carousels after every 20 posts (mobile only)
     const feedItems = useMemo(() => {
         if (!isMobile) return Posts.map(p => ({ type: 'post', data: p }));
         if (!Posts.length) return [];
 
         const merged = [];
-        const suggestionsCopy = [...suggestedUsers];
         let suggestionIndex = 0;
-        const insertionPoints = getInsertionPoints(Posts.length);
+        const CAROUSEL_SIZE = 10;
+        const POST_INTERVAL = 20;
 
         Posts.forEach((post, idx) => {
             merged.push({ type: 'post', data: post });
+
             const pos = idx + 1;
-            if (insertionPoints.includes(pos) && suggestionIndex < suggestionsCopy.length) {
-                merged.push({ type: 'suggestion', data: suggestionsCopy[suggestionIndex] });
-                suggestionIndex++;
+            if (pos % POST_INTERVAL === 0 && suggestionIndex < suggestedUsers.length) {
+                const carouselUsers = suggestedUsers.slice(
+                    suggestionIndex,
+                    suggestionIndex + CAROUSEL_SIZE
+                );
+                if (carouselUsers.length > 0) {
+                    merged.push({
+                        type: 'carousel',
+                        data: carouselUsers,
+                    });
+                    suggestionIndex += CAROUSEL_SIZE;
+                }
             }
         });
 
-        // Append leftover suggestions at the end
-        while (suggestionIndex < suggestionsCopy.length) {
-            merged.push({ type: 'suggestion', data: suggestionsCopy[suggestionIndex] });
-            suggestionIndex++;
-        }
+        // Do NOT append leftover suggestions – only posts.
 
         return merged;
     }, [Posts, suggestedUsers, isMobile]);
-
     useEffect(() => {
         getPosts();
         getFollowingPosts();
@@ -659,17 +662,15 @@ const Posts = () => {
             {feedItems.map((item, idx) => {
                 if (item.type === 'post') {
                     return <PostItem key={item.data._id} post={item.data} authUserId={authUser?._id} />;
-                } else {
+                } else if (item.type === 'carousel') {
                     return (
-                        <SuggestionCard
-                            key={`sugg-${idx}`}
-                            user={item.data}
-                            onFollow={() => {
-                                setSuggestions(prev => prev.filter(u => u._id !== item.data._id));
-                            }}
+                        <WhoToFollowCarousel
+                            key={`carousel-${idx}`}
+                            users={item.data}
                         />
                     );
                 }
+                return null;
             })}
 
             {/* Share modal (still in Posts) */}

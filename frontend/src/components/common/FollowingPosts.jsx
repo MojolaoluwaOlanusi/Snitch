@@ -21,7 +21,7 @@ import ReportModal from "./ReportModal.jsx";
 import GifStickerPicker from "../../components/common/GifStickerPicker.jsx";
 import { AnimatePresence } from "framer-motion";
 import axiosInstance from "@/lib/axios.js";
-import SuggestionCard from "./suggestionCard.jsx"
+import WhoToFollowCarousel from "../../components/common/WhoToFollowCarousel.jsx";
 
 // ── Helper: compute insertion points ──
 const getInsertionPoints = (totalPosts) => {
@@ -543,6 +543,8 @@ const FollowingPosts = () => {
     const { isGettingFollowingPosts, followingPosts, getFollowingPosts, getPosts } = useUserStore();
     const { authUserId } = useAuthStore();
 
+    const { authUser } = useAuthStore();
+
     const { suggestedUsers, getSuggestedUsers } = useUserStore();
     const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
     const [shareModal, setShareModal] = useState({ open: false, postId: null, url: "" });
@@ -568,27 +570,39 @@ const FollowingPosts = () => {
         if (!followingPosts.length) return [];
 
         const merged = [];
-        const suggestionsCopy = [...suggestedUsers];
         let suggestionIndex = 0;
-        const insertionPoints = getInsertionPoints(followingPosts.length);
+        const CAROUSEL_SIZE = 10;
+        const POST_INTERVAL = 20;
 
         followingPosts.forEach((post, idx) => {
             merged.push({ type: 'post', data: post });
+
             const pos = idx + 1;
-            if (insertionPoints.includes(pos) && suggestionIndex < suggestionsCopy.length) {
-                merged.push({ type: 'suggestion', data: suggestionsCopy[suggestionIndex] });
-                suggestionIndex++;
+            if (pos % POST_INTERVAL === 0 && suggestionIndex < suggestedUsers.length) {
+                const carouselUsers = suggestedUsers.slice(
+                    suggestionIndex,
+                    suggestionIndex + CAROUSEL_SIZE
+                );
+                if (carouselUsers.length > 0) {
+                    merged.push({
+                        type: 'carousel',
+                        data: carouselUsers,
+                    });
+                    suggestionIndex += CAROUSEL_SIZE;
+                }
             }
         });
 
-        // Append leftover suggestions at the end
-        while (suggestionIndex < suggestionsCopy.length) {
-            merged.push({ type: 'suggestion', data: suggestionsCopy[suggestionIndex] });
-            suggestionIndex++;
-        }
+        // Do NOT append leftover suggestions – only posts.
 
         return merged;
     }, [followingPosts, suggestedUsers, isMobile]);
+
+    const handleFollow = (userId) => {
+        // You can either remove from store or just let it be – the carousel will still show them
+        // but we can optionally filter them out from the carousel data
+        // We'll just keep it simple – the store's suggestedUsers will eventually update.
+    };
 
     // Fetch posts
     useEffect(() => { getFollowingPosts(); getPosts(); }, [getFollowingPosts, getPosts]);
@@ -618,18 +632,17 @@ const FollowingPosts = () => {
         <div className="overflow-auto w-full h-[calc(100vh-50px)]">
             {feedItems.map((item, idx) => {
                 if (item.type === 'post') {
-                    return <FollowingPostItem key={item.data._id} post={item.data} authUserId={authUserId} />;
-                } else {
+                    return <FollowingPostItem key={item.data._id} post={item.data} authUserId={authUser?._id} />;
+                } else if (item.type === 'carousel') {
                     return (
-                        <SuggestionCard
-                            key={`sugg-${idx}`}
-                            user={item.data}
-                            onFollow={() => {
-                                setSuggestions(prev => prev.filter(u => u._id !== item.data._id));
-                            }}
+                        <WhoToFollowCarousel
+                            key={`carousel-${idx}`}
+                            users={item.data}
+                            onFollow={handleFollow}
                         />
                     );
                 }
+                return null;
             })}
 
             {/* Share modal (unchanged) */}
