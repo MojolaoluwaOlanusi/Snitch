@@ -3,18 +3,41 @@ import { Link } from "react-router-dom";
 import { useUserStore } from "../../store/useUserStore.js";
 import { useState } from "react";
 import PageLoader from "./PageLoader.jsx";
+import { useAuthStore } from "../../store/useAuthStore.js";
+import { toast } from "sonner";
 
 const WhoToFollowCarousel = ({ users, onFollow }) => {
     const { followUser, isFollowingUser } = useUserStore();
+    const { authUser } = useAuthStore();
     const [followed, setFollowed] = useState(new Set());
+    const [loadingUserId, setLoadingUserId] = useState(null); // track which user is being followed
 
     const handleFollow = async (userId) => {
+        // ✅ Prevent self-follow
+        if (userId === authUser?._id) {
+            toast.error("You can't follow yourself");
+            return;
+        }
+
+        // ✅ Already followed in UI
+        if (followed.has(userId)) {
+            toast.info("Already following this user");
+            return;
+        }
+
+        // ✅ Start loading state for this user
+        setLoadingUserId(userId);
+
         try {
             await followUser({ id: userId });
+            // ✅ Only update local state on success
             setFollowed(prev => new Set(prev).add(userId));
             if (onFollow) onFollow(userId);
         } catch (error) {
-            // toast already handled in store
+            // ✅ Error is already handled in the store, but we can add a fallback
+            console.error("Follow failed:", error);
+        } finally {
+            setLoadingUserId(null);
         }
     };
 
@@ -31,6 +54,9 @@ const WhoToFollowCarousel = ({ users, onFollow }) => {
             <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
                 {users.map((user) => {
                     const isFollowed = followed.has(user._id);
+                    const isSelf = user._id === authUser?._id;
+                    const isLoading = loadingUserId === user._id;
+
                     return (
                         <div
                             key={user._id}
@@ -61,13 +87,26 @@ const WhoToFollowCarousel = ({ users, onFollow }) => {
                                 </div>
                             </Link>
 
-                            {/* Follow Button */}
+                            {/* ✅ Follow Button with proper states */}
                             <button
-                                className={`mt-2 btn btn-xs w-full ${isFollowed ? 'btn-success' : 'btn-primary'}`}
+                                className={`mt-2 btn btn-xs w-full ${
+                                    isSelf
+                                        ? 'btn-ghost text-base-content/30 cursor-not-allowed'
+                                        : isFollowed
+                                            ? 'btn-success'
+                                            : 'btn-primary'
+                                }`}
                                 onClick={() => handleFollow(user._id)}
-                                disabled={isFollowingUser || isFollowed}
+                                disabled={isFollowingUser || isFollowed || isSelf || isLoading}
                             >
-                                {isFollowingUser ? <PageLoader /> : isFollowed ? "Followed" : "Follow"}
+                                {isSelf
+                                    ? 'You'
+                                    : isLoading
+                                        ? <PageLoader />
+                                        : isFollowed
+                                            ? 'Followed'
+                                            : 'Follow'
+                                }
                             </button>
                         </div>
                     );
