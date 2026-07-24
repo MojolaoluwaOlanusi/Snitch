@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useUserStore } from "@/store/useUserStore.js";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense, useMemo } from "react";
 import PostSkeleton from "../../components/skeletons/PostSkeleton.jsx";
 import { Link, useNavigate } from "react-router-dom";
 import { FaFacebook, FaXTwitter, FaWhatsapp, FaTelegram, FaEnvelope } from "react-icons/fa6";
@@ -18,9 +18,24 @@ import ReactionEmojiPicker from "./ReactionEmojiPicker.tsx";
 import ReactionsDisplay from "./ReactionsDisplay.jsx";
 import GifStickerPicker from "../../components/common/GifStickerPicker.jsx";
 import { AnimatePresence } from "framer-motion";
-import { Suspense } from "react";
-import ReportModal from "./ReportModal.jsx"
+import ReportModal from "./ReportModal.jsx";
 import axiosInstance from "../../lib/axios.js";
+import SuggestionCard from "../../components/common/SuggestionCard.jsx"; // we'll create this next
+
+// ── Helper: compute insertion points ──
+const getInsertionPoints = (totalPosts) => {
+    const intervals = [5, 7, 10, 15, 20];
+    const points = [];
+    let current = 0;
+    let i = 0;
+    while (current < totalPosts) {
+        const interval = intervals[i % intervals.length];
+        current += interval;
+        if (current < totalPosts) points.push(current);
+        i++;
+    }
+    return points;
+};
 
 // ── Single post item (extracted to avoid hook-in-loop) ──
 const PostItem = ({ post, authUserId }) => {
@@ -563,38 +578,108 @@ const Posts = () => {
         isGettingPosts, Posts, getPosts, getFollowingPosts,
     } = useUserStore();
 
-    const [shareModal, setShareModal] = useState({ open: false, postId: null, url: "" });
+    const [suggestions, setSuggestions] = useState([]);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
+    const { authUser } = useAuthStore();
+    const navigate = useNavigate();
+
+    // Detect mobile viewport
     useEffect(() => {
-        const handler = (e) => setShareModal({ open: true, postId: e.detail.postId, url: e.detail.url });
-        window.addEventListener("OpenShareModal", handler);
-        return () => window.removeEventListener("OpenShareModal", handler);
+        const handleResize = () => setIsMobile(window.innerWidth < 1024);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    // Fetch suggestions (only on mobile)
+    useEffect(() => {
+        if (!isMobile) return;
+        const fetchSuggestions = async () => {
+            try {
+                const token = localStorage.getItem('access-token');
+                const res = await axiosInstance.get('/api/users/suggestions?limit=30', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setSuggestions(res.data);
+            } catch (error) {
+                console.error('Failed to fetch suggestions:', error);
+            }
+        };
+        fetchSuggestions();
+    }, [isMobile]);
+
+    // Merge posts + suggestions (only on mobile)
+    const feedItems = useMemo(() => {
+        if (!isMobile) return Posts.map(p => ({ type: 'post', data: p }));
+        if (!Posts.length) return [];
+
+        const merged = [];
+        const suggestionsCopy = [...suggestions];
+        let suggestionIndex = 0;
+        const insertionPoints = getInsertionPoints(Posts.length);
+
+        Posts.forEach((post, idx) => {
+            merged.push({ type: 'post', data: post });
+            const pos = idx + 1; // 1-based index
+            if (insertionPoints.includes(pos) && suggestionIndex < suggestionsCopy.length) {
+                merged.push({ type: 'suggestion', data: suggestionsCopy[suggestionIndex] });
+                suggestionIndex++;
+            }
+        });
+
+        // Append leftover suggestions at the end
+        while (suggestionIndex < suggestionsCopy.length) {
+            merged.push({ type: 'suggestion', data: suggestionsCopy[suggestionIndex] });
+            suggestionIndex++;
+        }
+
+        return merged;
+    }, [Posts, suggestions, isMobile]);
 
     useEffect(() => {
         getPosts();
         getFollowingPosts();
     }, [getPosts, getFollowingPosts]);
 
+    // Share modal state (unchanged)
+    const [shareModal, setShareModal] = useState({ open: false, postId: null, url: "" });
+    useEffect(() => {
+        const handler = (e) => setShareModal({ open: true, postId: e.detail.postId, url: e.detail.url });
+        window.addEventListener("OpenShareModal", handler);
+        return () => window.removeEventListener("OpenShareModal", handler);
+    }, []);
+
+    if (isGettingPosts) {
+        return (
+            <div className="flex flex-col justify-center">
+                <PostSkeleton />
+                <PostSkeleton />
+                <PostSkeleton />
+            </div>
+        );
+    }
+
+    if (!Posts?.length) {
+        return <p className="text-center my-4">No posts to display. Check back later!</p>;
+    }
+
     return (
-        <>
-            {isGettingPosts && (
-                <div className="flex flex-col justify-center">
-                    <PostSkeleton />
-                    <PostSkeleton />
-                    <PostSkeleton />
-                </div>
-            )}
-            {!isGettingPosts && Posts?.length === 0 && (
-                <p className="text-center my-4">No posts to display. Check back later!</p>
-            )}
-            {!isGettingPosts && Posts && (
-                <div className="overflow-auto w-full h-[calc(100vh-50px)]">
-                    {Posts.map((post) => (
-                        <PostItem key={post._id} post={post} authUserId={useAuthStore.getState().authUserId} />
-                    ))}
-                </div>
-            )}
+        <div className="overflow-auto w-full h-[calc(100vh-50px)]">
+            {feedItems.map((item, idx) => {
+                if (item.type === 'post') {
+                    return <PostItem key={item.data._id} post={item.data} authUserId={authUser?._id} />;
+                } else {
+                    return (
+                        <SuggestionCard
+                            key={`sugg-${idx}`}
+                            user={item.data}
+                            onFollow={() => {
+                                setSuggestions(prev => prev.filter(u => u._id !== item.data._id));
+                            }}
+                        />
+                    );
+                }
+            })}
 
             {/* Share modal (still in Posts) */}
             {shareModal.open && (
@@ -644,7 +729,7 @@ const Posts = () => {
                     </div>
                 </div>
             )}
-        </>
+        </div>
     );
 };
 

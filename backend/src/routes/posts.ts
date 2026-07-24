@@ -405,27 +405,43 @@ router.get('/get-truncated-posts/:id', async (req: Request, res: Response) => {
 router.get('/get-following-posts', async (req: Request, res: Response) => {
     const userId = req.userId;
 
+    if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     try {
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ error: "User not found" });
 
-        const followingPosts = await Post.find({ author: { $in: user.following }, isPublished: true })
-            .sort({ createdAt: -1 })
-            .populate({
-                path: "author",
-                select: "-passwordHash",
-            })
-            .populate({
-                path: "comments.user",
-                select: "-passwordHash",
-            });
+        // Calculate mutual followers (for Friends visibility)
+        const mutualFollowers = user.following.filter(id => user.followers.includes(id));
 
-        res.status(200).json(followingPosts);
+        // Get posts from followed users with visibility filtering
+        const followingPosts = await Post.find({
+            isPublished: true,
+            // Only posts from users we follow
+            author: { $in: user.following },
+            $or: [
+                // Public posts are always visible
+                { visibility: 'Public' },
+                // Private posts are visible because we follow them (author is in user.following)
+                { visibility: 'Private', author: { $in: user.following } },
+                // Friends posts are visible only if we are mutual followers
+                { visibility: 'Friends', author: { $in: mutualFollowers } },
+                // Also include our own posts (in case we follow ourselves? but we don't)
+                // Actually, we might want to exclude our own posts from following feed, so skip author: userId
+            ]
+        })
+            .sort({ createdAt: -1 })
+            .limit(50)
+            .populate('author', 'username displayName avatarUrl');
+
+        res.json(followingPosts);
     } catch (error) {
-        console.log("Error in getFollowingPosts controller: ", error);
-        res.status(500).json({ error: "Internal server error" });
+        console.error('Error in getFollowingPosts:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
-})
+});
 
 router.post('/react', async (req: Request, res: Response) => {
     try {

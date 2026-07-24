@@ -22,7 +22,7 @@ const WhoToFollow = () => {
             <div className="bg-base-100 p-4 rounded-md">
                 <div className="flex items-center justify-between mb-3">
                     <p className="font-bold text-base-content">Who to follow</p>
-                    <Link to="/explore" className="text-sm text-primary/90 hover:text-primary">
+                    <Link to="/search" className="text-sm text-primary/90 hover:text-primary">
                         See all
                     </Link>
                 </div>

@@ -21,6 +21,22 @@ import ReportModal from "./ReportModal.jsx"
 import GifStickerPicker from "../../components/common/GifStickerPicker.jsx";
 import { AnimatePresence } from "framer-motion";
 import axiosInstance from "@/lib/axios.js";
+import SuggestionCard from "../../components/common/SuggestionCard.jsx"; // we'll create this next
+
+// ── Helper: compute insertion points ──
+const getInsertionPoints = (totalPosts) => {
+    const intervals = [5, 7, 10, 15, 20];
+    const points = [];
+    let current = 0;
+    let i = 0;
+    while (current < totalPosts) {
+        const interval = intervals[i % intervals.length];
+        current += interval;
+        if (current < totalPosts) points.push(current);
+        i++;
+    }
+    return points;
+};
 
 // ── Single following post item ─────────────────────────
 const FollowingPostItem = ({ post, authUserId }) => {
@@ -522,49 +538,135 @@ const FollowingPostItem = ({ post, authUserId }) => {
     );
 };
 
-// ── Main FollowingPosts component ──────────────────────
+// ── Main FollowingPosts component ────────────────────────────────
 const FollowingPosts = () => {
     const { isGettingFollowingPosts, followingPosts, getFollowingPosts, getPosts } = useUserStore();
     const { authUserId } = useAuthStore();
+
+    const [suggestions, setSuggestions] = useState([]);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
     const [shareModal, setShareModal] = useState({ open: false, postId: null, url: "" });
 
+    // Detect mobile viewport
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 1024);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // Fetch suggestions (only on mobile)
+    useEffect(() => {
+        if (!isMobile) return;
+        const fetchSuggestions = async () => {
+            try {
+                const token = localStorage.getItem('access-token');
+                const res = await axiosInstance.get('/api/users/suggestions?limit=30', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setSuggestions(res.data);
+            } catch (error) {
+                console.error('Failed to fetch suggestions:', error);
+            }
+        };
+        fetchSuggestions();
+    }, [isMobile]);
+
+    // Merge following posts + suggestions (only on mobile)
+    const feedItems = useMemo(() => {
+        if (!isMobile) return followingPosts.map(p => ({ type: 'post', data: p }));
+        if (!followingPosts.length) return [];
+
+        const merged = [];
+        const suggestionsCopy = [...suggestions];
+        let suggestionIndex = 0;
+        const insertionPoints = getInsertionPoints(followingPosts.length);
+
+        followingPosts.forEach((post, idx) => {
+            merged.push({ type: 'post', data: post });
+            const pos = idx + 1; // 1-based index
+            if (insertionPoints.includes(pos) && suggestionIndex < suggestionsCopy.length) {
+                merged.push({ type: 'suggestion', data: suggestionsCopy[suggestionIndex] });
+                suggestionIndex++;
+            }
+        });
+
+        // Append leftover suggestions at the end
+        while (suggestionIndex < suggestionsCopy.length) {
+            merged.push({ type: 'suggestion', data: suggestionsCopy[suggestionIndex] });
+            suggestionIndex++;
+        }
+
+        return merged;
+    }, [followingPosts, suggestions, isMobile]);
+
+    // Fetch posts
+    useEffect(() => { getFollowingPosts(); getPosts(); }, [getFollowingPosts, getPosts]);
+
+    // Share modal listener
     useEffect(() => {
         const handler = (e) => setShareModal({ open: true, postId: e.detail.postId, url: e.detail.url });
         window.addEventListener("fwOpenShareModal", handler);
         return () => window.removeEventListener("fwOpenShareModal", handler);
     }, []);
 
-    useEffect(() => { getFollowingPosts(); getPosts(); }, [getFollowingPosts, getPosts]);
+    if (isGettingFollowingPosts) {
+        return (
+            <div className="flex flex-col justify-center">
+                <PostSkeleton />
+                <PostSkeleton />
+                <PostSkeleton />
+            </div>
+        );
+    }
+
+    if (!followingPosts?.length) {
+        return <p className="text-center my-4">No posts to display. Check back later!</p>;
+    }
 
     return (
-        <>
-            {isGettingFollowingPosts && <div className="flex flex-col justify-center"><PostSkeleton /><PostSkeleton /><PostSkeleton /></div>}
-            {!isGettingFollowingPosts && followingPosts?.length === 0 && <p className="text-center my-4">No posts to display. Check back later!</p>}
-            {!isGettingFollowingPosts && followingPosts && (
-                <div className="overflow-auto w-full h-[calc(100vh-50px)]">
-                    {followingPosts.map((post) => <FollowingPostItem key={post._id} post={post} authUserId={authUserId} />)}
-                </div>
-            )}
+        <div className="overflow-auto w-full h-[calc(100vh-50px)]">
+            {feedItems.map((item, idx) => {
+                if (item.type === 'post') {
+                    return <FollowingPostItem key={item.data._id} post={item.data} authUserId={authUserId} />;
+                } else {
+                    return (
+                        <SuggestionCard
+                            key={`sugg-${idx}`}
+                            user={item.data}
+                            onFollow={() => {
+                                setSuggestions(prev => prev.filter(u => u._id !== item.data._id));
+                            }}
+                        />
+                    );
+                }
+            })}
+
+            {/* Share modal (unchanged) */}
             {shareModal.open && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShareModal({ open: false, postId: null, url: "" })}>
-                    <div className="bg-white rounded-2xl p-6 w-[400px] shadow-xl" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-bold">Share Post</h3><button onClick={() => setShareModal({ open: false, postId: null, url: "" })} className="p-2 hover:bg-gray-100 rounded-full"><IoClose className="w-5 h-5 text-gray-500" /></button></div>
-                        <button onClick={() => { navigator.clipboard.writeText(shareModal.url); toast.success("Link copied to clipboard"); }} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 rounded-xl mb-2 transition-colors">
-                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"><Copy className="w-5 h-5 text-gray-600" /></div>
-                            <div className="text-left flex-1"><p className="text-sm font-medium text-gray-800">Copy Link</p><p className="text-xs text-gray-400">{shareModal.url}</p></div>
-                            <Check className="w-4 h-4 text-gray-400" />
+                    <div className="bg-base-100 rounded-2xl p-6 w-[400px] shadow-xl" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-bold">Share Post</h3>
+                            <button onClick={() => setShareModal({ open: false, postId: null, url: "" })} className="p-2 hover:bg-base-200 rounded-full">
+                                <IoClose className="w-5 h-5 text-base-content/60" />
+                            </button>
+                        </div>
+                        <button onClick={() => { navigator.clipboard.writeText(shareModal.url); toast.success("Link copied to clipboard"); }} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-base-200 rounded-xl mb-2 transition-colors">
+                            <div className="w-10 h-10 rounded-full bg-base-200 flex items-center justify-center"><Copy className="w-5 h-5 text-base-content/70" /></div>
+                            <div className="text-left flex-1"><p className="text-sm font-medium text-base-content">Copy Link</p><p className="text-xs text-base-content/50">{shareModal.url}</p></div>
+                            <Check className="w-4 h-4 text-base-content/50" />
                         </button>
                         <div className="grid grid-cols-2 gap-2 mt-4">
-                            <button onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareModal.url)}`, "_blank")} className="flex items-center gap-2 px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"><FaFacebook className="w-5 h-5 text-blue-600" /><span className="text-sm font-medium text-blue-700">Facebook</span></button>
-                            <button onClick={() => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareModal.url)}`, "_blank")} className="flex items-center gap-2 px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"><FaXTwitter className="w-5 h-5 text-gray-800" /><span className="text-sm font-medium text-gray-700">X</span></button>
-                            <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareModal.url)}`, "_blank")} className="flex items-center gap-2 px-4 py-3 bg-green-50 hover:bg-green-100 rounded-xl transition-colors"><FaWhatsapp className="w-5 h-5 text-green-600" /><span className="text-sm font-medium text-green-700">WhatsApp</span></button>
-                            <button onClick={() => window.open(`https://t.me/share/url?url=${encodeURIComponent(shareModal.url)}`, "_blank")} className="flex items-center gap-2 px-4 py-3 bg-sky-50 hover:bg-sky-100 rounded-xl transition-colors"><FaTelegram className="w-5 h-5 text-sky-600" /><span className="text-sm font-medium text-sky-700">Telegram</span></button>
-                            <button onClick={() => window.open(`mailto:?subject=Check out this post on Snitch&body=${encodeURIComponent(shareModal.url)}`, "_blank")} className="flex items-center gap-2 px-4 py-3 bg-red-50 hover:bg-red-100 rounded-xl transition-colors col-span-2"><FaEnvelope className="w-5 h-5 text-red-600" /><span className="text-sm font-medium text-red-700">Email</span></button>
+                            <button onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareModal.url)}`, '_blank')} className="flex items-center gap-2 px-4 py-3 bg-primary/10 hover:bg-primary/10 rounded-xl transition-colors"><FaFacebook className="w-5 h-5 text-primary/90" /><span className="text-sm font-medium text-primary">Facebook</span></button>
+                            <button onClick={() => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareModal.url)}`, '_blank')} className="flex items-center gap-2 px-4 py-3 bg-base-200 hover:bg-base-200 rounded-xl transition-colors"><FaXTwitter className="w-5 h-5 text-base-content" /><span className="text-sm font-medium text-base-content/80">X</span></button>
+                            <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareModal.url)}`, '_blank')} className="flex items-center gap-2 px-4 py-3 bg-success/10 hover:bg-success/10 rounded-xl transition-colors"><FaWhatsapp className="w-5 h-5 text-green-600" /><span className="text-sm font-medium text-green-700">WhatsApp</span></button>
+                            <button onClick={() => window.open(`https://t.me/share/url?url=${encodeURIComponent(shareModal.url)}`, '_blank')} className="flex items-center gap-2 px-4 py-3 bg-info/10 hover:bg-info/20 rounded-xl transition-colors"><FaTelegram className="w-5 h-5 text-info" /><span className="text-sm font-medium text-info">Telegram</span></button>
+                            <button onClick={() => window.open(`mailto:?subject=Check out this post on Snitch&body=${encodeURIComponent(shareModal.url)}`, '_blank')} className="flex items-center gap-2 px-4 py-3 bg-error/10 hover:bg-error/10 rounded-xl transition-colors col-span-2"><FaEnvelope className="w-5 h-5 text-error/90" /><span className="text-sm font-medium text-error">Email</span></button>
                         </div>
                     </div>
                 </div>
             )}
-        </>
+        </div>
     );
 };
 
