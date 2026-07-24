@@ -28,28 +28,30 @@ router.post('/', async (req: Request, res: Response)=>{
 router.get('/', async (req: Request, res: Response)=>{
     const userId = req.userId;
     let posts;
-    
+
     if (userId) {
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ error: "User not found" });
 
-        const mutualFollowers = user.following.filter(id => user.followers.includes(id));
-        
-        // Filter posts based on visibility
+        // Show: public posts + posts from followed users + own posts
         posts = await Post.find({
             isPublished: true,
             $or: [
                 { visibility: 'Public' },
-                { visibility: 'Private', author: { $in: user.following } },
-                { visibility: 'Friends', author: { $in: mutualFollowers } },
-                { author: userId } // Always show own posts
+                { author: { $in: user.following } },  // all posts from followed users
+                { author: userId }                     // own posts
             ]
-        }).sort({ createdAt:-1 }).limit(50).populate('author','username displayName avatarUrl');
+        })
+            .sort({ createdAt: -1 })
+            .limit(50)
+            .populate('author', 'username displayName avatarUrl');
     } else {
-        // Non-authenticated users only see public posts
-        posts = await Post.find({ isPublished: true, visibility: 'Public' }).sort({ createdAt:-1 }).limit(50).populate('author','username displayName avatarUrl');
+        posts = await Post.find({ isPublished: true, visibility: 'Public' })
+            .sort({ createdAt: -1 })
+            .limit(50)
+            .populate('author', 'username displayName avatarUrl');
     }
-    
+
     res.json(posts);
 });
 
@@ -404,33 +406,23 @@ router.get('/get-truncated-posts/:id', async (req: Request, res: Response) => {
 
 router.get('/get-following-posts', async (req: Request, res: Response) => {
     const userId = req.userId;
-
-    if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     try {
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ error: "User not found" });
 
-        // Calculate mutual followers (for Friends visibility)
-        const mutualFollowers = user.following.filter(id => user.followers.includes(id));
+        // If the user isn't following anyone, return empty array early
+        if (!user.following || user.following.length === 0) {
+            return res.json([]);
+        }
 
-        // Get posts from followed users with visibility filtering
+        // Get all posts from followed users, ignoring visibility for now
+        // (we'll filter in the frontend if needed)
         const followingPosts = await Post.find({
             isPublished: true,
-            // Only posts from users we follow
             author: { $in: user.following },
-            $or: [
-                // Public posts are always visible
-                { visibility: 'Public' },
-                // Private posts are visible because we follow them (author is in user.following)
-                { visibility: 'Private', author: { $in: user.following } },
-                // Friends posts are visible only if we are mutual followers
-                { visibility: 'Friends', author: { $in: mutualFollowers } },
-                // Also include our own posts (in case we follow ourselves? but we don't)
-                // Actually, we might want to exclude our own posts from following feed, so skip author: userId
-            ]
+            // TEMPORARILY REMOVE VISIBILITY FILTER TO TEST
         })
             .sort({ createdAt: -1 })
             .limit(50)

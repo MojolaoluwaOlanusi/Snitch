@@ -1,6 +1,5 @@
 import Sidebar from "../../components/common/Sidebar.jsx";
 import RightPanel from "../../components/common/RightPanel.jsx";
-import WhoToFollow from "../../components/common/WhoToFollow.jsx";
 import { useUserStore } from "../../store/useUserStore.js";
 import Posts from "../../components/common/Posts.jsx";
 import { useChatStore } from "../../store/useChatStore.js";
@@ -44,13 +43,11 @@ function HomePage() {
                 </div>
                 {feedType === "forYou" && (
                     <>
-                        <WhoToFollow />
                         <Posts />
                     </>
                 )}
                 {feedType === "following" && (
                     <>
-                        <WhoToFollow />
                         <FollowingPosts />
                     </>
                 )}
