@@ -514,30 +514,6 @@ const ChatPage = () => {
         socket.on('message:viewed', ({ messageId, viewedBy }) => {
             updateMessage(messageId, { viewedBy, media: [] });
         });
-        socket.on('webrtc:call:incoming', ({ callId, from, isVideo, metadata }) => {
-            useCallStore.getState().handleIncomingCall({ callId, from, isVideo, metadata });
-        });
-        socket.on('webrtc:signal', async ({ from, type, data }) => {
-            await useCallStore.getState().handleSignal({from, type, data});
-        });
-        socket.on('webrtc:call:ended', () => {
-            // Send call summary before cleaning up
-            const { callDuration, callAnswered, activeCall } = useCallStore.getState();
-            if (activeCall) {
-                const status = callAnswered ? 'ended' : 'missed';
-                sendCallSummary(activeCall.isVideo ? 'video' : 'audio', callDuration, status);
-            }
-            useCallStore.getState().handleCallEnded();
-        });
-        socket.on('webrtc:call:participant_left', ({ userId }) => {
-            useCallStore.getState().handleParticipantLeft(userId);
-        });
-        socket.on('webrtc:call:participant_joined', ({ userId }) => {
-            useCallStore.getState().handleParticipantJoined(userId);
-        });
-        socket.on('webrtc:call:accepted', (data) => {
-            useCallStore.getState().handleCallAccepted(data);
-        });
     }, [socket]);
 
     const cleanupSocketListeners = useCallback(() => {
@@ -1407,18 +1383,6 @@ useEffect(() => {
     const handleBackToList = () => {
         setMobileChatVisible(false);
         selectConversation(null);
-    };
-
-    const sendCallSummary = async (type, duration, status) => {
-        if (!selectedConversation) return;
-        try {
-            await sendMessage({
-                receiverId: getOtherUser(selectedConversation)?._id,
-                conversationId: selectedConversation._id,
-                text: '',
-                call: { type, duration, status, callerId: authUser?._id },
-            });
-        } catch (error) { /* fail silently */ }
     };
 
     const renderTextWithLinks = (text) => {

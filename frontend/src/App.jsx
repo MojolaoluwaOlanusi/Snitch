@@ -4,6 +4,7 @@ import { Toaster } from 'sonner'
 import { Suspense, lazy, useEffect } from "react";
 import { Analytics } from '@vercel/analytics/react';
 import { usePushNotifications } from "./hooks/usePushNotifications.js";
+import { useCallSocketListeners } from './hooks/useCallSocketListeners.js';
 import { useUserStore } from "./store/useUserStore.js";
 import { updateAppBadge } from "./utils/appBadge.js";
 import CallModal from "./components/common/CallModal.jsx";
@@ -34,6 +35,7 @@ function App () {
     const { checkAuthentication, isCheckingAuth, authUserId } = useAuthStore();
     const { setupPushNotifications } = usePushNotifications();
     const { notifications } = useUserStore();
+    useCallSocketListeners();
 
     useEffect(() => {
         checkAuthentication();

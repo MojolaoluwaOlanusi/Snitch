@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { useAuthStore } from './useAuthStore.js';
 import { toast } from 'sonner';
+import { sendCallSummary } from '../services/callSummaryService.js';
 
 export const useCallStore = create((set, get) => ({
     // ===== State =====
@@ -266,11 +267,16 @@ export const useCallStore = create((set, get) => ({
         }
     },
 
+    setSendSummary: (fn) => set({ sendSummary: fn }),
+
     endCall: () => {
-        const { activeCall } = get();
+        const { activeCall, callAnswered, callDuration, isVideoMode } = get();
         const socket = useAuthStore.getState().socket;
         if (activeCall) {
             socket?.emit('webrtc:call:end', { callId: activeCall.callId });
+            const type = activeCall.isVideo ? 'video' : 'audio';
+            const status = callAnswered ? 'ended' : 'missed';
+            sendCallSummary(type, callDuration, status);
         }
         get().cleanupCall();
     },

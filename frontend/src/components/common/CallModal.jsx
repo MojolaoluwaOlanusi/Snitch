@@ -136,8 +136,8 @@ const CallModal = () => {
                         ))
                     ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-                            <Phone className="w-12 h-12 text-primary-content" />
-                            <p className="text-primary-content text-sm mt-2">
+                            <Phone className="w-12 h-12 text-base-content" />
+                            <p className="text-base-content text-sm mt-2">
                                 {formatCallDuration(callDuration)}
                             </p>
                         </div>
@@ -195,7 +195,7 @@ const CallModal = () => {
                                             playsInline
                                             className="w-full h-full object-cover"
                                         />
-                                        <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded text-primary-content text-xs">
+                                        <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded text-base-content text-xs">
                                             {userId === authUser?._id ? 'You' : 'Participant'}
                                         </div>
                                     </div>
@@ -205,9 +205,9 @@ const CallModal = () => {
                     ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
                             <div className="w-24 h-24 bg-primary/80 rounded-full flex items-center justify-center mb-4">
-                                <Phone className="w-12 h-12 text-primary-content" />
+                                <Phone className="w-12 h-12 text-base-content" />
                             </div>
-                            <p className="text-primary-content text-lg font-medium">
+                            <p className="text-base-content text-lg font-medium">
                                 {activeCall.otherUserId ? 'Call in progress' : 'Group call'}
                             </p>
                             <p className="text-base-content/50 text-sm">
@@ -216,13 +216,13 @@ const CallModal = () => {
                             {callAnswered ? (
                                 <div className="mt-6 w-64">
                                     <div className="flex items-center justify-center gap-2">
-                                        <Mic className={`w-5 h-5 ${isMicMuted ? 'text-error' : 'text-primary-content'}`} />
-                                        <p className="text-primary-content text-sm">{formatCallDuration(callDuration)}</p>
+                                        <Mic className={`w-5 h-5 ${isMicMuted ? 'text-error' : 'text-base-content'}`} />
+                                        <p className="text-base-content text-sm">{formatCallDuration(callDuration)}</p>
                                     </div>
                                 </div>
                             ) : (
                                 <div className="mt-6">
-                                    <p className="text-primary-content text-lg animate-pulse">Ringing...</p>
+                                    <p className="text-base-content text-lg animate-pulse">Ringing...</p>
                                 </div>
                             )}
                         </div>
@@ -247,8 +247,8 @@ const CallModal = () => {
                             onClick={toggleMute}
                             className={`p-2 md:p-3 rounded-full transition-colors ${
                                 isMicMuted
-                                    ? 'bg-error text-primary-content'
-                                    : 'bg-base-100/20 text-primary-content hover:bg-base-100/30'
+                                    ? 'bg-error text-base-content'
+                                    : 'bg-base-100/20 text-base-content hover:bg-base-100/30'
                             }`}
                         >
                             {isMicMuted ? <MicOff className="w-4 h-4 md:w-5 md:h-5" /> : <Mic className="w-4 h-4 md:w-5 md:h-5" />}
@@ -257,8 +257,8 @@ const CallModal = () => {
                             onClick={toggleVideo}
                             className={`p-2 md:p-3 rounded-full transition-colors ${
                                 isVideoOff
-                                    ? 'bg-error text-primary-content'
-                                    : 'bg-base-100/20 text-primary-content hover:bg-base-100/30'
+                                    ? 'bg-error text-base-content'
+                                    : 'bg-base-100/20 text-base-content hover:bg-base-100/30'
                             }`}
                             title={isVideoOff ? 'Turn on camera' : 'Turn off camera'}
                         >
@@ -267,7 +267,7 @@ const CallModal = () => {
                         {isVideoMode && (
                             <button
                                 onClick={flipCamera}
-                                className="p-2 md:p-3 rounded-full bg-base-100/20 text-primary-content hover:bg-base-100/30"
+                                className="p-2 md:p-3 rounded-full bg-base-100/20 text-base-content hover:bg-base-100/30"
                             >
                                 <RotateCw className="w-4 h-4 md:w-5 md:h-5" />
                             </button>
@@ -276,8 +276,8 @@ const CallModal = () => {
                             onClick={shareScreen}
                             className={`p-2 md:p-3 rounded-full transition-colors ${
                                 isSharingScreen
-                                    ? 'bg-primary text-primary-content'
-                                    : 'bg-base-100/20 text-primary-content hover:bg-base-100/30'
+                                    ? 'bg-primary text-base-content'
+                                    : 'bg-base-100/20 text-base-content hover:bg-base-100/30'
                             }`}
                         >
                             <MonitorUp className="w-4 h-4 md:w-5 md:h-5" />
@@ -287,14 +287,14 @@ const CallModal = () => {
                                 // Add participant – you can emit an event or open a modal
                                 toast.info('Add participant feature coming soon');
                             }}
-                            className="p-2 md:p-3 rounded-full bg-base-100/20 text-primary-content hover:bg-base-100/30"
+                            className="p-2 md:p-3 rounded-full bg-base-100/20 text-base-content hover:bg-base-100/30"
                             title="Add participant"
                         >
                             <UserPlus className="w-4 h-4 md:w-5 md:h-5" />
                         </button>
                         <button
                             onClick={endCall}
-                            className="p-2 md:p-3 rounded-full bg-error text-primary-content hover:bg-red-600"
+                            className="p-2 md:p-3 rounded-full bg-error text-base-content hover:bg-red-600"
                         >
                             <PhoneOff className="w-4 h-4 md:w-5 md:h-5" />
                         </button>
@@ -303,7 +303,7 @@ const CallModal = () => {
                     {/* Minimize button */}
                     <button
                         onClick={toggleMinimize}
-                        className="absolute top-4 left-4 p-2 bg-black/40 rounded-full text-primary-content hover:bg-black/60"
+                        className="absolute top-4 left-4 p-2 bg-black/40 rounded-full text-base-content hover:bg-black/60"
                     >
                         <Minimize2 className="w-5 h-5" />
                     </button>
