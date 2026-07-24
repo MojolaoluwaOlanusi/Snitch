@@ -399,6 +399,7 @@ const ChatPage = () => {
     const videoPreviewRef = useRef(null);
     const addedMessageIds = useRef(new Set());
     const groupAvatarColors = useRef(new Map());
+    const joinedParticipantsRef = useRef(new Set());
 
     const [convoSettings, updateConvoSetting] = useConversationSettings(
         selectedConversation?._id,
@@ -584,11 +585,17 @@ const ChatPage = () => {
             }
         });
         socket.on('webrtc:call:participant_joined', ({ userId }) => {
+            // 🔥 Ignore if this is our own userId (prevent self‑toast)
+            if (userId === authUser?._id) return;
+
             toast.success(`${userId} joined`, { icon: '👋' });
 
-            // ✅ Handle BOTH group calls AND 1-on-1 calls
+            if (joinedParticipantsRef.current.has(userId)) return;
+            joinedParticipantsRef.current.add(userId);
+
+            // ✅ Transition from ringing to in‑call for BOTH group and 1‑on‑1
             if (activeCall && localStream) {
-                // Transition from ringing to in-call
+                // Update UI state
                 if (isRinging) {
                     setIsRinging(false);
                     setCallAnswered(true);
@@ -597,16 +604,13 @@ const ChatPage = () => {
                     clearTimeout(callTimeoutRef.current);
                 }
 
+                // Create peer connection and exchange SDP
                 const pc = createPeerConnection(userId);
                 localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
                 pc.createOffer().then(offer => {
                     pc.setLocalDescription(offer);
-                    socket?.emit('webrtc:signal', {
-                        toUserId: userId,
-                        type: 'offer',
-                        data: offer
-                    });
+                    socket?.emit('webrtc:signal', { toUserId: userId, type: 'offer', data: offer });
                 });
             }
         });
@@ -2463,6 +2467,7 @@ useEffect(() => {
                 status
             );
         }
+        joinedParticipantsRef.current.clear();
 
         stopCallTimer();
         clearTimeout(callTimeoutRef.current);
