@@ -146,20 +146,42 @@ router.get('/get-user-profile/:username', authMiddleware, async (req: Request, r
     }
 });
 
-router.put('/update-profile',authMiddleware, async (req: Request, res: Response) => {
+router.put('/update-profile', authMiddleware, async (req: Request, res: Response) => {
     try {
-        const { email, username, gender, socialHandles, theme, displayName, bio, avatarUrl, coverImg, accountType, accountVisibility, link, location } = req.body;
-        const user = await User.findById(req.userId).select("-passwordHash");
-        const trimmedUsername = username.trim();
-        const updatedProfile = await User.findByIdAndUpdate(
-            // @ts-ignore
-            user._id,
-            { email , trimmedUsername, displayName, bio, avatarUrl, gender, socialHandles, theme, accountType, coverImg, link, location, accountVisibility },
-            { new: true }
-        ).select("-passwordHash");
-        res.status(200).json(updatedProfile);
+        const user = await User.findById(req.userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Destructure only what we might use
+        const {
+            email, username, gender, socialHandles, theme, displayName,
+            bio, avatarUrl, coverImg, accountType, accountVisibility, link, location
+        } = req.body;
+
+        // Update fields only if they are provided
+        if (email !== undefined) user.email = email;
+        if (username !== undefined) user.username = username.trim();
+        if (displayName !== undefined) user.displayName = displayName.trim();
+        if (bio !== undefined) user.bio = bio.trim();
+        if (link !== undefined) user.link = link.trim();
+        if (location !== undefined) user.location = location.trim();
+
+        if (gender !== undefined) user.gender = gender;
+        if (socialHandles !== undefined) user.socialHandles = socialHandles;
+        if (theme !== undefined) user.theme = theme;
+        if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
+        if (coverImg !== undefined) user.coverImg = coverImg;
+        if (accountType !== undefined) user.accountType = accountType;
+        if (accountVisibility !== undefined) user.accountVisibility = accountVisibility;
+
+        await user.save();
+
+        // Return updated user (excluding password)
+        const updatedUser = await User.findById(req.userId).select('-passwordHash');
+        res.status(200).json(updatedUser);
     } catch (err: any) {
-        console.error('Error in getUserProfile:', err.message);
+        console.error('Update profile error:', err.message);
         res.status(500).json({ message: 'Server error', error: err.message });
     }
 });
