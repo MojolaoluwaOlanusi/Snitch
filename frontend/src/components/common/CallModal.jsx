@@ -13,8 +13,8 @@ import {
     Minimize2,
     UserPlus,
 } from 'lucide-react';
-import { useCallStore } from '../store/useCallStore.js';
-import { useAuthStore } from '../store/useAuthStore.js';
+import { useCallStore } from '../../store/useCallStore.js';
+import { useAuthStore } from '../../store/useAuthStore.js';
 import { toast } from 'sonner';
 
 const formatCallDuration = (seconds) => {
