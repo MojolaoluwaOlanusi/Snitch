@@ -33,6 +33,8 @@ router.get('/', async (req: Request, res: Response)=>{
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ error: "User not found" });
 
+        console.log('🔍 Following array:', user.following); // ← ADD THIS
+
         // Show: public posts + posts from followed users + own posts
         posts = await Post.find({
             isPublished: true,
@@ -411,6 +413,8 @@ router.get('/get-following-posts', async (req: Request, res: Response) => {
     try {
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ error: "User not found" });
+
+        console.log('🔍 Following array:', user.following); // ← ADD THIS
 
         // If the user isn't following anyone, return empty array early
         if (!user.following || user.following.length === 0) {
