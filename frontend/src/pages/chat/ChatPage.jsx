@@ -518,7 +518,7 @@ const ChatPage = () => {
             useCallStore.getState().handleIncomingCall({ callId, from, isVideo, metadata });
         });
         socket.on('webrtc:signal', async ({ from, type, data }) => {
-            useCallStore.getState().handleSignal({ from, type, data });
+            await useCallStore.getState().handleSignal({from, type, data});
         });
         socket.on('webrtc:call:ended', () => {
             // Send call summary before cleaning up
@@ -535,20 +535,8 @@ const ChatPage = () => {
         socket.on('webrtc:call:participant_joined', ({ userId }) => {
             useCallStore.getState().handleParticipantJoined(userId);
         });
-        socket.on('webrtc:call:accepted', ({ userId, callId }) => {
-            console.log(`✅ Call ${callId} accepted by ${userId}`);
-
-            // Transition UI to in-call
-            if (isRinging) {
-                setIsRinging(false);
-                setCallAnswered(true);
-                callAnsweredRef.current = true;
-                isRingingRef.current = false;
-                clearTimeout(callTimeoutRef.current);
-            }
-
-            // Optionally show a toast
-            toast.success('Call accepted!', { icon: '📞' });
+        socket.on('webrtc:call:accepted', (data) => {
+            useCallStore.getState().handleCallAccepted(data);
         });
     }, [socket]);
 
@@ -1280,7 +1268,7 @@ useEffect(() => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            await fetchUserWallpapers();
+            await fetchMyWallpapers();
             handleSetWallpaper(publicUrl);
         } catch (error) {
             toast.error('Failed to upload wallpaper');
@@ -1646,26 +1634,25 @@ useEffect(() => {
                             selectedFile.type?.startsWith('image/') ? 'images' :
                                 selectedFile.type?.startsWith('video/') ? 'videos' : 'documents';
 
-                    if (!selectedFile.finalUrl) {
-                        const uploadResult = await useChatStore.getState().uploadChatMedia({
-                            file: selectedFile.file,
-                            conversationId: selectedConversation._id,
-                            mediaType,
-                        });
-
+                    // If we have a finalUrl OR the url already looks like a server URL
+                    if (selectedFile.finalUrl || selectedFile.url?.startsWith('http')) {
+                        const url = selectedFile.finalUrl || selectedFile.url;
                         finalMedia = [{
-                            url: uploadResult.url,
+                            url: url,
                             mime: selectedFile.type,
                             size: selectedFile.size,
                             filename: selectedFile.name,
                             isHexagon: selectedFile.isHexagon || false,
                             isVoice: selectedFile.isVoice || false,
                         }];
-                    }
-
-                    if (selectedFile.finalUrl) {
+                    } else {
+                        const uploadResult = await useChatStore.getState().uploadChatMedia({
+                            file: selectedFile.file,
+                            conversationId: selectedConversation._id,
+                            mediaType,
+                        });
                         finalMedia = [{
-                            url: selectedFile.finalUrl,
+                            url: uploadResult.url,
                             mime: selectedFile.type,
                             size: selectedFile.size,
                             filename: selectedFile.name,
@@ -2216,10 +2203,10 @@ useEffect(() => {
     // [Your existing call functions remain unchanged; I'll keep them for brevity, but they are exactly the same]
     const startCall = async (isVideo) => {
         const store = useCallStore.getState();
-        store.startCall(isVideo, selectedConversation, getOtherUser);
+        await store.startCall(isVideo, selectedConversation, getOtherUser);
     };
     const acceptCall = async () => {
-        useCallStore.getState().acceptCall();
+        await useCallStore.getState().acceptCall();
     };
     const rejectCall = () => {
         useCallStore.getState().rejectCall();

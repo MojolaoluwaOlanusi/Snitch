@@ -522,6 +522,22 @@ export const useCallStore = create((set, get) => ({
         }
     },
 
+    handleCallAccepted: (data) => {
+        const { userId, callId } = data;
+        console.log(`✅ Call ${callId} accepted by ${userId}`);
+        // Transition UI: set isRinging false, callAnswered true, clear timeout
+        const { isRinging, callTimeoutRef } = get();
+        if (isRinging) {
+            get().setIsRinging(false);
+            get().setCallAnswered(true);
+            if (callTimeoutRef) {
+                clearTimeout(callTimeoutRef);
+                get().setCallTimeoutRef(null);
+            }
+        }
+        toast.success('Call accepted!', { icon: '📞' });
+    },
+
     // ===== Call Ended from Socket =====
 
     handleCallEnded: () => {
