@@ -1,20 +1,11 @@
 // frontend/src/components/CallModal.jsx
 import { useEffect, useRef } from 'react';
 import {
-    Phone,
-    PhoneOff,
-    Video,
-    VideoOff,
-    Mic,
-    MicOff,
-    RotateCw,
-    MonitorUp,
-    Maximize2,
-    Minimize2,
-    UserPlus,
+    Phone, PhoneOff, Video, VideoOff, Mic, MicOff, RotateCw,
+    MonitorUp, Maximize2, Minimize2, UserPlus,
 } from 'lucide-react';
-import { useCallStore } from '../../store/useCallStore.js';
-import { useAuthStore } from '../../store/useAuthStore.js';
+import { useCallStore } from '../store/useCallStore.js';
+import { useAuthStore } from '../store/useAuthStore.js';
 import { toast } from 'sonner';
 
 const formatCallDuration = (seconds) => {
@@ -46,29 +37,32 @@ const CallModal = () => {
         flipCamera,
         shareScreen,
         toggleMinimize,
-        setIsVideoMode,
     } = useCallStore();
 
     const { authUser } = useAuthStore();
     const localVideoRef = useRef(null);
     const remoteVideoRefs = useRef(new Map());
 
-    // Attach local stream to video element
+    // Attach local stream to the video element
     useEffect(() => {
         if (localVideoRef.current && localStream) {
             localVideoRef.current.srcObject = localStream;
+            localVideoRef.current.play().catch(() => {});
         }
     }, [localStream]);
 
-    // Attach remote streams
+    // Attach remote streams to their video elements
     useEffect(() => {
         remoteStreams.forEach((stream, userId) => {
             const el = remoteVideoRefs.current.get(userId);
-            if (el) el.srcObject = stream;
+            if (el) {
+                el.srcObject = stream;
+                el.play().catch(() => {});
+            }
         });
     }, [remoteStreams]);
 
-    // If no call is active or incoming, render nothing
+    // If no call, render nothing
     if (!incomingCall && !activeCall) return null;
 
     // ===== Incoming Call Modal =====
@@ -127,7 +121,14 @@ const CallModal = () => {
                             <video
                                 key={userId}
                                 ref={(el) => {
-                                    if (el) remoteVideoRefs.current.set(userId, el);
+                                    if (el) {
+                                        remoteVideoRefs.current.set(userId, el);
+                                        // If stream already exists, attach it immediately
+                                        if (stream) {
+                                            el.srcObject = stream;
+                                            el.play().catch(() => {});
+                                        }
+                                    }
                                 }}
                                 autoPlay
                                 playsInline
@@ -145,7 +146,15 @@ const CallModal = () => {
                     {isVideoMode && localStream && (
                         <div className="absolute top-2 right-2 w-16 h-20 rounded-xl overflow-hidden border-2 border-white/30 shadow-lg">
                             <video
-                                ref={localVideoRef}
+                                ref={(el) => {
+                                    if (el) {
+                                        localVideoRef.current = el;
+                                        if (localStream) {
+                                            el.srcObject = localStream;
+                                            el.play().catch(() => {});
+                                        }
+                                    }
+                                }}
                                 autoPlay
                                 muted
                                 playsInline
@@ -168,7 +177,13 @@ const CallModal = () => {
                                 <video
                                     key={userId}
                                     ref={(el) => {
-                                        if (el) remoteVideoRefs.current.set(userId, el);
+                                        if (el) {
+                                            remoteVideoRefs.current.set(userId, el);
+                                            if (stream) {
+                                                el.srcObject = stream;
+                                                el.play().catch(() => {});
+                                            }
+                                        }
                                     }}
                                     autoPlay
                                     playsInline
@@ -189,7 +204,13 @@ const CallModal = () => {
                                     <div key={userId} className="relative rounded-xl overflow-hidden bg-gray-800">
                                         <video
                                             ref={(el) => {
-                                                if (el) remoteVideoRefs.current.set(userId, el);
+                                                if (el) {
+                                                    remoteVideoRefs.current.set(userId, el);
+                                                    if (stream) {
+                                                        el.srcObject = stream;
+                                                        el.play().catch(() => {});
+                                                    }
+                                                }
                                             }}
                                             autoPlay
                                             playsInline
@@ -210,13 +231,13 @@ const CallModal = () => {
                             <p className="text-base-content text-lg font-medium">
                                 {activeCall.otherUserId ? 'Call in progress' : 'Group call'}
                             </p>
-                            <p className="text-base-content/50 text-sm">
+                            <p className="text-gray-300 text-sm">
                                 {isVideoMode ? 'Video call' : 'Audio call'}
                             </p>
                             {callAnswered ? (
                                 <div className="mt-6 w-64">
                                     <div className="flex items-center justify-center gap-2">
-                                        <Mic className={`w-5 h-5 ${isMicMuted ? 'text-error' : 'text-base-content'}`} />
+                                        <Mic className={`w-5 h-5 ${isMicMuted ? 'text-red-500' : 'text-base-content'}`} />
                                         <p className="text-base-content text-sm">{formatCallDuration(callDuration)}</p>
                                     </div>
                                 </div>
@@ -232,7 +253,15 @@ const CallModal = () => {
                     {isVideoMode && localStream && (
                         <div className="absolute top-4 right-4 w-32 h-44 rounded-xl overflow-hidden border-2 border-white/30 shadow-lg">
                             <video
-                                ref={localVideoRef}
+                                ref={(el) => {
+                                    if (el) {
+                                        localVideoRef.current = el;
+                                        if (localStream) {
+                                            el.srcObject = localStream;
+                                            el.play().catch(() => {});
+                                        }
+                                    }
+                                }}
                                 autoPlay
                                 muted
                                 playsInline
@@ -247,8 +276,8 @@ const CallModal = () => {
                             onClick={toggleMute}
                             className={`p-2 md:p-3 rounded-full transition-colors ${
                                 isMicMuted
-                                    ? 'bg-error text-base-content'
-                                    : 'bg-base-100/20 text-base-content hover:bg-base-100/30'
+                                    ? 'bg-red-500 text-base-content'
+                                    : 'bg-white/20 text-base-content hover:bg-white/30'
                             }`}
                         >
                             {isMicMuted ? <MicOff className="w-4 h-4 md:w-5 md:h-5" /> : <Mic className="w-4 h-4 md:w-5 md:h-5" />}
@@ -257,8 +286,8 @@ const CallModal = () => {
                             onClick={toggleVideo}
                             className={`p-2 md:p-3 rounded-full transition-colors ${
                                 isVideoOff
-                                    ? 'bg-error text-base-content'
-                                    : 'bg-base-100/20 text-base-content hover:bg-base-100/30'
+                                    ? 'bg-red-500 text-base-content'
+                                    : 'bg-white/20 text-base-content hover:bg-white/30'
                             }`}
                             title={isVideoOff ? 'Turn on camera' : 'Turn off camera'}
                         >
@@ -267,7 +296,7 @@ const CallModal = () => {
                         {isVideoMode && (
                             <button
                                 onClick={flipCamera}
-                                className="p-2 md:p-3 rounded-full bg-base-100/20 text-base-content hover:bg-base-100/30"
+                                className="p-2 md:p-3 rounded-full bg-white/20 text-base-content hover:bg-white/30"
                             >
                                 <RotateCw className="w-4 h-4 md:w-5 md:h-5" />
                             </button>
@@ -277,24 +306,23 @@ const CallModal = () => {
                             className={`p-2 md:p-3 rounded-full transition-colors ${
                                 isSharingScreen
                                     ? 'bg-primary text-base-content'
-                                    : 'bg-base-100/20 text-base-content hover:bg-base-100/30'
+                                    : 'bg-white/20 text-base-content hover:bg-white/30'
                             }`}
                         >
                             <MonitorUp className="w-4 h-4 md:w-5 md:h-5" />
                         </button>
                         <button
                             onClick={() => {
-                                // Add participant – you can emit an event or open a modal
                                 toast.info('Add participant feature coming soon');
                             }}
-                            className="p-2 md:p-3 rounded-full bg-base-100/20 text-base-content hover:bg-base-100/30"
+                            className="p-2 md:p-3 rounded-full bg-white/20 text-base-content hover:bg-white/30"
                             title="Add participant"
                         >
                             <UserPlus className="w-4 h-4 md:w-5 md:h-5" />
                         </button>
                         <button
                             onClick={endCall}
-                            className="p-2 md:p-3 rounded-full bg-error text-base-content hover:bg-red-600"
+                            className="p-2 md:p-3 rounded-full bg-red-500 text-base-content hover:bg-red-600"
                         >
                             <PhoneOff className="w-4 h-4 md:w-5 md:h-5" />
                         </button>

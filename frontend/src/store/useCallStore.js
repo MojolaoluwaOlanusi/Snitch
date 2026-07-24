@@ -177,8 +177,13 @@ export const useCallStore = create((set, get) => ({
             get().startCallTimer();
 
             // Timeout
+            // Inside startCall, after the timeout is set:
             const timeout = setTimeout(() => {
                 if (get().isRinging && !get().callAnswered) {
+                    // Send missed call summary
+                    const type = isVideo ? 'video' : 'audio';
+                    sendCallSummary(type, 0, 'missed');
+                    // Then end the call
                     get().endCall();
                     toast.error('Call ended – no answer');
                 }
@@ -270,10 +275,11 @@ export const useCallStore = create((set, get) => ({
     setSendSummary: (fn) => set({ sendSummary: fn }),
 
     endCall: () => {
-        const { activeCall, callAnswered, callDuration, isVideoMode } = get();
+        const { activeCall, callAnswered, callDuration } = get();
         const socket = useAuthStore.getState().socket;
         if (activeCall) {
             socket?.emit('webrtc:call:end', { callId: activeCall.callId });
+            // Send summary
             const type = activeCall.isVideo ? 'video' : 'audio';
             const status = callAnswered ? 'ended' : 'missed';
             sendCallSummary(type, callDuration, status);
@@ -479,14 +485,16 @@ export const useCallStore = create((set, get) => ({
     // ===== Participant Joined =====
 
     handleParticipantJoined: (userId) => {
-        const { activeCall, localStream, isRinging, callTimeoutRef } = get();
+        const { activeCall, localStream, isRinging, callTimeoutRef, peerConnections } = get();
 
         // Ignore self
         if (userId === useAuthStore.getState().authUser?._id) return;
 
+        // If we already have a peer connection for this user, ignore (prevents duplicate offers)
+        if (peerConnections.has(userId)) return;
+
         toast.success(`${userId} joined`, { icon: '👋' });
 
-        // Transition from ringing to in-call
         if (activeCall && localStream) {
             if (isRinging) {
                 get().setIsRinging(false);
@@ -497,7 +505,6 @@ export const useCallStore = create((set, get) => ({
                 }
             }
 
-            // Create peer connection and send offer
             const pc = get().createPeerConnection(userId);
             localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
