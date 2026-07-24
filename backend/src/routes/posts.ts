@@ -18,10 +18,10 @@ router.use(authMiddleware);
 
 router.post('/', async (req: Request, res: Response)=>{
     if(!req.user) return res.status(401).json({ error:'unauthorized' });
-    const { text, url, isWarp, mediaType, mentions, hashtags } = req.body;
+    const { text, url, isWarp, mediaType, mentions, hashtags, visibility } = req.body;
     if (!text) return  res.status(400).json({message: "Post Content is Required"});
     const p =
-        await Post.create({ author: req.user._id, text, url, isWarp, mediaType: mediaType || "None", mentions, hashtags, createdAt: new Date() });
+        await Post.create({ author: req.user._id, text, visibility: visibility, url, isWarp, mediaType: mediaType || "None", mentions, hashtags, createdAt: new Date() });
     res.status(201).json(p);
 });
 
@@ -563,7 +563,7 @@ router.post('/comment/:commentId/reply', async (req: Request, res: Response) => 
 // POST /api/posts/schedule
 router.post('/schedule', async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ error: 'unauthorized' });
-    const { text, url, isWarp, mediaType, mentions, hashtags, scheduledAt } = req.body;
+    const { text, url, isWarp, mediaType, mentions, hashtags, visibility, scheduledAt } = req.body;
 
     if (!text && !url) return res.status(400).json({ message: "Post content is required" });
 
@@ -580,6 +580,7 @@ router.post('/schedule', async (req: Request, res: Response) => {
         mediaType: mediaType || "None",
         mentions,
         hashtags,
+        visibility,
         scheduledAt: scheduledDate,   // ← Must be present
         isPublished: false,           // ← Must be present
         createdAt: new Date(),
