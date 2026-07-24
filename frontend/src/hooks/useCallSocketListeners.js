@@ -14,12 +14,14 @@ export const useCallSocketListeners = () => {
         const onCallEnded = () => callStore.handleCallEnded();
         const onParticipantLeft = (data) => callStore.handleParticipantLeft(data.userId);
         const onParticipantJoined = (data) => callStore.handleParticipantJoined(data.userId);
+        const handleCallAccepted = (data) => callStore.handleCallAccepted(data);
 
         socket.on('webrtc:call:incoming', onIncoming);
         socket.on('webrtc:signal', onSignal);
         socket.on('webrtc:call:ended', onCallEnded);
         socket.on('webrtc:call:participant_left', onParticipantLeft);
         socket.on('webrtc:call:participant_joined', onParticipantJoined);
+        socket.on('webrtc:call:accepted', handleCallAccepted);
 
         return () => {
             socket.off('webrtc:call:incoming', onIncoming);
