@@ -605,7 +605,7 @@ const Posts = () => {
         const merged = [];
         let suggestionIndex = 0;
         const CAROUSEL_SIZE = 10;
-        const POST_INTERVAL = 20;
+        const POST_INTERVAL = 5;
 
         Posts.forEach((post, idx) => {
             merged.push({ type: 'post', data: post });
