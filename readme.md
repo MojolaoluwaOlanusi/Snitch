@@ -49,7 +49,7 @@ Snitch addresses the need for a scalable, real-time social platform that can han
 
 ## 🏗️ Architecture Overview
 
-`
+```plaintext
 ┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
 │   Vercel        │         │   Fly.io        │         │   MongoDB Atlas │
 │   (Frontend)    │◄───────►│   (Backend)     │◄───────►│   (Database)    │
@@ -69,7 +69,7 @@ Snitch addresses the need for a scalable, real-time social platform that can han
                             │  Cloudflare R2  │
                             │  (Object Store) │
                             └─────────────────┘
-`
+```
 
 **Flow Description:**
 1. **Frontend (Vercel)**: React applications served via Vercel CDN
@@ -132,26 +132,30 @@ Before you begin, ensure you have the following:
 
 ### 1. Clone the repository
 
-`ash
+<pre>
 git clone https://github.com/olanu/Snitch.git
 cd Snitch
-`
+</pre>
 
 ### 2. Install dependencies
 
-`ash
 # Install backend dependencies
+<pre>
 cd backend
 npm install
+</pre>
 
 # Install frontend dependencies
+<pre>
 cd ../frontend
 npm install
+</pre>
 
 # Install admin dependencies
+<pre>
 cd ../admin
 npm install
-`
+</pre>
 
 ### 3. Configure environment variables
 
@@ -159,19 +163,23 @@ See the [Environment Variables](#environment-variables) section below for requir
 
 ### 4. Start local development
 
-`ash
 # Terminal 1: Start backend
+<pre>
 cd backend
 npm run dev
+</pre>
 
 # Terminal 2: Start frontend
+<pre>
 cd frontend
 npm run dev
+</pre>
 
 # Terminal 3: Start admin (optional)
+<pre>
 cd admin
 npm run dev
-`
+</pre>
 
 For detailed setup instructions for each service, see the respective README files:
 - [Frontend README](./frontend/README.md)
