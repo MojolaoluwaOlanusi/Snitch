@@ -285,7 +285,7 @@ If you discover a security vulnerability, please do not open a public issue. Ins
 We take security seriously and will respond promptly.
 
 📚 Resources
-Project README
+[README](README)
 
 Code of Conduct
 
@@ -294,13 +294,9 @@ GitHub Docs: Contributing to Open Source
 ❤️ Thank You!
 Every contribution – big or small – makes Snitch better. Whether you fix a typo, report a bug, or add a major feature, we appreciate your time and effort. Thank you for helping build Snitch! 🚀
 
----
-
-## 📋 License
+## 📋 License 
 
 By contributing to Snitch, you agree that your contributions will be licensed under the project's [LICENSE](LICENSE) file in the root of this repository.
-
----
 
 ## ❤️ Thank You!
 
