@@ -2,20 +2,41 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
-
 | Version | Supported          |
 | ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+| 1.0.x   | :white_check_mark: |
+| < 1.0   | :x:                |
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+We take the security of Snitch seriously. If you believe you have found a
+security vulnerability, please report it to us as described below.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+**Please do not report security vulnerabilities through public GitHub issues.**
+
+Instead, please report them via:
+
+- **Email**: [olanusimojola@gmailcom](mailto:olanusimojola@gmail.com)
+
+You can expect to receive a response within 48 hours acknowledging your report.
+We will then work with you to understand and validate the issue, and to develop
+a fix.
+
+We appreciate your efforts to responsibly disclose your findings, and we will
+make every effort to acknowledge your contributions.
+
+## Preferred Languages
+
+We prefer all communications to be in English.
+
+## Disclosure Policy
+
+When the security team receives a security bug report, they will:
+
+1.  Confirm the problem and determine the affected versions.
+2.  Audit code to find any potential similar problems.
+3.  Prepare fixes for all supported versions.
+4.  Release the fixes and publicly disclose the vulnerability.
+
+We ask that you please do not disclose the vulnerability publicly until we have
+had a reasonable amount of time to address it.
