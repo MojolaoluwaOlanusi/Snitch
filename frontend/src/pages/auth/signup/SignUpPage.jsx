@@ -5,11 +5,13 @@ import { Link } from "react-router-dom";
 
 function SignUpPage() {
     const [formData, setFormData] = useState({ username: "", email: "", password: "", accountType: "", displayName: "" });
+    const submitData = { ...formData, username: formData.username.trim() };
     const { signup, isSigningUp } = useAuthStore();
+    const [usernameError, setUsernameError] = useState('');
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        signup(formData);
+        signup(submitData);
     };
 
     return (
@@ -36,11 +38,24 @@ function SignUpPage() {
                                         <input
                                             type="text"
                                             value={formData.username}
-                                            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                            className="input border-gray-400"
+                                            onChange={(e) => {
+                                                const raw = e.target.value;
+                                                const cleaned = raw.replace(/[\s@]/g, '');
+                                                setFormData({ ...formData, username: cleaned });
+
+                                                if (raw !== cleaned) {
+                                                    setUsernameError('Username cannot contain spaces or "@"');
+                                                } else if (cleaned.length < 3) {
+                                                    setUsernameError('Username must be at least 3 characters');
+                                                } else {
+                                                    setUsernameError('');
+                                                }
+                                            }}
+                                            className={`input border-gray-400 ${usernameError ? 'input-error border-red-500' : ''}`}
                                             placeholder="Your Username"
                                         />
                                     </div>
+                                    {usernameError && <p className="text-error text-xs mt-1">{usernameError}</p>}
                                 </div>
 
                                 {/* DISPLAY NAME */}

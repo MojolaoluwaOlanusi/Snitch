@@ -7,6 +7,7 @@ import UserProfile from './pages/UserProfile';
 import Posts from './pages/Posts';
 import Reports from './pages/Reports';
 import Layout from './components/Layout';
+import UserDetail from "./components/UserDetail";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
     const token = localStorage.getItem('admin-token');
@@ -24,6 +25,7 @@ export default function App() {
                 <Route path="/users/:id" element={<PrivateRoute><UserProfile /></PrivateRoute>} />
                 <Route path="/posts" element={<PrivateRoute><Posts /></PrivateRoute>} />
                 <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
+                <Route path="/users/:id" element={<UserDetail />} />
             </Routes>
 
             <Toaster />

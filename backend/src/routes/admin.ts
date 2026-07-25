@@ -149,6 +149,47 @@ router.patch('/unban/:userId', auth, requireAdmin, async (req: Request, res: Res
     res.json({ ok: true, message: 'User has been unbanned', user: u });
 });
 
+router.get('/users/:userId', auth, requireAdmin, async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    try {
+        const user = await User.findById(userId).select('-passwordHash');
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        res.json(user);
+    } catch (err: any) {
+        console.error('Get user error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+router.put('/users/:userId', auth, requireAdmin, async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    const updates = req.body;
+
+    const allowedFields = [
+        'email', 'username', 'displayName', 'bio', 'avatarUrl', 'coverImg',
+        'link', 'location', 'accountType', 'accountVisibility', 'gender', 'theme'
+    ];
+    const updateData: any = {};
+    for (const key of allowedFields) {
+        if (updates[key] !== undefined) {
+            updateData[key] = typeof updates[key] === 'string' ? updates[key].trim() : updates[key];
+        }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    try {
+        const user = await User.findByIdAndUpdate(userId, updateData, { new: true }).select('-passwordHash');
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        res.json({ message: 'User updated', user });
+    } catch (err: any) {
+        console.error('Update user error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // 🔹 NEW: Manually Ban a User
 router.patch('/ban/:userId', auth, requireAdmin, async (req: Request, res: Response) => {
     const { userId } = req.params;
