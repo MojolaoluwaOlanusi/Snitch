@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { useChatStore } from "../../store/useChatStore.js";
 
 const Sidebar = () => {
+    console.log('Sidebar rendered');
     const { logout, authUser, getProfile } = useAuthStore();
     const { selectedConversation } = useChatStore();
     const [isChatRestricted, setIsChatRestricted] = useState(false);
@@ -24,6 +25,14 @@ const Sidebar = () => {
         getProfile();
         checkChatRestriction();
     }, [getProfile]);
+
+    useEffect(() => {
+        // Check if there are multiple sidebars in the DOM
+        const sidebarCount = document.querySelectorAll('[data-sidebar]').length;
+        if (sidebarCount > 1) {
+            console.warn('Multiple sidebars detected!', sidebarCount);
+        }
+    }, []);
 
     useEffect(() => {
         if (mobileMenuOpen && !framerModule) {
