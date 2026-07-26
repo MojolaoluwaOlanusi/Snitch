@@ -1,5 +1,5 @@
 import { BellIcon, HomeIcon, MessageCircleIcon, PlusIcon, SearchIcon, UserIcon, ZapIcon, Menu, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { GiFlowerTwirl } from "react-icons/gi";
 import { SnitchLogoSmall } from "../svgs/snitch.jsx";
 import { useAuthStore } from "../../store/useAuthStore.js";
@@ -15,6 +15,7 @@ const Sidebar = () => {
     const [isChatRestricted, setIsChatRestricted] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [framerModule, setFramerModule] = useState(null);
+    const location = useLocation();
 
     // Get total unread messages from chat store
     const { totalUnread } = useChatStore();
@@ -59,14 +60,27 @@ const Sidebar = () => {
             {links.map((link) => {
                 const isChat = link.label === "Chat" && link.restricted;
                 const to = isChat ? "#" : link.to;
-                const extraClass = isChat
+                
+                // Custom active check for dynamic routes
+                const isActive = !isChat && (() => {
+                    if (link.to === '/') {
+                        return location.pathname === '/';
+                    }
+                    // For dynamic routes, check if pathname starts with the base path
+                    const basePath = link.to.split('/').slice(0, 2).join('/'); // e.g., '/profile' from '/profile/username'
+                    return location.pathname.startsWith(basePath + '/');
+                })();
+                
+                const baseClass = isChat
                     ? 'bg-gray-300 cursor-not-allowed opacity-50 pointer-events-none'
                     : 'bg-primary hover:bg-primary/90 btn-primary';
+                const activeClass = isActive ? 'bg-primary/20 border-l-4 border-primary hover:bg-primary/30' : baseClass;
+                
                 return (
-                    <Link
+                    <NavLink
                         key={link.label}
                         to={to}
-                        className={`btn w-full justify-start text-primary-content ${extraClass} relative`}
+                        className={`btn w-full justify-start text-primary-content relative ${activeClass}`}
                         onClick={(e) => {
                             if (isChat) {
                                 e.preventDefault();
@@ -78,7 +92,7 @@ const Sidebar = () => {
                     >
                         <link.icon className="size-5 shrink-0" />
                         <span className="ml-2 md:hidden lg:inline">{link.label}</span>
-                    </Link>
+                    </NavLink>
                 );
             })}
         </div>
@@ -167,14 +181,27 @@ const Sidebar = () => {
                         {links.map((link) => {
                             const isChat = link.label === "Chat" && link.restricted;
                             const to = isChat ? "#" : link.to;
-                            const extraClass = isChat
+                            
+                            // Custom active check for dynamic routes
+                            const isActive = !isChat && (() => {
+                                if (link.to === '/') {
+                                    return location.pathname === '/';
+                                }
+                                // For dynamic routes, check if pathname starts with the base path
+                                const basePath = link.to.split('/').slice(0, 2).join('/'); // e.g., '/profile' from '/profile/username'
+                                return location.pathname.startsWith(basePath + '/');
+                            })();
+                            
+                            const baseClass = isChat
                                 ? 'bg-gray-300 cursor-not-allowed opacity-50 pointer-events-none'
                                 : 'bg-primary hover:bg-primary/90 btn-primary';
+                            const activeClass = isActive ? 'bg-primary/20 border-l-4 border-primary hover:bg-primary/30' : baseClass;
+                            
                             return (
-                                <Link
+                                <NavLink
                                     key={link.label}
                                     to={to}
-                                    className={`btn w-full justify-center lg:justify-start text-primary-content ${extraClass} relative`}
+                                    className={`btn w-full justify-center lg:justify-start text-primary-content relative ${activeClass}`}
                                     onClick={(e) => {
                                         if (isChat) {
                                             e.preventDefault();
@@ -185,7 +212,7 @@ const Sidebar = () => {
                                 >
                                     <link.icon className="size-5 shrink-0" />
                                     <span className="hidden lg:inline ml-2">{link.label}</span>
-                                </Link>
+                                </NavLink>
                             );
                         })}
                     </div>

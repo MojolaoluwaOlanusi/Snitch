@@ -10,6 +10,7 @@ import { Badge } from "../../components/common/badge.tsx";
 import Sidebar from "../../components/common/Sidebar.jsx";
 import { VerifiedSvg } from "../../components/svgs/verified.jsx";
 import SettingsModal from "../../components/common/SettingsModal.jsx";
+import FollowersModal from "../../components/common/FollowersModal.jsx";
 
 import {
     AlertTriangle, Briefcase, Building, CheckCircle2, User, Shield, MapPin,
@@ -46,6 +47,7 @@ const ProfilePage = () => {
 
     const [showSettings, setShowSettings] = useState(false);
     const [showEditProfile, setShowEditProfile] = useState(false);
+    const [showFollowersModal, setShowFollowersModal] = useState(false);
 
     const coverImgRef = useRef(null);
     const avatarImgRef = useRef(null);
@@ -330,11 +332,17 @@ const ProfilePage = () => {
                                 </div>
 
                                 <div className="flex gap-2">
-                                    <div className="flex gap-1 items-center">
+                                    <div 
+                                        className="flex gap-1 items-center cursor-pointer hover:underline"
+                                        onClick={() => setShowFollowersModal(true)}
+                                    >
                                         <span className="font-bold text-xs">{user?.following?.length}</span>
                                         <span className="text-base-content/60 text-xs">Following</span>
                                     </div>
-                                    <div className="flex gap-1 items-center">
+                                    <div 
+                                        className="flex gap-1 items-center cursor-pointer hover:underline"
+                                        onClick={() => setShowFollowersModal(true)}
+                                    >
                                         <span className="font-bold text-xs">{user?.followers?.length}</span>
                                         <span className="text-base-content/60 text-xs">Followers</span>
                                     </div>
@@ -374,6 +382,14 @@ const ProfilePage = () => {
                         authUser={authUser}
                         onProfileUpdate={() => getUserProfile(username)}
                         onEditProfile={() => setShowEditProfile(true)}
+                    />
+
+                    {/* Followers modal */}
+                    <FollowersModal
+                        isOpen={showFollowersModal}
+                        onClose={() => setShowFollowersModal(false)}
+                        userId={user?._id}
+                        username={user?.username}
                     />
                 </div>
             </main>

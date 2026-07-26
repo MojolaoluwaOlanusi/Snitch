@@ -517,6 +517,7 @@ router.post('/follow', authMiddleware, async (req: Request, res: Response) => {
             await newNotification.save();
 
             // 🔔 Send push notification
+            console.log('[follow] Sending push notification to userToModifyId:', userToModifyId);
             sendPushNotification(userToModifyId, {
                 title: 'New Follower',
                 body: `${currentUser.displayName || currentUser.username} followed you`,
@@ -588,6 +589,32 @@ router.get('/get-following', authMiddleware, async (req: Request, res: Response)
     } catch (err: any) {
         console.log("Error in getFollowing: ", err.message);
         res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /auth/followers/:userId - Get followers list for any user
+router.get('/followers/:userId', authMiddleware, async (req: Request, res: Response) => {
+    try {
+        const user = await User.findById(req.params.userId)
+            .populate('followers', 'username displayName avatarUrl')
+            .select('followers');
+        res.json(user?.followers || []);
+    } catch (error) {
+        console.error('Error fetching followers:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// GET /auth/following/:userId - Get following list for any user
+router.get('/following/:userId', authMiddleware, async (req: Request, res: Response) => {
+    try {
+        const user = await User.findById(req.params.userId)
+            .populate('following', 'username displayName avatarUrl')
+            .select('following');
+        res.json(user?.following || []);
+    } catch (error) {
+        console.error('Error fetching following:', error);
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
