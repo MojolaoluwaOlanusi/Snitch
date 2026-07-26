@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import Notification from '../models/Notification.js'
 import {User} from '../models/User.js';
-import transport from '../middleware/sendMail.js';
+import { sendVerificationCode, sendPasswordResetCode } from '../utils/email.js';
 import {doHash, doHashValidation, hmacProcess} from '../utils/hashing.js';
 import { sendPushNotification } from '../utils/pushNotifications.js';
 import Post from "../models/Post.js";
@@ -203,92 +203,31 @@ router.delete('/account', authMiddleware, async (req: Request, res: Response) =>
     res.json({ message: 'Account deleted' });
 });
 
-router.post('/send-verification-code', validate(schemas.sendVerificationCode), async (req: Request, res: Response) => {
+router.post('/send-verification-code', authMiddleware, async (req: Request, res: Response) => {
     try {
         const user = await User.findById(req.userId);
-        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-        if (user.verified) return res.status(400).json({ success: false, message: 'Already verified' });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        if (user.verified) {
+            return res.status(400).json({ success: false, message: 'Already verified' });
+        }
 
-        const email = user.email; // ✅ Use authenticated user's email
+        // Generate 6-digit code
         const code = Math.floor(100000 + Math.random() * 900000).toString();
-        const htmlContent =  `
-          <div style="
-              font-family: system-ui, -apple-system, sans-serif;
-              background: linear-gradient(135deg, #1e3a8a, #2563eb, #60a5fa);
-              color: white;
-              text-align: center;
-              padding: 40px 20px;
-              border-radius: 12px;
-          ">
-              <!-- Logo -->
-              <div style="margin-bottom: 20px;">
-                  <svg viewBox="0 0 100 100" width="80" height="80" xmlns="http://www.w3.org/2000/svg">
-                      <defs>
-                          <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                              <stop offset="0%" stop-color="#1e3a8a" />
-                              <stop offset="50%" stop-color="#2563eb" />
-                              <stop offset="100%" stop-color="#60a5fa" />
-                          </linearGradient>
-                      </defs>
-                      <path
-                          d="M50 10 L85 30 L85 70 L50 90 L15 70 L15 30 Z"
-                          fill="url(#hexGradient)"
-                      />
-                      <text
-                          x="50"
-                          y="68"
-                          text-anchor="middle"
-                          fill="white"
-                          font-size="48"
-                          font-family="system-ui, -apple-system, sans-serif"
-                          font-weight="900"
-                      >
-                          SNITCH
-                      </text>
-                  </svg>
-              </div>
-        
-              <h1 style="font-size: 28px; margin-bottom: 10px;">Email Verification</h1>
-              <p style="font-size: 16px; opacity: 0.9; margin-bottom: 30px;">
-                  Please use the code below to verify your Snitch account.
-              </p>
-        
-              <div style="
-                  display: inline-block;
-                  background: white;
-                  color: #1e3a8a;
-                  font-size: 32px;
-                  font-weight: bold;
-                  letter-spacing: 4px;
-                  padding: 15px 30px;
-                  border-radius: 8px;
-                  margin-bottom: 30px;
-              ">
-                  ${code}
-              </div>
-        
-              <p style="font-size: 14px; opacity: 0.8;">
-                  This code will expire in 5 minutes. If you didn’t request this, please ignore this email.
-              </p>
-          </div>
-          `;
-        console.log('[send-verification-code] Saving to DB...');
+
+        // Hash and save with 15-min expiry
         user.verificationCode = hmacProcess(code);
-        user.verificationCodeValidation = new Date();
+        user.verificationCodeValidation = new Date(Date.now() + 15 * 60 * 1000);
         await user.save();
 
-        console.log('[send-verification-code] Sending email...');
-        await transport.sendMail({
-            from: process.env.NODE_CODE_SENDING_EMAIL_ADDRESS,
-            to: email,
-            subject: 'Your Snitch verification code',
-            html: htmlContent,
-        });
+        // 🔥 Send using Resend
+        await sendVerificationCode(user.email, code);
 
-        console.log('[send-verification-code] Email sent successfully');
-        return res.json({ success: true, message: 'Code sent' });
+        console.log(`[Verification] Code sent to ${user.email}`);
+        return res.json({ success: true, message: 'Verification code sent to your email' });
     } catch (err: any) {
-        console.error('[send-verification-code] Error:', err);
+        console.error('[Verification] Error:', err.message);
         res.status(500).json({ success: false, message: err.message });
     }
 });
@@ -333,85 +272,25 @@ router.post('/send-forgot-password-code', validate(schemas.forgotPassword), asyn
 
     try {
         const user = await User.findOne({ email });
-        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
 
+        // Generate 6‑digit code
         const code = Math.floor(100000 + Math.random() * 900000).toString();
-        const htmlContent =  `
-          <div style="
-              font-family: system-ui, -apple-system, sans-serif;
-              background: linear-gradient(135deg, #1e3a8a, #2563eb, #60a5fa);
-              color: white;
-              text-align: center;
-              padding: 40px 20px;
-              border-radius: 12px;
-          ">
-              <!-- Logo -->
-              <div style="margin-bottom: 20px;">
-                  <svg viewBox="0 0 100 100" width="80" height="80" xmlns="http://www.w3.org/2000/svg">
-                      <defs>
-                          <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                              <stop offset="0%" stop-color="#1e3a8a" />
-                              <stop offset="50%" stop-color="#2563eb" />
-                              <stop offset="100%" stop-color="#60a5fa" />
-                          </linearGradient>
-                      </defs>
-                      <path
-                          d="M50 10 L85 30 L85 70 L50 90 L15 70 L15 30 Z"
-                          fill="url(#hexGradient)"
-                      />
-                      <text
-                          x="50"
-                          y="68"
-                          text-anchor="middle"
-                          fill="white"
-                          font-size="48"
-                          font-family="system-ui, -apple-system, sans-serif"
-                          font-weight="900"
-                      >
-                          SNITCH
-                      </text>
-                  </svg>
-              </div>
-        
-              <h1 style="font-size: 28px; margin-bottom: 10px;">Email Verification</h1>
-              <p style="font-size: 16px; opacity: 0.9; margin-bottom: 30px;">
-                  Please use the code below to verify your Snitch account.
-              </p>
-        
-              <div style="
-                  display: inline-block;
-                  background: white;
-                  color: #1e3a8a;
-                  font-size: 32px;
-                  font-weight: bold;
-                  letter-spacing: 4px;
-                  padding: 15px 30px;
-                  border-radius: 8px;
-                  margin-bottom: 30px;
-              ">
-                  ${code}
-              </div>
-        
-              <p style="font-size: 14px; opacity: 0.8;">
-                  This code will expire in 5 minutes. If you didn’t request this, please ignore this email.
-              </p>
-          </div>
-          `;
+
+        // Hash and save with 15‑minute expiry
         user.forgotPasswordCode = hmacProcess(code);
-        user.forgotPasswordCodeValidation = new Date();
+        user.forgotPasswordCodeValidation = new Date(Date.now() + 15 * 60 * 1000);
         await user.save();
 
+        // 🔥 Send using Resend (uses your email.ts service)
+        await sendPasswordResetCode(user.email, code);
 
-        await transport.sendMail({
-            from: process.env.NODE_CODE_SENDING_EMAIL_ADDRESS,
-            to: email,
-            subject: 'Your password reset code',
-            html: htmlContent,
-        });
-
-        res.json({ success: true, message: 'Reset code sent' });
+        console.log(`[ForgotPassword] Code sent to ${user.email}`);
+        return res.json({ success: true, message: 'Reset code sent to your email' });
     } catch (err: any) {
-        console.error(err);
+        console.error('[ForgotPassword] Error:', err.message);
         res.status(500).json({ success: false, message: err.message });
     }
 });
