@@ -10,7 +10,6 @@ import { toast } from 'sonner'
 import { useChatStore } from "../../store/useChatStore.js";
 
 const Sidebar = () => {
-    console.log('Sidebar rendered');
     const { logout, authUser, getProfile } = useAuthStore();
     const { selectedConversation } = useChatStore();
     const [isChatRestricted, setIsChatRestricted] = useState(false);
@@ -25,14 +24,6 @@ const Sidebar = () => {
         getProfile();
         checkChatRestriction();
     }, [getProfile]);
-
-    useEffect(() => {
-        // Check if there are multiple sidebars in the DOM
-        const sidebarCount = document.querySelectorAll('[data-sidebar]').length;
-        if (sidebarCount > 1) {
-            console.warn('Multiple sidebars detected!', sidebarCount);
-        }
-    }, []);
 
     useEffect(() => {
         if (mobileMenuOpen && !framerModule) {
@@ -96,8 +87,13 @@ const Sidebar = () => {
             if (link.to === '/') {
                 return location.pathname === '/';
             }
-            const basePath = link.to.split('/').slice(0, 2).join('/');
-            return location.pathname.startsWith(basePath + '/');
+            // If it's a dynamic route (contains ':'), use startsWith
+            if (link.to.includes(':')) {
+                const basePath = link.to.split('/').slice(0, 2).join('/');
+                return location.pathname.startsWith(basePath + '/');
+            }
+            // For static routes, use exact match
+            return location.pathname === link.to;
         })();
 
         const className = getLinkClassName(link, isActive);
@@ -121,8 +117,8 @@ const Sidebar = () => {
                 {/* 🔥 Unread badge - only show on Chat button */}
                 {link.label === "Chat" && totalUnread > 0 && !link.restricted && (
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                        {totalUnread > 99 ? '99+' : totalUnread}
-                    </span>
+                    {totalUnread > 99 ? '99+' : totalUnread}
+                </span>
                 )}
             </NavLink>
         );
@@ -200,7 +196,7 @@ const Sidebar = () => {
             })()}
 
             {/* Desktop Sidebar (visible on md and above) */}
-            <div data-sidebar className="hidden md:flex h-screen w-full max-w-[80px] lg:max-w-[225px] flex-col gap-2 border-r border-base-200 bg-base-100">
+            <div className="hidden md:flex h-screen w-full max-w-[80px] lg:max-w-[225px] flex-col gap-2 border-r border-base-200 bg-base-100">
                 <div className="rounded-lg bg-base-100 p-4 sticky top-0 left-0 h-screen flex flex-col w-full">
                     <div className="flex items-center justify-center lg:justify-start space-x-2 py-4">
                         <SnitchLogoSmall />
