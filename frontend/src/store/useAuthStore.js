@@ -164,7 +164,10 @@ export const useAuthStore = create((set, get) => ({
 
     sendVerificationCode: async (data) => {
         try {
-            await axiosInstance.post("/auth/send-verification-code", data);
+            const token = localStorage.getItem('access-token');
+            await axiosInstance.post("/auth/send-verification-code", data , {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
             set({ sentVerificationCode: true });
             toast.success("Verification code sent!");
         } catch (error) {
@@ -188,7 +191,10 @@ export const useAuthStore = create((set, get) => ({
 
     verifyVerificationCode: async (data) => {
         try {
-            await axiosInstance.post("/auth/verify-verification-code", data);
+            const token = localStorage.getItem('access-token');
+            await axiosInstance.post("/auth/verify-verification-code", data, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
             set({ verifiedUser: true });
             toast.success("Account verified!");
         } catch (error) {

@@ -12,7 +12,6 @@ function HomePage() {
 
     return (
         <div className="w-full flex flex-col md:flex-row h-screen bg-base-200">
-            <Sidebar />
 
             {/* Main feed */}
             <main className="flex-1 bg-base-100 rounded-lg w-full h-screen overflow-y-auto">

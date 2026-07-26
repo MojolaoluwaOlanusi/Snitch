@@ -232,7 +232,7 @@ router.post('/send-verification-code', authMiddleware, async (req: Request, res:
     }
 });
 
-router.post('/verify-verification-code', validate(schemas.verifyVerificationCode), async (req: Request, res: Response) => {
+router.post('/verify-verification-code', authMiddleware, validate(schemas.verifyVerificationCode), async (req: Request, res: Response) => {
     const { email, providedCode } = req.body;
 
     try {
