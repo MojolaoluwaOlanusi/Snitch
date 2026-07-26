@@ -27,6 +27,7 @@
     "express": "^4.22.2",
     "ioredis": "^5.11.1",
     "jest": "^30.2.0",
+    "joi": "^18.2.3",
     "jsonwebtoken": "^9.0.3",
     "leaflet": "^1.9.4",
     "logstash": "^5.0.2",

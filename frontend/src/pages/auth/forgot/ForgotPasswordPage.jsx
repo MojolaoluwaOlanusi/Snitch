@@ -6,10 +6,29 @@ import { Link } from "react-router-dom";
 function ForgotPasswordPage() {
     const [formData, setFormData] = useState({ email: "" });
     const { sentForgotPasswordCode, sendForgotPasswordCode } = useAuthStore();
+    const [emailError, setEmailError] = useState('');
+
+    const validateEmail = (value) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!value) {
+            setEmailError('Email is required');
+        } else if (!emailRegex.test(value)) {
+            setEmailError('Please provide a valid email address');
+        } else {
+            setEmailError('');
+        }
+        setFormData({ ...formData, email: value });
+    };
+
+    const isFormValid = () => {
+        return formData.email && !emailError;
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        sendForgotPasswordCode(formData);
+        if (isFormValid()) {
+            sendForgotPasswordCode(formData);
+        }
     };
 
     return (
@@ -35,20 +54,20 @@ function ForgotPasswordPage() {
                             <input
                                 type="email"
                                 value={formData.email}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, email: e.target.value })
-                                }
-                                className="input border-gray-400"
+                                onChange={(e) => validateEmail(e.target.value)}
+                                onBlur={(e) => validateEmail(e.target.value)}
+                                className={`input border-gray-400 ${emailError ? 'input-error border-red-500' : ''}`}
                                 placeholder="youremail@gmail.com"
                             />
                         </div>
+                        {emailError && <p className="text-error text-xs mt-1">{emailError}</p>}
                     </div>
 
                     {/* SUBMIT BUTTON */}
                     <button
                         className="btn btn-primary w-full"
                         type="submit"
-                        disabled={sentForgotPasswordCode}
+                        disabled={sentForgotPasswordCode || !isFormValid()}
                     >
                         {sentForgotPasswordCode ? (
                             <LoaderIcon className="w-full h-5 animate-spin text-center" />

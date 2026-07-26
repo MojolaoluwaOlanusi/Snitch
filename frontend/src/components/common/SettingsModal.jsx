@@ -42,6 +42,7 @@ const SettingsModal = ({ isOpen, onClose, authUser, onProfileUpdate, onEditProfi
     const [loadingBookmarks, setLoadingBookmarks] = useState(false);
     const [adminInviteCode, setAdminInviteCode] = useState("");
     const { getUserProfile, user } = useAuthStore();
+    const [urlError, setUrlError] = useState('');
 
     const { username } = useParams();
 
@@ -119,8 +120,27 @@ const handleEnableNotifications = async () => {
         }
     };
 
+    const validateUrl = (value) => {
+        if (!value) {
+            setUrlError('');
+            setNewUrl(value);
+            return;
+        }
+        try {
+            new URL(value);
+            setUrlError('');
+        } catch {
+            setUrlError('Please provide a valid URL');
+        }
+        setNewUrl(value);
+    };
+
     const addSocialHandle = () => {
         if (!newPlatform || !newUrl) return;
+        if (urlError) {
+            toast.error("Please fix the URL error before adding");
+            return;
+        }
         if (socialHandles.find(s => s.platform === newPlatform)) {
             toast.error("Platform already exists");
             return;
@@ -128,6 +148,7 @@ const handleEnableNotifications = async () => {
         setSocialHandles([...socialHandles, { platform: newPlatform, url: newUrl }]);
         setNewPlatform("");
         setNewUrl("");
+        setUrlError('');
     };
 
     const removeSocialHandle = (platform) => {
@@ -211,7 +232,7 @@ const handleEnableNotifications = async () => {
 
                         {/* Tabs */}
                         <div className="flex border-b px-4 gap-2 overflow-x-auto">
-                            {["profile", "bookmarks", "appearance", "danger", "admin"].map(tab => (
+                            {["profile", "bookmarks", "appearance", "notifications", "admin", "danger"].map(tab => (
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
@@ -284,12 +305,14 @@ const handleEnableNotifications = async () => {
                                                 type="url"
                                                 placeholder="URL"
                                                 value={newUrl}
-                                                onChange={(e) => setNewUrl(e.target.value)}
-                                                className="flex-1 border border-base-300 rounded-lg px-3 py-1.5 text-sm"
+                                                onChange={(e) => validateUrl(e.target.value)}
+                                                onBlur={(e) => validateUrl(e.target.value)}
+                                                className={`flex-1 border border-base-300 rounded-lg px-3 py-1.5 text-sm ${urlError ? 'border-red-500' : ''}`}
                                             />
+                                            {urlError && <p className="text-error text-xs mt-1">{urlError}</p>}
                                             <button
                                                 onClick={addSocialHandle}
-                                                disabled={!newPlatform || !newUrl}
+                                                disabled={!newPlatform || !newUrl || urlError}
                                                 className="p-2 bg-primary text-primary-content rounded-lg hover:bg-primary/90 disabled:opacity-50"
                                             >
                                                 <Plus className="w-4 h-4" />
@@ -338,47 +361,53 @@ const handleEnableNotifications = async () => {
                                 </div>
                             )}
 
+                            {activeTab === "notifications" && (
+                                <>
+                                    <div className="flex items-center justify-between px-4 py-3 hover:bg-base-200 rounded-xl">
+                                        <div>
+                                            <p className="text-sm font-medium">Push Notifications</p>
+                                            <p className="text-xs text-base-content/60">
+                                                {notificationStatus === 'granted' && '✅ Enabled'}
+                                                {notificationStatus === 'denied' && '🔕 Blocked in browser'}
+                                                {notificationStatus === 'default' && '🔔 Not enabled'}
+                                            </p>
+                                        </div>
+                                        {notificationStatus === 'granted' ? (
+                                            <span className="badge badge-success badge-sm">Enabled</span>
+                                        ) : notificationStatus === 'denied' ? (
+                                            <button
+                                                onClick={() => {
+                                                    toast.info('Please enable notifications in your browser settings (Safari/Chrome settings → Notifications)');
+                                                }}
+                                                className="btn btn-ghost btn-xs text-error"
+                                            >
+                                                Fix
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={handleEnableNotifications}
+                                                disabled={isEnablingNotifications}
+                                                className="btn btn-primary btn-xs"
+                                            >
+                                                {isEnablingNotifications ? '...' : 'Enable'}
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {notificationStatus === 'denied' && (
+                                        <div className="px-4 py-2 bg-error/10 rounded-xl border border-error/20">
+                                            <p className="text-xs text-error/80">
+                                                Notifications are blocked. To enable, go to your browser settings → Notifications → Allow for Snitch.
+                                            </p>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+
 
                             {activeTab === "appearance" && (
                                 <div className="space-y-3">
-                                    <div className="flex items-center justify-between px-4 py-3 hover:bg-base-200 rounded-xl">
-            <div>
-                <p className="text-sm font-medium">Push Notifications</p>
-                <p className="text-xs text-base-content/60">
-                    {notificationStatus === 'granted' && '✅ Enabled'}
-                    {notificationStatus === 'denied' && '🔕 Blocked in browser'}
-                    {notificationStatus === 'default' && '🔔 Not enabled'}
-                </p>
-            </div>
-            {notificationStatus === 'granted' ? (
-                <span className="badge badge-success badge-sm">Enabled</span>
-            ) : notificationStatus === 'denied' ? (
-                <button 
-                    onClick={() => {
-                        toast.info('Please enable notifications in your browser settings (Safari/Chrome settings → Notifications)');
-                    }}
-                    className="btn btn-ghost btn-xs text-error"
-                >
-                    Fix
-                </button>
-            ) : (
-                <button 
-                    onClick={handleEnableNotifications}
-                    disabled={isEnablingNotifications}
-                    className="btn btn-primary btn-xs"
-                >
-                    {isEnablingNotifications ? '...' : 'Enable'}
-                </button>
-            )}
-        </div>
 
-        {notificationStatus === 'denied' && (
-            <div className="px-4 py-2 bg-error/10 rounded-xl border border-error/20">
-                <p className="text-xs text-error/80">
-                    Notifications are blocked. To enable, go to your browser settings → Notifications → Allow for Snitch.
-                </p>
-            </div>
-        )}
                                     {/* Incognito toggle */}
                                     <button
                                         onClick={toggleIncognito}
@@ -411,43 +440,6 @@ const handleEnableNotifications = async () => {
                                                 </button>
                                             ))}
                                         </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === "danger" && (
-                                <div className="space-y-4">
-                                    <div className="p-4 bg-error/10 rounded-xl border border-error/20">
-                                        <div className="flex items-center gap-2 text-error/90 mb-2">
-                                            <AlertTriangle className="w-5 h-5" />
-                                            <span className="font-semibold">Danger Zone</span>
-                                        </div>
-                                        <p className="text-sm text-error mb-4">
-                                            Permanently delete your account and all data. This action cannot be undone.
-                                        </p>
-                                        {!showDeleteConfirm ? (
-                                            <button
-                                                onClick={() => setShowDeleteConfirm(true)}
-                                                className="px-4 py-2 bg-error text-primary-content rounded-lg font-medium hover:bg-red-600"
-                                            >
-                                                Delete Account
-                                            </button>
-                                        ) : (
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={deleteAccount}
-                                                    className="px-4 py-2 bg-red-600 text-primary-content rounded-lg font-medium hover:bg-red-700"
-                                                >
-                                                    Confirm Delete
-                                                </button>
-                                                <button
-                                                    onClick={() => setShowDeleteConfirm(false)}
-                                                    className="px-4 py-2 bg-base-300 text-base-content/80 rounded-lg font-medium hover:bg-gray-300"
-                                                >
-                                                    Cancel
-                                                </button>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             )}
@@ -499,6 +491,43 @@ const handleEnableNotifications = async () => {
                                                     </button>
                                                 </div>
                                             </>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === "danger" && (
+                                <div className="space-y-4">
+                                    <div className="p-4 bg-error/10 rounded-xl border border-error/20">
+                                        <div className="flex items-center gap-2 text-error/90 mb-2">
+                                            <AlertTriangle className="w-5 h-5" />
+                                            <span className="font-semibold">Danger Zone</span>
+                                        </div>
+                                        <p className="text-sm text-error mb-4">
+                                            Permanently delete your account and all data. This action cannot be undone.
+                                        </p>
+                                        {!showDeleteConfirm ? (
+                                            <button
+                                                onClick={() => setShowDeleteConfirm(true)}
+                                                className="px-4 py-2 bg-error text-primary-content rounded-lg font-medium hover:bg-red-600"
+                                            >
+                                                Delete Account
+                                            </button>
+                                        ) : (
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={deleteAccount}
+                                                    className="px-4 py-2 bg-red-600 text-primary-content rounded-lg font-medium hover:bg-red-700"
+                                                >
+                                                    Confirm Delete
+                                                </button>
+                                                <button
+                                                    onClick={() => setShowDeleteConfirm(false)}
+                                                    className="px-4 py-2 bg-base-300 text-base-content/80 rounded-lg font-medium hover:bg-gray-300"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 </div>

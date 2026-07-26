@@ -3,7 +3,6 @@ import Login from './pages/Login';
 import { Toaster } from 'react-hot-toast';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
-import UserProfile from './pages/UserProfile';
 import Posts from './pages/Posts';
 import Reports from './pages/Reports';
 import Layout from './components/Layout';
@@ -22,10 +21,9 @@ export default function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
                 <Route path="/users" element={<PrivateRoute><Users /></PrivateRoute>} />
-                <Route path="/users/:id" element={<PrivateRoute><UserProfile /></PrivateRoute>} />
+                <Route path="/users/:id" element={<PrivateRoute><UserDetail /></PrivateRoute>} />
                 <Route path="/posts" element={<PrivateRoute><Posts /></PrivateRoute>} />
                 <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
-                <Route path="/users/:id" element={<UserDetail />} />
             </Routes>
 
             <Toaster />

@@ -8,6 +8,7 @@ import {doHash, doHashValidation, hmacProcess} from '../utils/hashing.js';
 import { sendPushNotification } from '../utils/pushNotifications.js';
 import Post from "../models/Post.js";
 import Report from "../models/Report.js";
+import { validate, schemas } from '../middleware/validate.js';
 
 const router = express.Router();
 
@@ -15,10 +16,8 @@ function signAccess(id:string){ return jwt.sign({ id }, process.env.JWT_SECRET |
 
 function signRefresh(id:string){ return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET || 'DevelopmentRefresh', { expiresIn: '30d' }); }
 
-router.post('/signup', async (req: Request, res: Response)=> {
+router.post('/signup', validate(schemas.signup), async (req: Request, res: Response)=> {
     const { email, username, password, accountType, displayName } = req.body;
-
-    if(!email||!username||!password||!accountType||!displayName) return res.status(400).json({ error:'missing', message: "Please fill all fields!" });
 
     const trimmedUsername = username.trim();
 
@@ -33,12 +32,8 @@ router.post('/signup', async (req: Request, res: Response)=> {
         res.status(400).json({ error: e.message });
     }});
 
-router.post('/login', async (req: Request, res: Response)=> {
+router.post('/login', validate(schemas.login), async (req: Request, res: Response)=> {
     const { email, password } = req.body;
-
-    if(!email || !password){
-        return res.status(401).json({error: 'invalid', message: "Please fill all fields!"})
-    }
 
     const u = await User.findOne({ email });
 
@@ -146,7 +141,7 @@ router.get('/get-user-profile/:username', authMiddleware, async (req: Request, r
     }
 });
 
-router.put('/update-profile', authMiddleware, async (req: Request, res: Response) => {
+router.put('/update-profile', authMiddleware, validate(schemas.updateProfile), async (req: Request, res: Response) => {
     try {
         const user = await User.findById(req.userId);
         if (!user) {
@@ -201,9 +196,8 @@ router.delete('/account', authMiddleware, async (req: Request, res: Response) =>
     res.json({ message: 'Account deleted' });
 });
 
-router.post('/send-verification-code', async (req: Request, res: Response) => {
+router.post('/send-verification-code', validate(schemas.sendVerificationCode), async (req: Request, res: Response) => {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
 
     try {
         const user = await User.findOne({ email });
@@ -292,9 +286,8 @@ router.post('/send-verification-code', async (req: Request, res: Response) => {
     }
 });
 
-router.post('/verify-verification-code', async (req: Request, res: Response) => {
+router.post('/verify-verification-code', validate(schemas.verifyVerificationCode), async (req: Request, res: Response) => {
     const { email, providedCode } = req.body;
-    if (!email || !providedCode) return res.status(400).json({ success: false, message: 'Missing params' });
 
     try {
         const user = await User.findOne({ email }).select('+verificationCode +verificationCodeValidation');
@@ -328,9 +321,8 @@ router.post('/verify-verification-code', async (req: Request, res: Response) => 
     }
 });
 
-router.post('/send-forgot-password-code', async (req: Request, res: Response) => {
+router.post('/send-forgot-password-code', validate(schemas.forgotPassword), async (req: Request, res: Response) => {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ success: false, message: 'Email required' });
 
     try {
         const user = await User.findOne({ email });
@@ -417,9 +409,8 @@ router.post('/send-forgot-password-code', async (req: Request, res: Response) =>
     }
 });
 
-router.post('/verify-forgot-password-code', async (req: Request, res: Response) => {
+router.post('/verify-forgot-password-code', validate(schemas.resetPassword), async (req: Request, res: Response) => {
     const { email, providedCode, newPassword } = req.body;
-    if (!email || !providedCode || !newPassword) return res.status(400).json({ success: false, message: 'Missing params' });
 
     try {
         const user = await User.findOne({ email }).select('+forgotPasswordCode +forgotPasswordCodeValidation +passwordHash');
@@ -456,9 +447,8 @@ router.post('/verify-forgot-password-code', async (req: Request, res: Response) 
     }
 });
 
-router.patch('/change-password', authMiddleware, async (req: Request, res: Response) => {
+router.patch('/change-password', authMiddleware, validate(schemas.changePassword), async (req: Request, res: Response) => {
     const { oldPassword, newPassword } = req.body;
-    if (!oldPassword || !newPassword) return res.status(400).json({ success: false, message: 'Missing params' });
 
     try {
         const user = await User.findById((req as any).userId).select('+passwordHash');

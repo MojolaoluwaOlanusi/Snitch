@@ -6,10 +6,42 @@ import { Link } from "react-router-dom";
 function LoginPage() {
     const [formData, setFormData] = useState({ email: "", password: "" });
     const { login, isLoggingIn } = useAuthStore();
+    const [emailError, setEmailError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+
+    const validateEmail = (value) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!value) {
+            setEmailError('Email is required');
+        } else if (!emailRegex.test(value)) {
+            setEmailError('Please provide a valid email address');
+        } else {
+            setEmailError('');
+        }
+        setFormData({ ...formData, email: value });
+    };
+
+    const validatePassword = (value) => {
+        if (!value) {
+            setPasswordError('Password is required');
+        } else {
+            setPasswordError('');
+        }
+        setFormData({ ...formData, password: value });
+    };
+
+    const isFormValid = () => {
+        return formData.email &&
+               formData.password &&
+               !emailError &&
+               !passwordError;
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        login(formData);
+        if (isFormValid()) {
+            login(formData);
+        }
     };
 
     return (
@@ -36,11 +68,13 @@ function LoginPage() {
                                         <input
                                             type="email"
                                             value={formData.email}
-                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                            className="input border-gray-400"
+                                            onChange={(e) => validateEmail(e.target.value)}
+                                            onBlur={(e) => validateEmail(e.target.value)}
+                                            className={`input border-gray-400 ${emailError ? 'input-error border-red-500' : ''}`}
                                             placeholder="johndoe@gmail.com"
                                         />
                                     </div>
+                                    {emailError && <p className="text-error text-xs mt-1">{emailError}</p>}
                                 </div>
 
                                 {/* PASSWORD INPUT */}
@@ -51,15 +85,17 @@ function LoginPage() {
                                         <input
                                             type="password"
                                             value={formData.password}
-                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            className="input border-gray-400"
+                                            onChange={(e) => validatePassword(e.target.value)}
+                                            onBlur={(e) => validatePassword(e.target.value)}
+                                            className={`input border-gray-400 ${passwordError ? 'input-error border-red-500' : ''}`}
                                             placeholder="Enter your password"
                                         />
                                     </div>
+                                    {passwordError && <p className="text-error text-xs mt-1">{passwordError}</p>}
                                 </div>
 
                                 {/* SUBMIT BUTTON */}
-                                <button className="btn btn-primary w-full" type="submit" disabled={isLoggingIn}>
+                                <button className="btn btn-primary w-full" type="submit" disabled={isLoggingIn || !isFormValid()}>
                                     {isLoggingIn ? (
                                         <LoaderIcon className="w-full h-5 animate-spin text-center" />
                                     ) : (

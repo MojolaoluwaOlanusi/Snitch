@@ -8,10 +8,85 @@ function SignUpPage() {
     const submitData = { ...formData, username: formData.username.trim() };
     const { signup, isSigningUp } = useAuthStore();
     const [usernameError, setUsernameError] = useState('');
+    const [emailError, setEmailError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+    const [displayNameError, setDisplayNameError] = useState('');
+    const [accountTypeError, setAccountTypeError] = useState('');
+
+    const validateUsername = (value) => {
+        const raw = value;
+        const cleaned = raw.replace(/[\s@]/g, '');
+        if (raw !== cleaned) {
+            setUsernameError('Username cannot contain spaces or "@"');
+        } else if (cleaned.length < 3) {
+            setUsernameError('Username must be at least 3 characters');
+        } else if (!/^[a-zA-Z0-9_]+$/.test(cleaned)) {
+            setUsernameError('Username can only contain letters, numbers, and underscores');
+        } else {
+            setUsernameError('');
+        }
+        setFormData({ ...formData, username: cleaned });
+    };
+
+    const validateEmail = (value) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!value) {
+            setEmailError('Email is required');
+        } else if (!emailRegex.test(value)) {
+            setEmailError('Please provide a valid email address');
+        } else {
+            setEmailError('');
+        }
+        setFormData({ ...formData, email: value });
+    };
+
+    const validatePassword = (value) => {
+        if (!value) {
+            setPasswordError('Password is required');
+        } else if (value.length < 8) {
+            setPasswordError('Password must be at least 8 characters');
+        } else {
+            setPasswordError('');
+        }
+        setFormData({ ...formData, password: value });
+    };
+
+    const validateDisplayName = (value) => {
+        if (value.length > 50) {
+            setDisplayNameError('Display name must not exceed 50 characters');
+        } else {
+            setDisplayNameError('');
+        }
+        setFormData({ ...formData, displayName: value });
+    };
+
+    const validateAccountType = (value) => {
+        if (!value) {
+            setAccountTypeError('Account type is required');
+        } else {
+            setAccountTypeError('');
+        }
+        setFormData({ ...formData, accountType: value });
+    };
+
+    const isFormValid = () => {
+        return formData.username &&
+               formData.email &&
+               formData.password &&
+               formData.accountType &&
+               formData.displayName &&
+               !usernameError &&
+               !emailError &&
+               !passwordError &&
+               !displayNameError &&
+               !accountTypeError;
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        signup(submitData);
+        if (isFormValid()) {
+            signup(submitData);
+        }
     };
 
     return (
@@ -38,19 +113,8 @@ function SignUpPage() {
                                         <input
                                             type="text"
                                             value={formData.username}
-                                            onChange={(e) => {
-                                                const raw = e.target.value;
-                                                const cleaned = raw.replace(/[\s@]/g, '');
-                                                setFormData({ ...formData, username: cleaned });
-
-                                                if (raw !== cleaned) {
-                                                    setUsernameError('Username cannot contain spaces or "@"');
-                                                } else if (cleaned.length < 3) {
-                                                    setUsernameError('Username must be at least 3 characters');
-                                                } else {
-                                                    setUsernameError('');
-                                                }
-                                            }}
+                                            onChange={(e) => validateUsername(e.target.value)}
+                                            onBlur={(e) => validateUsername(e.target.value)}
                                             className={`input border-gray-400 ${usernameError ? 'input-error border-red-500' : ''}`}
                                             placeholder="Your Username"
                                         />
@@ -66,11 +130,13 @@ function SignUpPage() {
                                         <input
                                             type="text"
                                             value={formData.displayName}
-                                            onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                                            className="input border-gray-400"
+                                            onChange={(e) => validateDisplayName(e.target.value)}
+                                            onBlur={(e) => validateDisplayName(e.target.value)}
+                                            className={`input border-gray-400 ${displayNameError ? 'input-error border-red-500' : ''}`}
                                             placeholder="Your Display Name"
                                         />
                                     </div>
+                                    {displayNameError && <p className="text-error text-xs mt-1">{displayNameError}</p>}
                                 </div>
 
                                 {/* EMAIL INPUT */}
@@ -81,11 +147,13 @@ function SignUpPage() {
                                         <input
                                             type="email"
                                             value={formData.email}
-                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                            className="input border-gray-400"
+                                            onChange={(e) => validateEmail(e.target.value)}
+                                            onBlur={(e) => validateEmail(e.target.value)}
+                                            className={`input border-gray-400 ${emailError ? 'input-error border-red-500' : ''}`}
                                             placeholder="youremail@gmail.com"
                                         />
                                     </div>
+                                    {emailError && <p className="text-error text-xs mt-1">{emailError}</p>}
                                 </div>
 
                                 {/* PASSWORD INPUT */}
@@ -96,11 +164,13 @@ function SignUpPage() {
                                         <input
                                             type="password"
                                             value={formData.password}
-                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            className="input border-gray-400"
+                                            onChange={(e) => validatePassword(e.target.value)}
+                                            onBlur={(e) => validatePassword(e.target.value)}
+                                            className={`input border-gray-400 ${passwordError ? 'input-error border-red-500' : ''}`}
                                             placeholder="Enter your password"
                                         />
                                     </div>
+                                    {passwordError && <p className="text-error text-xs mt-1">{passwordError}</p>}
                                 </div>
 
                                 {/* ACCOUNT-TYPE INPUT */}
@@ -109,9 +179,10 @@ function SignUpPage() {
                                     <div className="relative">
                                         <Briefcase className="auth-input-icon" />
                                         <select
-                                            className="input border-gray-400 select"
+                                            className={`input border-gray-400 select ${accountTypeError ? 'input-error border-red-500' : ''}`}
                                             value={formData.accountType}
-                                            onChange={(e) => setFormData({ ...formData, accountType: e.target.value })}
+                                            onChange={(e) => validateAccountType(e.target.value)}
+                                            onBlur={(e) => validateAccountType(e.target.value)}
                                         >
                                             <option value="">Select an account type</option>
                                             <option value="Business">Business</option>
@@ -119,13 +190,14 @@ function SignUpPage() {
                                             <option value="Work">Work</option>
                                         </select>
                                     </div>
+                                    {accountTypeError && <p className="text-error text-xs mt-1">{accountTypeError}</p>}
                                 </div>
 
                                 {/* SUBMIT BUTTON */}
                                 <button
                                     className="btn btn-primary w-full"
                                     type="submit"
-                                    disabled={isSigningUp}
+                                    disabled={isSigningUp || !isFormValid()}
                                 >
                                     {isSigningUp ? (
                                         <LoaderIcon className="w-full h-5 animate-spin text-center" />
