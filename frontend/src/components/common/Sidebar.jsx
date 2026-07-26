@@ -200,7 +200,7 @@ const Sidebar = () => {
             })()}
 
             {/* Desktop Sidebar (visible on md and above) */}
-            <div className="hidden md:flex h-screen w-full max-w-[80px] lg:max-w-[225px] flex-col gap-2 border-r border-base-200 bg-base-100">
+            <div data-sidebar className="hidden md:flex h-screen w-full max-w-[80px] lg:max-w-[225px] flex-col gap-2 border-r border-base-200 bg-base-100">
                 <div className="rounded-lg bg-base-100 p-4 sticky top-0 left-0 h-screen flex flex-col w-full">
                     <div className="flex items-center justify-center lg:justify-start space-x-2 py-4">
                         <SnitchLogoSmall />
