@@ -267,8 +267,8 @@ router.get('/', async (req: Request, res: Response)=>{
     console.log('[ForYou] Active user - using personalized algorithm');
 
     // Extract preferred authors and hashtags from interactions
-    const preferredAuthors = new Set();
-    const preferredHashtags = new Set();
+    const preferredAuthors = new Set<string>();
+    const preferredHashtags = new Set<string>();
 
     // From liked posts
     if (user.likedPosts) {
