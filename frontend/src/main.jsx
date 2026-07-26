@@ -16,13 +16,6 @@ if (import.meta.env.DEV || window.location.search.includes('debug')) {
     new VConsole();
 }
 
-// Add this before rendering
-setTimeout(() => {
-    ReactDOM.createRoot(document.getElementById('root')).render(
-        <App />
-    );
-}, 2000); // 2-second delay
-
 ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>
         <BrowserRouter>
