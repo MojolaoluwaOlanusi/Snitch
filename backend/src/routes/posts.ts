@@ -29,30 +29,393 @@ router.get('/', async (req: Request, res: Response)=>{
     const userId = req.userId;
     let posts;
 
-    if (userId) {
-        const user = await User.findById(userId);
-        if (!user) return res.status(404).json({ error: "User not found" });
-
-        console.log('🔍 Following array:', user.following); // ← ADD THIS
-
-        // Show: public posts + posts from followed users + own posts
-        posts = await Post.find({
-            isPublished: true,
-            $or: [
-                { visibility: 'Public' },
-                { author: { $in: user.following } },  // all posts from followed users
-                { author: userId }                     // own posts
-            ]
-        })
-            .sort({ createdAt: -1 })
-            .limit(50)
-            .populate('author', 'username displayName avatarUrl');
-    } else {
-        posts = await Post.find({ isPublished: true, visibility: 'Public' })
-            .sort({ createdAt: -1 })
-            .limit(50)
-            .populate('author', 'username displayName avatarUrl');
+    if (!userId) {
+        // Non-authenticated users get public posts sorted by engagement
+        posts = await Post.aggregate([
+            { $match: { isPublished: true, visibility: 'Public' } },
+            {
+                $addFields: {
+                    engagementScore: {
+                        $add: [
+                            { $multiply: [{ $size: { $ifNull: ["$likes", []] } }, 1] },
+                            { $multiply: [{ $size: { $ifNull: ["$comments", []] } }, 2] },
+                            { $multiply: [{ $ifNull: ["$repostCount", 0] }, 3] }
+                        ]
+                    },
+                    hoursSinceCreation: {
+                        $divide: [
+                            { $subtract: [new Date(), "$createdAt"] },
+                            3600000 // milliseconds to hours
+                        ]
+                    }
+                }
+            },
+            {
+                $addFields: {
+                    recencyScore: {
+                        $max: [0, { $subtract: [100, { $multiply: ["$hoursSinceCreation", 2] }] }]
+                    }
+                }
+            },
+            {
+                $addFields: {
+                    totalScore: {
+                        $add: ["$engagementScore", "$recencyScore"]
+                    }
+                }
+            },
+            { $sort: { totalScore: -1 } },
+            { $limit: 50 },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "author",
+                    foreignField: "_id",
+                    as: "author"
+                }
+            },
+            { $unwind: "$author" },
+            {
+                $project: {
+                    author: {
+                        username: "$author.username",
+                        displayName: "$author.displayName",
+                        avatarUrl: "$author.avatarUrl"
+                    },
+                    text: 1,
+                    url: 1,
+                    isWarp: 1,
+                    mediaType: 1,
+                    mentions: 1,
+                    hashtags: 1,
+                    visibility: 1,
+                    likes: 1,
+                    comments: 1,
+                    repostCount: 1,
+                    createdAt: 1,
+                    totalScore: 1
+                }
+            }
+        ]);
+        return res.json(posts);
     }
+
+    // Authenticated user - personalized feed
+    const user = await User.findById(userId)
+        .populate('likedPosts', 'author hashtags')
+        .populate('following', 'followerCount');
+    
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Calculate user interaction count
+    const interactionCount = (user.likedPosts?.length || 0) + 
+                              (user.following?.length || 0);
+
+    console.log('[ForYou] User interactions:', interactionCount);
+
+    // Fallback for new users (less than 5 interactions)
+    if (interactionCount < 5) {
+        console.log('[ForYou] New user - using fallback algorithm');
+        
+        // Get trending posts (highest engagement)
+        const trendingPosts = await Post.aggregate([
+            { $match: { isPublished: true, visibility: 'Public' } },
+            {
+                $addFields: {
+                    engagementScore: {
+                        $add: [
+                            { $multiply: [{ $size: { $ifNull: ["$likes", []] } }, 1] },
+                            { $multiply: [{ $size: { $ifNull: ["$comments", []] } }, 2] },
+                            { $multiply: [{ $ifNull: ["$repostCount", 0] }, 3] }
+                        ]
+                    }
+                }
+            },
+            { $sort: { engagementScore: -1 } },
+            { $limit: 15 },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "author",
+                    foreignField: "_id",
+                    as: "author"
+                }
+            },
+            { $unwind: "$author" },
+            {
+                $project: {
+                    author: {
+                        username: "$author.username",
+                        displayName: "$author.displayName",
+                        avatarUrl: "$author.avatarUrl"
+                    },
+                    text: 1,
+                    url: 1,
+                    isWarp: 1,
+                    mediaType: 1,
+                    mentions: 1,
+                    hashtags: 1,
+                    visibility: 1,
+                    likes: 1,
+                    comments: 1,
+                    repostCount: 1,
+                    createdAt: 1
+                }
+            }
+        ]);
+
+        // Get posts from popular authors (followers > 1000)
+        const popularAuthors = await User.find({ followerCount: { $gte: 1000 } })
+            .select('_id')
+            .limit(20);
+        
+        const popularAuthorIds = popularAuthors.map(u => u._id);
+        
+        const popularPosts = await Post.aggregate([
+            { 
+                $match: { 
+                    isPublished: true, 
+                    visibility: 'Public',
+                    author: { $in: popularAuthorIds }
+                } 
+            },
+            { $sample: { size: 15 } },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "author",
+                    foreignField: "_id",
+                    as: "author"
+                }
+            },
+            { $unwind: "$author" },
+            {
+                $project: {
+                    author: {
+                        username: "$author.username",
+                        displayName: "$author.displayName",
+                        avatarUrl: "$author.avatarUrl"
+                    },
+                    text: 1,
+                    url: 1,
+                    isWarp: 1,
+                    mediaType: 1,
+                    mentions: 1,
+                    hashtags: 1,
+                    visibility: 1,
+                    likes: 1,
+                    comments: 1,
+                    repostCount: 1,
+                    createdAt: 1
+                }
+            }
+        ]);
+
+        // Get recent random posts (last 7 days)
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        
+        const randomPosts = await Post.aggregate([
+            { 
+                $match: { 
+                    isPublished: true, 
+                    visibility: 'Public',
+                    createdAt: { $gte: sevenDaysAgo }
+                } 
+            },
+            { $sample: { size: 20 } },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "author",
+                    foreignField: "_id",
+                    as: "author"
+                }
+            },
+            { $unwind: "$author" },
+            {
+                $project: {
+                    author: {
+                        username: "$author.username",
+                        displayName: "$author.displayName",
+                        avatarUrl: "$author.avatarUrl"
+                    },
+                    text: 1,
+                    url: 1,
+                    isWarp: 1,
+                    mediaType: 1,
+                    mentions: 1,
+                    hashtags: 1,
+                    visibility: 1,
+                    likes: 1,
+                    comments: 1,
+                    repostCount: 1,
+                    createdAt: 1
+                }
+            }
+        ]);
+
+        // Combine and deduplicate
+        const allPosts = [...trendingPosts, ...popularPosts, ...randomPosts];
+        const uniquePosts = Array.from(
+            new Map(allPosts.map(post => [post._id.toString(), post])).values()
+        ).slice(0, 50);
+
+        return res.json(uniquePosts);
+    }
+
+    // Personalized feed for active users
+    console.log('[ForYou] Active user - using personalized algorithm');
+
+    // Extract preferred authors and hashtags from interactions
+    const preferredAuthors = new Set();
+    const preferredHashtags = new Set();
+
+    // From liked posts
+    if (user.likedPosts) {
+        user.likedPosts.forEach((post: any) => {
+            if (post.author) preferredAuthors.add(post.author.toString());
+            if (post.hashtags) {
+                post.hashtags.forEach((tag: string) => preferredHashtags.add(tag.toLowerCase()));
+            }
+        });
+    }
+
+    // From following
+    if (user.following) {
+        user.following.forEach((followedUser: any) => {
+            preferredAuthors.add(followedUser._id.toString());
+        });
+    }
+
+    const preferredAuthorIds = Array.from(preferredAuthors);
+    const preferredHashtagArray = Array.from(preferredHashtags);
+
+    console.log('[ForYou] Preferred authors:', preferredAuthorIds.length);
+    console.log('[ForYou] Preferred hashtags:', preferredHashtagArray.length);
+
+    // Build personalized feed with scoring
+    posts = await Post.aggregate([
+        { 
+            $match: { 
+                isPublished: true,
+                $or: [
+                    { visibility: 'Public' },
+                    { author: { $in: user.following || [] } },
+                    { author: userId }
+                ]
+            } 
+        },
+        {
+            $addFields: {
+                engagementScore: {
+                    $add: [
+                        { $multiply: [{ $size: { $ifNull: ["$likes", []] } }, 1] },
+                        { $multiply: [{ $size: { $ifNull: ["$comments", []] } }, 2] },
+                        { $multiply: [{ $ifNull: ["$repostCount", 0] }, 3] }
+                    ]
+                },
+                hoursSinceCreation: {
+                    $divide: [
+                        { $subtract: [new Date(), "$createdAt"] },
+                        3600000
+                    ]
+                }
+            }
+        },
+        {
+            $addFields: {
+                recencyScore: {
+                    $max: [0, { $subtract: [100, { $multiply: ["$hoursSinceCreation", 2] }] }]
+                }
+            }
+        },
+        {
+            $addFields: {
+                // Freshness bonus for posts from last 24 hours
+                freshnessBonus: {
+                    $cond: [
+                        { $lte: ["$hoursSinceCreation", 24] },
+                        20,
+                        0
+                    ]
+                },
+                // Personalization boost for preferred authors
+                authorBoost: {
+                    $cond: [
+                        { $in: ["$author", preferredAuthorIds.map(id => new mongoose.Types.ObjectId(id))] },
+                        30,
+                        0
+                    ]
+                },
+                // Personalization boost for preferred hashtags
+                hashtagBoost: {
+                    $cond: [
+                        {
+                            $gt: [
+                                {
+                                    $size: {
+                                        $filter: {
+                                            input: { $ifNull: ["$hashtags", []] },
+                                            as: "tag",
+                                            cond: { $in: ["$$tag", preferredHashtagArray] }
+                                        }
+                                    }
+                                },
+                                0
+                            ]
+                        },
+                        15,
+                        0
+                    ]
+                }
+            }
+        },
+        {
+            $addFields: {
+                totalScore: {
+                    $add: [
+                        "$engagementScore",
+                        "$recencyScore",
+                        "$freshnessBonus",
+                        "$authorBoost",
+                        "$hashtagBoost"
+                    ]
+                }
+            }
+        },
+        { $sort: { totalScore: -1 } },
+        { $limit: 50 },
+        {
+            $lookup: {
+                from: "users",
+                localField: "author",
+                foreignField: "_id",
+                as: "author"
+            }
+        },
+        { $unwind: "$author" },
+        {
+            $project: {
+                author: {
+                    username: "$author.username",
+                    displayName: "$author.displayName",
+                    avatarUrl: "$author.avatarUrl"
+                },
+                text: 1,
+                url: 1,
+                isWarp: 1,
+                mediaType: 1,
+                mentions: 1,
+                hashtags: 1,
+                visibility: 1,
+                likes: 1,
+                comments: 1,
+                repostCount: 1,
+                createdAt: 1,
+                totalScore: 1
+            }
+        }
+    ]);
 
     res.json(posts);
 });
