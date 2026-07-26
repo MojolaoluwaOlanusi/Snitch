@@ -283,7 +283,7 @@ router.post('/send-verification-code', validate(schemas.sendVerificationCode), a
             to: email,
             subject: 'Your Snitch verification code',
             html: htmlContent,
-        }, { timeout: 10000 });
+        });
 
         console.log('[send-verification-code] Email sent successfully');
         return res.json({ success: true, message: 'Code sent' });

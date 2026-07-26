@@ -18,6 +18,10 @@ const transport = nodemailer.createTransport({
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
     },
+    // 🔥 Add timeout options here
+    connectionTimeout: 10000,  // 10 seconds to connect
+    greetingTimeout: 10000,    // 10 seconds for server greeting
+    socketTimeout: 15000,      // 15 seconds for idle socket
     tls: {
         rejectUnauthorized: true,
         minVersion: 'TLSv1.2',
