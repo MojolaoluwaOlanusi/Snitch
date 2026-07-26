@@ -24,13 +24,20 @@ router.post('/signup', validate(schemas.signup), async (req: Request, res: Respo
     const h = await bcrypt.hash(password, 10);
 
     try {
-        const u = await User.create({ email, trimmedUsername, passwordHash: h, displayName, accountType });
+        const u = await User.create({
+            email,
+            username: trimmedUsername,   // ✅ Correct field name
+            passwordHash: h,
+            displayName,
+            accountType
+        });
         const access = signAccess(String(u._id));
         const refresh = signRefresh(String(u._id));
         res.json({ access, refresh, user: { id: u._id, username: u.username } });
     } catch(e:any){
         res.status(400).json({ error: e.message });
-    }});
+    }
+});
 
 router.post('/login', validate(schemas.login), async (req: Request, res: Response)=> {
     const { email, password } = req.body;
