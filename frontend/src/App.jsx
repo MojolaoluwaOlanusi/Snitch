@@ -6,8 +6,10 @@ import { Analytics } from '@vercel/analytics/react';
 import { usePushNotifications } from "./hooks/usePushNotifications.js";
 import { useCallSocketListeners } from './hooks/useCallSocketListeners.js';
 import { useUserStore } from "./store/useUserStore.js";
+import { useChatStore } from "./store/useChatStore.js";
 import { updateAppBadge } from "./utils/appBadge.js";
 import CallModal from "./components/common/CallModal.jsx";
+import InstallPrompt from './components/common/InstallPrompt.jsx';
 // 👇 lazy load every page
 const HomePage = lazy(() => import("./pages/home/HomePage.jsx"));
 const LoginPage = lazy(() => import("./pages/auth/login/LoginPage.jsx"));
@@ -35,6 +37,7 @@ function App () {
     const { checkAuthentication, isCheckingAuth, authUserId } = useAuthStore();
     const { setupPushNotifications } = usePushNotifications();
     const { notifications } = useUserStore();
+    const totalUnread = useChatStore((state) => state.totalUnread);
     useCallSocketListeners();
 
     useEffect(() => {
@@ -51,11 +54,9 @@ function App () {
         }
     }, [authUserId?._id, setupPushNotifications]);
 
-    // Update app badge when notifications change
     useEffect(() => {
-        const unreadCount = notifications?.filter(n => !n.read).length || 0;
-        updateAppBadge(unreadCount);
-    }, [notifications]);
+        updateAppBadge(totalUnread);
+    }, [totalUnread]);
 
     useAppTheme();
 
@@ -85,6 +86,7 @@ function App () {
             </Suspense>
 
             <CallModal />
+            <InstallPrompt />
             <Toaster position="top-right" richColors />
             <Analytics />
         </div>

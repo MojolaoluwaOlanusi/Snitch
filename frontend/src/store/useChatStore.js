@@ -583,11 +583,6 @@ export const useChatStore = create((set, get) => ({
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            // Optionally update the badge count after marking as read
-            const { totalUnread } = get();
-            if (window.updateAppBadge) {
-                window.updateAppBadge(totalUnread);
-            }
         } catch (error) {
             console.error('Failed to mark notifications as read:', error);
         }
