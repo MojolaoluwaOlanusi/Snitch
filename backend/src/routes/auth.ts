@@ -204,14 +204,13 @@ router.delete('/account', authMiddleware, async (req: Request, res: Response) =>
 });
 
 router.post('/send-verification-code', validate(schemas.sendVerificationCode), async (req: Request, res: Response) => {
-    const { email } = req.body;
-
     try {
-        const user = await User.findOne({ email });
+        const user = await User.findById(req.userId);
         if (!user) return res.status(404).json({ success: false, message: 'User not found' });
         if (user.verified) return res.status(400).json({ success: false, message: 'Already verified' });
 
-        const code = Math.floor(100000 + Math.random() * 900000).toString();// 6 digits
+        const email = user.email; // ✅ Use authenticated user's email
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
         const htmlContent =  `
           <div style="
               font-family: system-ui, -apple-system, sans-serif;
@@ -273,22 +272,23 @@ router.post('/send-verification-code', validate(schemas.sendVerificationCode), a
               </p>
           </div>
           `;
-        // Save hashed code and timestamp as Date
+        console.log('[send-verification-code] Saving to DB...');
         user.verificationCode = hmacProcess(code);
         user.verificationCodeValidation = new Date();
         await user.save();
 
-
+        console.log('[send-verification-code] Sending email...');
         await transport.sendMail({
             from: process.env.NODE_CODE_SENDING_EMAIL_ADDRESS,
             to: email,
             subject: 'Your Snitch verification code',
             html: htmlContent,
-        });
+        }, { timeout: 10000 });
 
+        console.log('[send-verification-code] Email sent successfully');
         return res.json({ success: true, message: 'Code sent' });
     } catch (err: any) {
-        console.error(err);
+        console.error('[send-verification-code] Error:', err);
         res.status(500).json({ success: false, message: err.message });
     }
 });

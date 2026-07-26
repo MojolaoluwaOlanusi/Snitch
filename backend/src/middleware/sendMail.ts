@@ -24,8 +24,11 @@ const transport = nodemailer.createTransport({
     },
 });
 
-console.log("SMTP_USER:", process.env.SMTP_USER);
-console.log("SMTP_PASS:", process.env.SMTP_PASS ? "✔️ Loaded" : "❌ Missing");
+// Only log in development
+if (process.env.NODE_ENV === 'development') {
+    console.log("SMTP_USER:", process.env.SMTP_USER);
+    console.log("SMTP_PASS:", process.env.SMTP_PASS ? "✔️ Loaded" : "❌ Missing");
+}
 
 (async () => {
     try {

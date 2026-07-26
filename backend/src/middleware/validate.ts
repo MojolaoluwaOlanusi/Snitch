@@ -181,15 +181,7 @@ const changePasswordSchema = Joi.object({
         })
 });
 
-const sendVerificationCodeSchema = Joi.object({
-    email: Joi.string()
-        .email()
-        .required()
-        .messages({
-            'string.email': 'Please provide a valid email address',
-            'any.required': 'Email is required'
-        })
-});
+const sendVerificationCodeSchema = Joi.object({}).empty();
 
 const verifyVerificationCodeSchema = Joi.object({
     email: Joi.string()
