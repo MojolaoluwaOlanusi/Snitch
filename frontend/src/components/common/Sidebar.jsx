@@ -1,5 +1,5 @@
 import { BellIcon, HomeIcon, MessageCircleIcon, PlusIcon, SearchIcon, UserIcon, ZapIcon, Menu, X } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { GiFlowerTwirl } from "react-icons/gi";
 import { SnitchLogoSmall } from "../svgs/snitch.jsx";
 import { useAuthStore } from "../../store/useAuthStore.js";
