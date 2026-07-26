@@ -581,18 +581,31 @@ const ChatPage = () => {
         }
     }, [showAttachmentMenu]);
 
-const [searchParams] = useSearchParams();
-const conversationIdFromUrl = searchParams.get('conversationId');
+    const [searchParams] = useSearchParams();
+    const conversationIdFromUrl = searchParams.get('conversationId');
+    const replyToParam = searchParams.get('replyTo');
 
-useEffect(() => {
-    if (conversationIdFromUrl) {
-        // Select the conversation automatically
-        const conversation = conversations.find(c => c._id === conversationIdFromUrl);
-        if (conversation) {
-            selectConversation(conversation);
+    useEffect(() => {
+        if (conversationIdFromUrl) {
+            // Select the conversation automatically
+            const conversation = conversations.find(c => c._id === conversationIdFromUrl);
+            if (conversation) {
+                selectConversation(conversation);
+            }
         }
-    }
-}, [conversationIdFromUrl, conversations, selectConversation]);
+    }, [conversationIdFromUrl, conversations, selectConversation]);
+
+
+    useEffect(() => {
+        if (replyToParam && messages.length) {
+            const messageToReply = messages.find(m => m._id === replyToParam);
+            if (messageToReply) {
+                setReplyingTo(messageToReply);
+                // Focus the input
+                messageInputRef.current?.focus();
+            }
+        }
+    }, [replyToParam, messages]);
     
     // Outside click for Send Contact Modal
     useEffect(() => {

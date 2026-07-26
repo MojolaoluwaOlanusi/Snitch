@@ -56,21 +56,21 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
 
-    const { data, action } = event.notification;
+    const { action, notification } = event;
+    const { data } = notification;
 
-    // If the user clicked "Call Back" action
-    if (action === 'callBack') {
+    if (action === 'reply') {
+        // Build URL with reply context (e.g., open chat with reply input focused)
         const url = data?.conversationId
-            ? `/chat?conversationId=${data.conversationId}&callBack=true`
+            ? `/chat?conversationId=${data.conversationId}&replyTo=${data.messageId || ''}`
             : '/chat';
         event.waitUntil(
             clients.matchAll({ type: 'window' }).then((clientList) => {
                 for (let client of clientList) {
-                    if (client.url.includes('/chat')) {
-                        client.focus();
-                        // Navigate to the call-back URL
+                    if (client.url.includes('/chat') && 'focus' in client) {
+                        // If a chat window exists, navigate it and focus
                         client.navigate(url);
-                        return;
+                        return client.focus();
                     }
                 }
                 return clients.openWindow(url);
@@ -79,16 +79,15 @@ self.addEventListener('notificationclick', (event) => {
         return;
     }
 
-    // Default: open the conversation (existing logic)
+    // Default open action
     if (data?.type === 'message' && data?.conversationId) {
         const url = `/chat?conversationId=${data.conversationId}`;
         event.waitUntil(
             clients.matchAll({ type: 'window' }).then((clientList) => {
                 for (let client of clientList) {
-                    if (client.url.includes('/chat')) {
-                        client.focus();
+                    if (client.url.includes('/chat') && 'focus' in client) {
                         client.navigate(url);
-                        return;
+                        return client.focus();
                     }
                 }
                 return clients.openWindow(url);
