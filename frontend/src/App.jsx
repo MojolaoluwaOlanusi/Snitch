@@ -30,6 +30,7 @@ const VerifyVerificationCodePage = lazy(() =>
     import("./pages/auth/verification/VerifyVerificationCodePage.jsx")
 );
 const PostPage = lazy(() => import("./pages/post/PostPage.jsx"));
+const SharePage = lazy(() => import("./pages/share/SharePage.jsx"));
 import { useAppTheme } from "./hooks/useAppTheme.js";
 
 function App () {
@@ -110,6 +111,7 @@ function App () {
                     <Route path='/ai' element={authUserId ? <AIPage /> : <Navigate to={"/login"} />} />
                     <Route path='/search' element={authUserId ? <SearchPage /> : <Navigate to={"/login"} />} />
                     <Route path='/notifications/:username' element={authUserId ? <NotificationPage /> : <Navigate to={"/login"} />} />
+                    <Route path="/share" element={authUserId ? <SharePage /> : <Navigate to="/login" />} />
                     <Route path='/*' element={<NotFoundPage />} />
                     <Route path='/forgotpassword' element={!authUserId ? <ForgotPasswordPage /> : <Navigate to={"/"} />} />
                     <Route path='/verify-account/:username' element={authUserId ? <VerifyAccountPage /> : <Navigate to={"/login"} />} />

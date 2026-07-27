@@ -155,6 +155,32 @@ const PostItem = ({ post, authUserId }) => {
         }
     };
 
+    const handleShare = async (postId, url) => {
+        // If Web Share API is supported, use it
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'Check out this post on Snitch',
+                    text: 'I found this interesting post on Snitch!',
+                    url: url,
+                });
+                return;
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error('Share error:', error);
+                }
+                // Fallback to modal if share fails or is cancelled
+                // Continue to open modal
+            }
+        }
+
+        // Fallback: open the share modal
+        window.dispatchEvent(
+            new CustomEvent("OpenShareModal", {
+                detail: { postId, url },
+            })
+        );
+    };
 
     const handleHashtagClick = (hashtag, navigate) => {
         navigate('/search', { state: { searchWord: hashtag, searchType: 'hashtag' } });
@@ -494,11 +520,7 @@ const PostItem = ({ post, authUserId }) => {
                             onClick={(e) => {
                                 e.preventDefault();
                                 const postUrl = `${window.location.origin}/post/${post?._id}`;
-                                window.dispatchEvent(
-                                    new CustomEvent("OpenShareModal", {
-                                        detail: { postId: post?._id, url: postUrl },
-                                    })
-                                );
+                                handleShare(post?._id, postUrl);
                             }}
                         >
                             <Share2 className="w-4 h-4 text-base-content/60 group-hover:text-primary" />
