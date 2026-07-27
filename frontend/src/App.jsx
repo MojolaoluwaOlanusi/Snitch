@@ -1,4 +1,5 @@
 import {Navigate, Route, Routes} from "react-router-dom";
+import { useNavigate, useLocation } from 'react-router-dom';
 import {useAuthStore} from "./store/useAuthStore.js";
 import {toast, Toaster} from 'sonner'
 import { Suspense, lazy, useEffect } from "react";
@@ -35,9 +36,11 @@ import PeriodicSyncPrompt from './components/common/PeriodicSyncPrompt.jsx';
 import { useAppTheme } from "./hooks/useAppTheme.js";
 
 function App () {
-    const { checkAuthentication, isCheckingAuth, authUserId } = useAuthStore();
+    const { checkAuthentication, isCheckingAuth, authUserId, authUser } = useAuthStore();
     const { setupPushNotifications } = usePushNotifications();
     const totalUnread = useChatStore((state) => state.totalUnread);
+    const navigate = useNavigate();
+    const location = useLocation();
     useCallSocketListeners();
 
     if ('serviceWorker' in navigator) {
@@ -86,6 +89,41 @@ function App () {
             });
         }
     }, []);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const action = params.get('action');
+
+        if (action) {
+            // Clear the URL parameter to avoid re-triggering
+            window.history.replaceState({}, document.title, '/');
+
+            switch (action) {
+                case 'new-post':
+                    if (authUserId) {
+                        navigate(`/create-post/${authUser?.username}`);
+                    } else {
+                        navigate('/login');
+                    }
+                    break;
+                case 'messages':
+                    navigate('/chat');
+                    break;
+                case 'search':
+                    navigate('/search');
+                    break;
+                case 'notifications':
+                    if (authUserId) {
+                        navigate(`/notifications/${authUser?.username}`);
+                    } else {
+                        navigate('/login');
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+    }, [location, authUserId, authUser, navigate]);
 
     useEffect(() => {
         const requestPeriodicSync = async () => {

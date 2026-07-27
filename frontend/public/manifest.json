@@ -5,13 +5,10 @@
   "start_url": "/",
   "id": "/",
   "display": "standalone",
-  "display_override": [
-    "window-controls-overlay",
-    "standalone"
-  ],
+  "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "portrait",
   "background_color": "#1a1a2e",
-  "theme_color": "#6366f1",
+  "theme_color": "#2563eb",
   "scope": "/",
   "protocol_handlers": [
     {
@@ -19,22 +16,6 @@
       "url": "/?share=%s"
     }
   ],
-  "share_target": {
-    "action": "/share",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url",
-      "files": [
-        {
-          "name": "media",
-          "accept": ["image/*", "video/*"]
-        }
-      ]
-    }
-  },
   "icons": [
     {
       "src": "/manifest-icon-192.maskable.png",
@@ -81,6 +62,60 @@
       "type": "image/png",
       "form_factor": "wide",
       "label": "Chat View"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Post",
+      "short_name": "Post",
+      "description": "Create a new post",
+      "url": "/create-post",
+      "icons": [
+        {
+          "src": "/shortcuts/shortcut-new-post-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Messages",
+      "short_name": "Chat",
+      "description": "Open your messages",
+      "url": "/chat",
+      "icons": [
+        {
+          "src": "/shortcuts/shortcut-messages-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "short_name": "Search",
+      "description": "Find posts, people, and more",
+      "url": "/search",
+      "icons": [
+        {
+          "src": "/shortcuts/shortcut-search-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "short_name": "Profile",
+      "description": "View your profile",
+      "url": "/profile",
+      "icons": [
+        {
+          "src": "/shortcuts/shortcut-profile-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }
