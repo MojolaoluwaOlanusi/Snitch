@@ -123,10 +123,21 @@ export const useMediaStore = create((set) => ({
             // If updateProfileField is provided, update the user profile
             if (updateProfileField) {
                 const token = localStorage.getItem('access-token');
-                await axiosInstance.put('/auth/update-profile', 
+                const profileRes = await axiosInstance.put('/auth/update-profile', 
                     { [updateProfileField]: data.secure_url },
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
+                
+                // Return the profile response so the caller can update the state
+                return {
+                    url: data.secure_url,
+                    publicId: data.public_id,
+                    width: data.width,
+                    height: data.height,
+                    format: data.format,
+                    bytes: data.bytes,
+                    profileUpdated: profileRes.data,
+                };
             }
 
             return {
@@ -139,8 +150,9 @@ export const useMediaStore = create((set) => ({
             };
         } catch (error) {
             console.error('Cloudinary upload error:', error);
-            toast.error("Failed to upload to Cloudinary");
-            throw error;
+            const errorMessage = error.response?.data?.error?.message || error.message || 'Failed to upload to Cloudinary';
+            toast.error(errorMessage);
+            throw new Error(errorMessage);
         } finally {
             set({ isUploading: false });
         }

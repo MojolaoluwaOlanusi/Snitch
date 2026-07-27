@@ -48,6 +48,7 @@ const ProfilePage = () => {
     const [showSettings, setShowSettings] = useState(false);
     const [showEditProfile, setShowEditProfile] = useState(false);
     const [showFollowersModal, setShowFollowersModal] = useState(false);
+    const [isFollowing, setIsFollowing] = useState(false);
 
     const coverImgRef = useRef(null);
     const avatarImgRef = useRef(null);
@@ -55,6 +56,11 @@ const ProfilePage = () => {
     useEffect(() => {
         getUserProfile(username);
     }, [getUserProfile, username]);
+
+    useEffect(() => {
+        // Sync local isFollowing state with authUser's following list
+        setIsFollowing(authUser?.following?.includes(user?._id) || false);
+    }, [authUser, user]);
 
     const handleChatWithUser = async () => {
         if (!user?._id) return;
@@ -69,6 +75,46 @@ const ProfilePage = () => {
         }
     };
 
+    const handleFollow = async () => {
+        if (!user?._id) return;
+        
+        // Optimistic update
+        const previousState = isFollowing;
+        setIsFollowing(true);
+        
+        try {
+            const result = await followUser({ id: user._id });
+            // Refresh auth user to get updated following list
+            const { getProfile } = useAuthStore();
+            await getProfile();
+            await getUserProfile(username);
+        } catch (error) {
+            // Rollback on error
+            setIsFollowing(previousState);
+            console.error('Follow failed:', error);
+        }
+    };
+
+    const handleUnfollow = async () => {
+        if (!user?._id) return;
+        
+        // Optimistic update
+        const previousState = isFollowing;
+        setIsFollowing(false);
+        
+        try {
+            const result = await followUser({ id: user._id });
+            // Refresh auth user to get updated following list
+            const { getProfile } = useAuthStore();
+            await getProfile();
+            await getUserProfile(username);
+        } catch (error) {
+            // Rollback on error
+            setIsFollowing(previousState);
+            console.error('Unfollow failed:', error);
+        }
+    };
+
     const uploadCoverImg = async (data) => {
         const useCloudinary = import.meta.env.VITE_USE_CLOUDINARY === 'true';
         
@@ -78,6 +124,10 @@ const ProfilePage = () => {
                 const file = data.file;
                 const { uploadToCloudinary } = useMediaStore.getState();
                 const result = await uploadToCloudinary(file, 'CoverImages', 'coverImg');
+                // Update authUser state with the profile response
+                if (result.profileUpdated) {
+                    useAuthStore.setState({ authUser: result.profileUpdated });
+                }
                 toast.success('Cover image updated successfully');
             } else {
                 // Use existing S3/MinIO upload logic
@@ -89,7 +139,7 @@ const ProfilePage = () => {
                 const uploadUrl = res.data.uploadUrl;
                 localStorage.setItem("uploadUrl", uploadUrl);
                 await uploadMedia(file);
-                await updateProfile({ coverImg: coverImgUrl });
+                const updatedProfile = await updateProfile({ coverImg: coverImgUrl });
                 toast.success('Cover image updated successfully');
             }
             // Refresh both auth user and profile user
@@ -98,7 +148,10 @@ const ProfilePage = () => {
             await getProfile();
         } catch (error) {
             console.error('Error uploading cover image:', error);
-            toast.error('Failed to upload cover image');
+            // Only show error toast if it's not already shown by the upload function
+            if (!error.message || !error.message.includes('Failed to upload')) {
+                toast.error('Failed to upload cover image');
+            }
         }
     };
 
@@ -111,6 +164,10 @@ const ProfilePage = () => {
                 const file = data.file;
                 const { uploadToCloudinary } = useMediaStore.getState();
                 const result = await uploadToCloudinary(file, 'Avatars', 'avatarUrl');
+                // Update authUser state with the profile response
+                if (result.profileUpdated) {
+                    useAuthStore.setState({ authUser: result.profileUpdated });
+                }
                 toast.success('Avatar updated successfully');
             } else {
                 // Use existing S3/MinIO upload logic
@@ -122,7 +179,7 @@ const ProfilePage = () => {
                 const uploadUrl = res.data.uploadUrl;
                 localStorage.setItem("uploadUrl", uploadUrl);
                 await uploadMedia(file);
-                await updateProfile({ avatarUrl: avatarUrl });
+                const updatedProfile = await updateProfile({ avatarUrl: avatarUrl });
                 toast.success('Avatar updated successfully');
             }
             // Refresh both auth user and profile user
@@ -131,7 +188,10 @@ const ProfilePage = () => {
             await getProfile();
         } catch (error) {
             console.error('Error uploading avatar:', error);
-            toast.error('Failed to upload avatar');
+            // Only show error toast if it's not already shown by the upload function
+            if (!error.message || !error.message.includes('Failed to upload')) {
+                toast.error('Failed to upload avatar');
+            }
         }
     };
 
@@ -267,13 +327,9 @@ const ProfilePage = () => {
                                     <>
                                         <button
                                             className="btn btn-outline bg-base-100 hover:bg-primary rounded-full btn-sm"
-                                            onClick={async (e) => {
-                                                e.preventDefault();
-                                                setFormData({ ...formData, id: user?._id });
-                                                await followUser(formData);
-                                            }}
+                                            onClick={isFollowing ? handleUnfollow : handleFollow}
                                         >
-                                            {isFollowingUser ? "Loading..." : amIFollowing ? "Unfollow" : "Follow"}
+                                            {isFollowingUser ? "Loading..." : isFollowing ? "Unfollow" : "Follow"}
                                         </button>
                                         <button
                                             onClick={handleChatWithUser}

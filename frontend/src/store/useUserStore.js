@@ -159,13 +159,19 @@ export const useUserStore = create((set, get) => ({
 
             } catch (error) {
                 console.log("Error in getting suggested users:", error);
-                toast.error(error.response.data.message);
+                toast.error(error.response?.data?.message || "Failed to get suggested users");
             } finally {
                 set({ isGettingSuggestedUsers: false });
             }
         }
         try {
             const token = localStorage.getItem('access-token');
+            if (!token) {
+                throw new Error('No authentication token found');
+            }
+            if (!data || !data.id) {
+                throw new Error('User ID is required');
+            }
             const res = await axiosInstance.post(`/auth/follow`, data,{
                 headers: {
                     "Authorization": `Bearer ${token}`
@@ -179,14 +185,20 @@ export const useUserStore = create((set, get) => ({
             if (res.data.message === "User unfollowed successfully"){
                 toast.success("Successfully unfollowed User");
             }
+            return res.data;
         } catch (error) {
             console.log("Error in following user:", error);
-            if (error.response.data.message === "You can't follow/unfollow yourself") {
+            if (error.response?.data?.message === "You can't follow/unfollow yourself") {
                 toast.error("You can't follow Yourself!");
+            } else if (error.message === 'No authentication token found') {
+                toast.error("Please log in to follow users");
+            } else if (error.message === 'User ID is required') {
+                toast.error("Invalid user data");
             } else {
-                toast.error("Something went wrong,Please try again.");
+                toast.error(error.response?.data?.message || "Something went wrong. Please try again.");
             }
             set({ isFollowingUser: false });
+            throw error;
         } finally {
             set({ isFollowingUser: false });
         }
@@ -291,11 +303,13 @@ export const useUserStore = create((set, get) => ({
                 await refreshLikedPosts(user);
                 await refreshTruncatedPosts(user);
             }
+            return res.data; // Return the created post
         } catch (error) {
             console.log("Error in Creating Post:", error);
-            toast.error(error.response.data.message);
+            toast.error(error.response?.data?.message || "Failed to create post");
             set({ isCreatingPost: false });
             set({ createdPost: false });
+            return null; // Return null on error
         } finally {
             set({ isCreatingPost: false });
             set({ createdPost: false });

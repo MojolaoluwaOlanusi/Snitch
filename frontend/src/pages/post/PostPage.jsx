@@ -3,7 +3,7 @@ import { useUserStore } from "../../store/useUserStore.js";
 import { FaArrowLeft, FaRegComment, FaRegHeart, FaTrash } from "react-icons/fa";
 import { BiRepost } from "react-icons/bi";
 import { MdAddReaction, MdReportProblem } from "react-icons/md";
-import {MoreHorizontal, Hash, Sticker, ChevronUp, ChevronDown, Share2, Bookmark, Copy, Check} from "lucide-react";
+import {MoreHorizontal, Hash, Sticker, ChevronUp, ChevronDown, Share2, Bookmark, Copy, Check, X} from "lucide-react";
 import {Suspense, useEffect, useState} from "react";
 import PostPageSkeleton from "../../components/skeletons/PostPageSkeleton.jsx";
 import Sidebar from "../../components/common/Sidebar.jsx";
@@ -59,7 +59,7 @@ const PostPage = () => {
     const [actionPostId, setActionPostId] = useState(null);
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(null);
     const [authorData, setAuthorData] = useState(null);
-    const [shareModal, setShareModal] = useState({ open: false, postId: null, url: "" });
+    const [shareModal, setShareModal] = useState({ open: false, postId: null, url: "", postText: "" });
     const [isBookmarked, setIsBookmarked] = useState(
         singlePost?.bookmarkedBy?.includes(authUserId)
     );
@@ -104,12 +104,6 @@ const PostPage = () => {
             }
         }
     }, [singlePost, users, authUserId, authUser]);
-
-    useEffect(() => {
-        const handler = (e) => setShareModal({ open: true, postId: e.detail.postId, url: e.detail.url });
-        window.addEventListener("OpenPostShareModal", handler);
-        return () => window.removeEventListener("OpenShareModal", handler);
-    }, []);
 
     const fetchUserData = async (userId) => {
         try {
@@ -231,6 +225,27 @@ const PostPage = () => {
 
     const handleMentionClick = (username) => {
         navigate(`/profile/${username}`);
+    };
+
+    const handleShare = async (postId, url, postText) => {
+        // If Web Share API is supported, use it
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'Check out this post on Snitch',
+                    text: postText || 'I found this interesting post on Snitch!',
+                    url: url,
+                });
+                return; // Exit early, don't open modal
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error('Share error:', error);
+                }
+            }
+        }
+
+        // Fallback: open the custom share modal
+        setShareModal({ open: true, postId, url, postText: postText || '' });
     };
 
     const isLikedByMe = !!singlePost?.likes?.some((id) => id === authUserId);
@@ -576,11 +591,7 @@ const PostPage = () => {
                                 onClick={(e) => {
                                     e.preventDefault();
                                     const postUrl = `${window.location.origin}/post/${singlePost?._id}`;
-                                    window.dispatchEvent(
-                                        new CustomEvent("OpenPostShareModal", {
-                                            detail: { postId: singlePost?._id, url: postUrl },
-                                        })
-                                    );
+                                    handleShare(singlePost?._id, postUrl, singlePost?.text);
                                 }}
                             >
                                 <Share2 className="w-4 h-4 text-base-content/60 group-hover:text-primary" />
@@ -722,45 +733,84 @@ const PostPage = () => {
                         </AnimatePresence>
 
                         {shareModal.open && (
-                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShareModal({ open: false, postId: null, url: "" })}>
-                                <div className="bg-base-100 rounded-2xl p-6 w-[400px] shadow-xl" onClick={(e) => e.stopPropagation()}>
+                            <div
+                                className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                                onClick={() => setShareModal({ open: false, postId: null, url: "", postText: "" })}
+                            >
+                                <div
+                                    className="bg-base-100 rounded-2xl p-6 w-full max-w-md shadow-xl border border-base-300"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    {/* Header */}
                                     <div className="flex items-center justify-between mb-4">
-                                        <h3 className="text-lg font-bold">Share Post</h3>
-                                        <button onClick={() => setShareModal({ open: false, postId: null, url: "" })} className="p-2 hover:bg-base-200 rounded-full">
-                                            <IoClose className="w-5 h-5 text-base-content/60" />
+                                        <h3 className="text-lg font-bold text-base-content">Share Post</h3>
+                                        <button
+                                            onClick={() => setShareModal({ open: false, postId: null, url: "", postText: "" })}
+                                            className="p-2 hover:bg-base-200 rounded-full transition-colors"
+                                        >
+                                            <X className="w-5 h-5 text-base-content/60" />
                                         </button>
                                     </div>
-                                    <button onClick={() => {
-                                        navigator.clipboard.writeText(shareModal.url);
-                                        toast.success("Link copied to clipboard");
-                                    }} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-base-200 rounded-xl mb-2 transition-colors">
+
+                                    {/* Post Preview */}
+                                    <div className="bg-base-200 rounded-xl p-3 mb-4">
+                                        <p className="text-sm text-base-content/80 line-clamp-2">
+                                            {shareModal.postText || 'Check out this post on Snitch!'}
+                                        </p>
+                                    </div>
+
+                                    {/* Copy Link */}
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(shareModal.url);
+                                            toast.success("Link copied to clipboard!");
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-base-200 rounded-xl mb-3 transition-colors"
+                                    >
                                         <div className="w-10 h-10 rounded-full bg-base-200 flex items-center justify-center">
                                             <Copy className="w-5 h-5 text-base-content/70" />
                                         </div>
                                         <div className="text-left flex-1">
                                             <p className="text-sm font-medium text-base-content">Copy Link</p>
-                                            <p className="text-xs text-base-content/50">{shareModal.url}</p>
+                                            <p className="text-xs text-base-content/50 truncate">{shareModal.url}</p>
                                         </div>
                                         <Check className="w-4 h-4 text-base-content/50" />
                                     </button>
-                                    <div className="grid grid-cols-2 gap-2 mt-4">
-                                        <button onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareModal.url)}`, '_blank')} className="flex items-center gap-2 px-4 py-3 bg-primary/10 hover:bg-primary/10 rounded-xl transition-colors">
+
+                                    {/* Social Share Grid */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareModal.url)}`, '_blank')}
+                                            className="flex items-center gap-2 px-4 py-3 bg-primary/10 hover:bg-primary/20 rounded-xl transition-colors"
+                                        >
                                             <FaFacebook className="w-5 h-5 text-primary/90" />
                                             <span className="text-sm font-medium text-primary">Facebook</span>
                                         </button>
-                                        <button onClick={() => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareModal.url)}`, '_blank')} className="flex items-center gap-2 px-4 py-3 bg-base-200 hover:bg-base-200 rounded-xl transition-colors">
+                                        <button
+                                            onClick={() => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareModal.url)}`, '_blank')}
+                                            className="flex items-center gap-2 px-4 py-3 bg-base-200 hover:bg-base-300 rounded-xl transition-colors"
+                                        >
                                             <FaXTwitter className="w-5 h-5 text-base-content" />
                                             <span className="text-sm font-medium text-base-content/80">X</span>
                                         </button>
-                                        <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareModal.url)}`, '_blank')} className="flex items-center gap-2 px-4 py-3 bg-success/10 hover:bg-success/10 rounded-xl transition-colors">
+                                        <button
+                                            onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareModal.url)}`, '_blank')}
+                                            className="flex items-center gap-2 px-4 py-3 bg-success/10 hover:bg-success/20 rounded-xl transition-colors"
+                                        >
                                             <FaWhatsapp className="w-5 h-5 text-green-600" />
                                             <span className="text-sm font-medium text-green-700">WhatsApp</span>
                                         </button>
-                                        <button onClick={() => window.open(`https://t.me/share/url?url=${encodeURIComponent(shareModal.url)}`, '_blank')} className="flex items-center gap-2 px-4 py-3 bg-info/10 hover:bg-info/20 rounded-xl transition-colors">
+                                        <button
+                                            onClick={() => window.open(`https://t.me/share/url?url=${encodeURIComponent(shareModal.url)}`, '_blank')}
+                                            className="flex items-center gap-2 px-4 py-3 bg-info/10 hover:bg-info/20 rounded-xl transition-colors"
+                                        >
                                             <FaTelegram className="w-5 h-5 text-info" />
                                             <span className="text-sm font-medium text-info">Telegram</span>
                                         </button>
-                                        <button onClick={() => window.open(`mailto:?subject=Check out this post on Snitch&body=${encodeURIComponent(shareModal.url)}`, '_blank')} className="flex items-center gap-2 px-4 py-3 bg-error/10 hover:bg-error/10 rounded-xl transition-colors col-span-2">
+                                        <button
+                                            onClick={() => window.open(`mailto:?subject=Check out this post on Snitch&body=${encodeURIComponent(shareModal.url)}`, '_blank')}
+                                            className="flex items-center gap-2 px-4 py-3 bg-error/10 hover:bg-error/20 rounded-xl transition-colors col-span-2"
+                                        >
                                             <FaEnvelope className="w-5 h-5 text-error/90" />
                                             <span className="text-sm font-medium text-error">Email</span>
                                         </button>

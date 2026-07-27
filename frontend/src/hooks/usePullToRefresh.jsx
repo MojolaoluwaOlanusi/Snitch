@@ -12,18 +12,38 @@ export const usePullToRefresh = (onRefresh, threshold = 80) => {
         if (!isMobile) return;
 
         const handleTouchStart = (e) => {
-            if (window.scrollY === 0) {
+            const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            // Only activate if at the very top of the page
+            if (scrollTop === 0) {
                 startYRef.current = e.touches[0].clientY;
                 setIsPulling(true);
+            } else {
+                setIsPulling(false);
             }
         };
 
         const handleTouchMove = (e) => {
+            const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            
+            // If we're not at the top, deactivate pull-to-refresh
+            if (scrollTop > 0) {
+                setIsPulling(false);
+                setPullDistance(0);
+                return;
+            }
+
             if (!isPulling) return;
+            
             const deltaY = e.touches[0].clientY - startYRef.current;
-            if (deltaY > 0 && window.scrollY === 0) {
+            
+            // Only allow pulling down (positive deltaY) and only if still at top
+            if (deltaY > 0 && scrollTop === 0) {
                 setPullDistance(Math.min(deltaY, 150));
                 e.preventDefault();
+            } else {
+                // If pulling up or scrolled away, reset
+                setIsPulling(false);
+                setPullDistance(0);
             }
         };
 
@@ -53,7 +73,7 @@ export const usePullToRefresh = (onRefresh, threshold = 80) => {
             document.removeEventListener('touchmove', handleTouchMove);
             document.removeEventListener('touchend', handleTouchEnd);
         };
-    }, [isPulling, pullDistance, onRefresh]);
+    }, [isPulling, pullDistance, onRefresh, threshold]);
 
     return { pullDistance, isPulling, isRefreshing };
 };

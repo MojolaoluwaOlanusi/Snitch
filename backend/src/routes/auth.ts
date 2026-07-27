@@ -410,7 +410,7 @@ router.post('/follow', authMiddleware, async (req: Request, res: Response) => {
         }
     } catch (err: any) {
         console.log("Error in followUnfollowUser: ", err.message);
-        res.status(500).json({ error: err.message, message: err });
+        res.status(500).json({ error: err.message, message: "Something went wrong. Please try again." });
     }
 });
 

@@ -607,7 +607,7 @@ const Posts = () => {
 
     const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
-    const { authUser } = useAuthStore();
+    const { authUser, authUserId } = useAuthStore();
 
     // Detect mobile viewport
     useEffect(() => {
@@ -687,7 +687,7 @@ const Posts = () => {
         <div className="overflow-auto w-full h-[calc(100vh-50px)]">
             {feedItems.map((item, idx) => {
                 if (item.type === 'post') {
-                    return <PostItem key={item.data._id} post={item.data} authUserId={authUser?._id} />;
+                    return <PostItem key={item.data._id} post={item.data} authUserId={authUserId} />;
                 } else if (item.type === 'carousel') {
                     return (
                         <WhoToFollowCarousel
