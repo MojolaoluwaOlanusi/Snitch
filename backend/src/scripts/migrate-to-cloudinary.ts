@@ -112,8 +112,16 @@ async function uploadToCloudinary(
                 resource_type: 'auto',
             },
             (error, result) => {
-                if (error) reject(error);
-                else resolve({ url: result.secure_url, publicId: result.public_id });
+                if (error) {
+                    reject(error);
+                } else if (result && result.secure_url && result.public_id) {
+                    resolve({
+                        url: result.secure_url,
+                        publicId: result.public_id,
+                    });
+                } else {
+                    reject(new Error('Upload succeeded but returned invalid result'));
+                }
             }
         );
         stream.pipe(uploadStream);
