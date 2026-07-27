@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import axiosInstance  from "../lib/axios.js";
 import { toast } from 'sonner'
+import axios from "axios";
 
 export const useMediaStore = create((set) => ({
     uploadUrl: "",
@@ -92,25 +93,42 @@ export const useMediaStore = create((set) => ({
 
     // Upload directly to Cloudinary (for avatar/cover images)
     uploadToCloudinary: async (file, folder) => {
+        const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+        const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
         set({ isUploading: true });
         try {
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'snitch_unsigned');
+            formData.append('upload_preset', uploadPreset);
             formData.append('folder', `snitch/${folder}`);
             
-            const response = await fetch(
-                `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/auto/upload`,
-                { method: 'POST', body: formData }
+            const response = await axios.post(
+                `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+                formData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                    timeout: 60000,
+                }
             );
             
             const data = await response.json();
             
             if (!response.ok) {
+                console.error('Cloudinary error:', data);
                 throw new Error(data.error?.message || 'Cloudinary upload failed');
             }
-            
-            return { url: data.secure_url, publicId: data.public_id };
+
+            return {
+                url: response.data.secure_url,
+                publicId: response.data.public_id,
+                width: response.data.width,
+                height: response.data.height,
+                format: response.data.format,
+                bytes: response.data.bytes,
+            };
         } catch (error) {
             console.error('Cloudinary upload error:', error);
             toast.error("Failed to upload to Cloudinary");
