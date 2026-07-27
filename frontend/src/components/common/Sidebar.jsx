@@ -1,4 +1,4 @@
-import { BellIcon, HomeIcon, MessageCircleIcon, PlusIcon, SearchIcon, UserIcon, ZapIcon, Menu, X } from "lucide-react";
+import { BellIcon, HomeIcon, MessageCircleIcon, PlusIcon, SearchIcon, UserIcon, ZapIcon, Menu, X, RefreshCw } from "lucide-react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { GiFlowerTwirl } from "react-icons/gi";
 import { SnitchLogoSmall } from "../svgs/snitch.jsx";
@@ -9,6 +9,23 @@ import axiosInstance from "../../lib/axios.js";
 import { toast } from 'sonner'
 import { useChatStore } from "../../store/useChatStore.js";
 
+// Helper to format last sync time
+const formatLastSync = (timestamp) => {
+    if (!timestamp) return null;
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    return `${diffDays}d ago`;
+};
+
 const Sidebar = () => {
     const { logout, authUser, getProfile } = useAuthStore();
     const { selectedConversation } = useChatStore();
@@ -17,8 +34,8 @@ const Sidebar = () => {
     const [framerModule, setFramerModule] = useState(null);
     const location = useLocation();
 
-    // Get total unread messages from chat store
-    const { totalUnread } = useChatStore();
+    // Get total unread messages and last sync time from chat store
+    const { totalUnread, lastSyncTime } = useChatStore();
 
     useEffect(() => {
         getProfile();
@@ -117,8 +134,8 @@ const Sidebar = () => {
                 {/* 🔥 Unread badge - only show on Chat button */}
                 {link.label === "Chat" && totalUnread > 0 && !link.restricted && (
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                    {totalUnread > 99 ? '99+' : totalUnread}
-                </span>
+                        {totalUnread > 99 ? '99+' : totalUnread}
+                    </span>
                 )}
             </NavLink>
         );
@@ -177,13 +194,38 @@ const Sidebar = () => {
                                     <div className="flex-1 overflow-y-auto space-y-1">
                                         {links.map((link) => renderLink(link, true))}
                                     </div>
+
+                                    {/* 🔥 LAST SYNC TIME - MOBILE DRAWER */}
+                                    <div className="mt-auto pt-2 border-t border-base-300/20">
+                                        <div className="flex flex-col items-start gap-0.5 px-1 py-1">
+                                            <div className="flex items-center gap-1.5">
+                                                <RefreshCw className="w-3 h-3 text-base-content/30" />
+                                                <span className="text-[10px] text-base-content/30">
+                                                    {lastSyncTime ? `Updated ${formatLastSync(lastSyncTime)}` : 'Updating...'}
+                                                </span>
+                                            </div>
+                                            <button
+                                                onClick={async () => {
+                                                    const { refreshData } = useChatStore.getState();
+                                                    await refreshData();
+                                                    toast.success('Refreshed!');
+                                                    setMobileMenuOpen(false);
+                                                }}
+                                                className="text-[10px] text-primary/50 hover:text-primary transition-colors"
+                                            >
+                                                ↻ Refresh now
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Logout button */}
                                     <button
                                         onClick={(e) => {
                                             e.preventDefault();
                                             logout();
                                             setMobileMenuOpen(false);
                                         }}
-                                        className="btn btn-ghost w-full justify-start text-error mt-4 rounded-lg"
+                                        className="btn btn-ghost w-full justify-start text-error mt-2 rounded-lg"
                                     >
                                         <BiLogOut className="w-5 h-5 mr-2" />
                                         <span>Logout</span>
@@ -207,10 +249,32 @@ const Sidebar = () => {
                         {links.map((link) => renderLink(link, false))}
                     </div>
 
+                    {/* 🔥 LAST SYNC TIME - DESKTOP SIDEBAR */}
+                    <div className="mt-auto pt-2 border-t border-base-300/20">
+                        <div className="flex flex-col items-center lg:items-start gap-0.5 px-1 py-1">
+                            <div className="flex items-center gap-1.5">
+                                <RefreshCw className="w-3 h-3 text-base-content/30" />
+                                <span className="text-[10px] text-base-content/30 truncate">
+                                    {lastSyncTime ? `Updated ${formatLastSync(lastSyncTime)}` : 'Updating...'}
+                                </span>
+                            </div>
+                            <button
+                                onClick={async () => {
+                                    const { refreshData } = useChatStore.getState();
+                                    await refreshData();
+                                    toast.success('Refreshed!');
+                                }}
+                                className="text-[10px] text-primary/50 hover:text-primary transition-colors"
+                            >
+                                ↻ Refresh now
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Profile & Logout */}
                     <Link
                         to={`/profile/${authUser?.username}`}
-                        className="mt-auto mb-4 flex items-center justify-center lg:justify-start gap-2 transition-all duration-300 hover:bg-primary/60 py-2 px-2 lg:px-4 rounded-lg"
+                        className="mt-2 mb-4 flex items-center justify-center lg:justify-start gap-2 transition-all duration-300 hover:bg-primary/60 py-2 px-2 lg:px-4 rounded-lg"
                     >
                         <div className="avatar">
                             <div className="w-8 rounded-full">

@@ -234,3 +234,57 @@ async function syncMessages() {
     }
 
 }
+
+// ==================== Periodic Background Sync ====================
+
+// Register periodic sync when the app is installed
+self.addEventListener('install', (event) => {
+    event.waitUntil(
+        self.skipWaiting()
+    );
+});
+
+// Activate and register periodic sync
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        (async () => {
+            await self.clients.claim();
+            // Register periodic sync if supported
+            if ('periodicSync' in registration) {
+                try {
+                    const status = await navigator.permissions.query({
+                        name: 'periodic-background-sync',
+                    });
+                    if (status.state === 'granted') {
+                        await registration.periodicSync.register('fetch-updates', {
+                            minInterval: 12 * 60 * 60 * 1000,
+                        });
+                        console.log('[SW] Periodic sync registered');
+                    }
+                } catch (error) {
+                    console.warn('[SW] Periodic sync not supported:', error);
+                }
+            }
+        })()
+    );
+});
+
+// Handle periodic sync events
+self.addEventListener('periodicsync', (event) => {
+    if (event.tag === 'fetch-updates') {
+        event.waitUntil(fetchUpdates());
+    }
+});
+
+async function fetchUpdates() {
+    console.log('[SW] Periodic sync triggered – fetching updates...');
+
+    // Notify all open clients to refresh data
+    const clients = await self.clients.matchAll({ type: 'window' });
+    for (const client of clients) {
+        client.postMessage({
+            type: 'PERIODIC_SYNC',
+            payload: { timestamp: Date.now() }
+        });
+    }
+}

@@ -31,6 +31,7 @@ const VerifyVerificationCodePage = lazy(() =>
 );
 const PostPage = lazy(() => import("./pages/post/PostPage.jsx"));
 const SharePage = lazy(() => import("./pages/share/SharePage.jsx"));
+import PeriodicSyncPrompt from './components/common/PeriodicSyncPrompt.jsx';
 import { useAppTheme } from "./hooks/useAppTheme.js";
 
 function App () {
@@ -74,6 +75,52 @@ function App () {
         };
     }, []);
 
+    useEffect(() => {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', async (event) => {
+                if (event.data?.type === 'PERIODIC_SYNC') {
+                    console.log('[App] Periodic sync received – refreshing data...');
+                    await useChatStore.getState().refreshData();
+                    await useUserStore.getState().refreshData();
+                }
+            });
+        }
+    }, []);
+
+    useEffect(() => {
+        const requestPeriodicSync = async () => {
+            if ('periodicSync' in navigator && 'permissions' in navigator) {
+                try {
+                    // Check permission state
+                    const status = await navigator.permissions.query({
+                        name: 'periodic-background-sync',
+                    });
+
+                    if (status.state === 'granted') {
+                        console.log('[App] Periodic sync permission granted.');
+                        // Actually register the sync (this needs to be done in the service worker)
+                        if ('serviceWorker' in navigator) {
+                            const registration = await navigator.serviceWorker.ready;
+                            if (registration.periodicSync) {
+                                await registration.periodicSync.register('fetch-updates', {
+                                    minInterval: 12 * 60 * 60 * 1000, // 12 hours
+                                });
+                                console.log('[App] Periodic sync registered!');
+                            }
+                        }
+                    } else if (status.state === 'prompt') {
+                        console.log('[App] Periodic sync permission needs user consent.');
+                        // Show the PeriodicSyncPrompt component (already handled in App.jsx)
+                    } else {
+                        console.log('[App] Periodic sync permission denied.');
+                    }
+                } catch (error) {
+                    console.warn('[App] Periodic sync not supported:', error);
+                }
+            }
+        };
+        requestPeriodicSync();
+    }, []);
     useEffect(() => {
         checkAuthentication();
     }, [checkAuthentication]);
@@ -121,6 +168,7 @@ function App () {
             </Suspense>
 
             <CallModal />
+            <PeriodicSyncPrompt />
             <InstallPrompt />
             <Toaster position="top-right" richColors />
             <Analytics />

@@ -1,7 +1,6 @@
 import {create} from "zustand";
 import axiosInstance  from "../lib/axios.js";
 import { toast } from 'sonner'
-import {useAuthStore} from "./useAuthStore.js";
 
 export const useUserStore = create((set, get) => ({
     searchResults: {
@@ -75,6 +74,16 @@ export const useUserStore = create((set, get) => ({
         posts: false,
         hashtags: false
     },
+    SyncNotifications: [],
+
+    setNotifications: (newNotifications) => {
+        set((state) => ({
+            SyncNotifications: [...newNotifications, ...state.SyncNotifications.filter(
+                n => !newNotifications.some(nn => nn._id === n._id)
+            )].slice(0, 50), // Keep last 50
+        }));
+    },
+
 
     getSuggestedUsers: async () => {
         set({ isGettingSuggestedUsers: true });

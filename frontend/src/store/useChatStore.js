@@ -7,6 +7,7 @@ import {
     clearAllPendingMessages
 } from '../hooks/offlineQueue.js';
 import { useAuthStore } from "./useAuthStore.js";
+import { useUserStore } from "./useUserStore.js";
 import { toast } from 'sonner'
 import axiosInstance from "../lib/axios.js";
 import axios from "../lib/axios.js";
@@ -48,6 +49,7 @@ export const useChatStore = create((set, get) => ({
     typingUsers: [],
     unreadCounts: loadUnreadCounts(),
     totalUnread: calculateTotal(loadUnreadCounts()),
+    lastSyncTime: null,
 
     // ==================== Unread Count Actions with Persistence ====================
 
@@ -282,6 +284,39 @@ export const useChatStore = create((set, get) => ({
             }
         } catch (error) {
             console.error('[Offline] Sync error:', error);
+        }
+    },
+
+    setLastSyncTime: (timestamp) => {
+        set({ lastSyncTime: timestamp });
+    },
+
+    refreshData: async () => {
+        try {
+            const token = localStorage.getItem('access-token');
+            const since = get().lastSyncTime || Date.now() - 24 * 60 * 60 * 1000;
+            const res = await axiosInstance.get('/sync/updates', {
+                headers: { Authorization: `Bearer ${token}` },
+                params: { since }
+            });
+
+            // Update unread count
+            const totalUnread = res.data.unreadCount || 0;
+            // Optionally merge new posts into the feed
+            // Optionally add new notifications
+
+            // Set last sync timestamp
+            get().setLastSyncTime(res.data.timestamp || Date.now());
+
+            // If there are new notifications, update the user store
+            if (res.data.newNotifications?.length) {
+                const { setNotifications } = useUserStore.getState();
+                if (setNotifications) {
+                    setNotifications(res.data.newNotifications);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to refresh data:', error);
         }
     },
 
