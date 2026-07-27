@@ -48,6 +48,7 @@ export const useChatStore = create((set, get) => ({
     onlineUsers: [],
     typingUsers: [],
     unreadCounts: loadUnreadCounts(),
+    uploadingFiles: new Set(), // Track currently uploading files to prevent duplicates
     totalUnread: calculateTotal(loadUnreadCounts()),
     lastSyncTime: null,
     isSyncing: false,
@@ -476,6 +477,19 @@ export const useChatStore = create((set, get) => ({
     // Upload chat media to MinIO or Cloudinary
     uploadChatMedia: async ({ file, conversationId, mediaType }) => {
         try {
+            // Generate a unique identifier for the file (name + size + last modified)
+            const fileIdentifier = `${file.name}-${file.size}-${file.lastModified}`;
+            
+            // Check if this file is already being uploaded
+            const { uploadingFiles } = get();
+            if (uploadingFiles.has(fileIdentifier)) {
+                console.log('File already uploading, skipping duplicate:', file.name);
+                return null;
+            }
+            
+            // Add to uploading set
+            set({ uploadingFiles: new Set([...uploadingFiles, fileIdentifier]) });
+            
             const useCloudinary = import.meta.env.VITE_USE_CLOUDINARY === 'true';
             
             if (useCloudinary) {
@@ -496,6 +510,9 @@ export const useChatStore = create((set, get) => ({
                     throw new Error(data.error?.message || 'Cloudinary upload failed');
                 }
                 
+                // Remove from uploading set
+                set({ uploadingFiles: new Set([...get().uploadingFiles].filter(id => id !== fileIdentifier)) });
+                
                 return { url: data.secure_url, key: data.public_id };
             } else {
                 // Use existing S3/MinIO upload logic
@@ -515,10 +532,16 @@ export const useChatStore = create((set, get) => ({
                     body: file,
                 });
 
+                // Remove from uploading set
+                set({ uploadingFiles: new Set([...get().uploadingFiles].filter(id => id !== fileIdentifier)) });
+
                 return { url: presignRes.data.publicUrl, key: presignRes.data.key };
             }
         } catch (error) {
             console.error('uploadChatMedia error:', error);
+            // Remove from uploading set on error
+            const fileIdentifier = `${file.name}-${file.size}-${file.lastModified}`;
+            set({ uploadingFiles: new Set([...get().uploadingFiles].filter(id => id !== fileIdentifier)) });
             throw error;
         }
     },

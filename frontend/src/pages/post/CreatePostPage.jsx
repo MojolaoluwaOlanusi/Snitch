@@ -396,7 +396,10 @@ function CreatePostPage() {
                 );
                 toast.success("Post scheduled successfully!");
             } else {
-                await createPost(payload);
+                const result = await createPost(payload);
+                if (!result) {
+                    throw new Error('Failed to create post');
+                }
                 toast.success("Post created!");
             }
 
@@ -407,7 +410,7 @@ function CreatePostPage() {
             setScheduledAt("");
             localStorage.removeItem(AUTO_SAVE_KEY);
         } catch (err) {
-            const message = err?.response?.data?.message || "Failed to create post";
+            const message = err?.response?.data?.message || err?.message || "Failed to create post";
             toast.error(message);
             console.error("Create post failed", err);
         } finally {

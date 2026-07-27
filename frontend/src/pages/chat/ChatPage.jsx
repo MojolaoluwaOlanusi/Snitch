@@ -1507,7 +1507,11 @@ const ChatPage = () => {
     const startVideoNote = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: isFrontCamera ? 'user' : 'environment' },
+                video: { 
+                    facingMode: isFrontCamera ? 'user' : 'environment',
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                },
                 audio: true,
             });
             setVideoNoteStream(stream);
@@ -1534,7 +1538,19 @@ const ChatPage = () => {
             mr.start();
             videoNoteRecorderRef.current = mr;
         } catch (error) {
-            toast.error('Camera access denied');
+            console.error('Camera access error:', error);
+            if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                toast.error('Camera access was denied. Please allow camera access in your browser settings.');
+            } else if (error.name === 'NotFoundError') {
+                toast.error('No camera found. Please connect a camera and try again.');
+            } else if (error.name === 'NotReadableError') {
+                toast.error('Camera is already in use by another application.');
+            } else if (error.name === 'OverconstrainedError') {
+                toast.error('Camera does not support the requested constraints.');
+            } else {
+                toast.error('Camera unavailable. Please check your permissions and try again.');
+            }
+            setShowHexagonRecordModal(false);
         }
     };
 
@@ -3116,10 +3132,21 @@ useEffect(() => {
                                     className={`mb-1 ${message.isVoiceMessage ? '' : 'max-w-[240px] cursor-pointer'}`}
                                     onClick={() => { if (!message.isVoiceMessage) setShowMediaViewer(m); }}
                                 >
-                                    {m.mime?.startsWith('image/') ? <img src={m.url} alt="" className="rounded-lg w-full" loading="lazy" /> :
-                                        m.mime?.startsWith('video/') ? (message.isVoiceMessage ?
+                                    {m.mime?.startsWith('image/') ? (
+                                        <div className="relative w-full aspect-square bg-base-200 rounded-lg overflow-hidden">
+                                            <img 
+                                                src={m.url} 
+                                                alt="" 
+                                                className="w-full h-full object-cover" 
+                                                loading="lazy" 
+                                                decoding="async"
+                                            />
+                                        </div>
+                                    ) : m.mime?.startsWith('video/') ? (message.isVoiceMessage ?
                                                 <div className="w-40 h-40 rounded-full overflow-hidden relative"><video src={m.url} className="w-full h-full object-cover" /><div className="absolute inset-0 flex items-center justify-center"><Play className="w-8 h-8 text-primary-content drop-shadow-lg" /></div></div> :
-                                                <video src={m.url} className="rounded-lg w-full" />) :
+                                                <div className="relative w-full aspect-video bg-base-200 rounded-lg overflow-hidden">
+                                                    <video src={m.url} className="w-full h-full object-cover" />
+                                                </div>) :
                                             m.mime?.startsWith('audio/') && !message.isVoiceMessage ? renderAudioFilePlayer(message, m) :
                                                 <div className="flex items-center gap-2 bg-base-100/20 p-2 rounded">
                                                     <FileText className="w-6 h-6" />

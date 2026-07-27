@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { useAuthStore } from "@/store/useAuthStore.js";
 import { MdAddReaction, MdReportProblem } from "react-icons/md";
 import { IoClose } from "react-icons/io5";
-import { Hash, MoreHorizontal } from "lucide-react";
+import { Hash, MoreHorizontal, Edit } from "lucide-react";
 import EditPostModal from "../../components/common/EditPostModal.jsx";
 import ReactionEmojiPicker from "./ReactionEmojiPicker.tsx";
 import ReactionsDisplay from "./ReactionsDisplay.jsx";
@@ -215,20 +215,45 @@ const FollowingPostItem = ({ post, authUserId }) => {
                   {!(editingPostId === post?._id) && !(deletingPostId === post?._id) && !(reportingPostId === post?._id) && <MoreHorizontal className="h-5 w-5" />}
               </button>
               <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
-                <li>
-                  {post?.author?._id === authUserId && (
-                      <button className="text-gray-500" onClick={(e) => { e.preventDefault(); deletePost(post?._id); }}>
-                          <div className="flex flex-row group w-40 justify-between">
-                              <p className="group-hover:text-red-500">Delete post</p>
-                              {!(deletingPostId === post?._id) && <FaTrash className="cursor-pointer group-hover:text-red-500" />}
-                          </div>
-                      </button>
-                  )}
-                    {post?.author?._id === authUserId && !useUserStore.getState().isEditing && <EditPostModal post={post} />}
-                    <button className="text-gray-500" onClick={() => { setShowReportModal(post._id) }}>
-                    Report Post
-                  </button>
-                </li>
+                {post?.author?._id === authUserId ? (
+                    <>
+                        <li>
+                            <button className="text-gray-500" onClick={(e) => { 
+                                e.preventDefault(); 
+                                deletePost(post?._id); 
+                            }}>
+                                <div className="flex flex-row group w-40 justify-between">
+                                    <p className="group-hover:text-red-500">Delete post</p>
+                                    {!(deletingPostId === post?._id) && <FaTrash className="cursor-pointer group-hover:text-red-500" />}
+                                </div>
+                            </button>
+                        </li>
+                        <li>
+                            <button className="text-gray-500" onClick={() => {
+                                const { setEditingPostId } = useUserStore.getState();
+                                setEditingPostId(post._id);
+                            }}>
+                                <div className="flex flex-row group w-40 justify-between">
+                                    <p className="group-hover:text-primary">Edit post</p>
+                                    <Edit className="cursor-pointer group-hover:text-primary" />
+                                </div>
+                            </button>
+                        </li>
+                    </>
+                ) : (
+                    <li>
+                        <button className="text-gray-500" onClick={() => { setShowReportModal(post._id) }}>
+                            Report Post
+                        </button>
+                    </li>
+                )}
+                {post?.author?._id !== authUserId && (
+                    <li>
+                        <button className="text-gray-500" onClick={() => { setShowReportModal(post._id) }}>
+                            Report Post
+                        </button>
+                    </li>
+                )}
               </ul>
             </div>
           </span>

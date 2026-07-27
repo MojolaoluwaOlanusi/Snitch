@@ -72,48 +72,68 @@ const ProfilePage = () => {
     const uploadCoverImg = async (data) => {
         const useCloudinary = import.meta.env.VITE_USE_CLOUDINARY === 'true';
         
-        if (useCloudinary) {
-            // Use Cloudinary direct upload
-            const file = data.file;
-            const { uploadToCloudinary } = useMediaStore.getState();
-            const result = await uploadToCloudinary(file, 'CoverImages');
-            await updateProfile({ coverImg: result.url });
-            setTimeout(() => getUserProfile(username), 3000);
-        } else {
-            // Use existing S3/MinIO upload logic
-            const token = localStorage.getItem("access-token");
-            const res = await axiosInstance.post("/media/upload-url", data, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const coverImgUrl = res.data.publicUrl;
-            const uploadUrl = res.data.uploadUrl;
-            localStorage.setItem("uploadUrl", uploadUrl);
-            await updateProfile({ coverImg: coverImgUrl });
-            setTimeout(() => getUserProfile(username), 3000);
+        try {
+            if (useCloudinary) {
+                // Use Cloudinary direct upload
+                const file = data.file;
+                const { uploadToCloudinary } = useMediaStore.getState();
+                const result = await uploadToCloudinary(file, 'CoverImages');
+                await updateProfile({ coverImg: result.url });
+                toast.success('Cover image updated successfully');
+            } else {
+                // Use existing S3/MinIO upload logic
+                const token = localStorage.getItem("access-token");
+                const res = await axiosInstance.post("/media/upload-url", data, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const coverImgUrl = res.data.publicUrl;
+                const uploadUrl = res.data.uploadUrl;
+                localStorage.setItem("uploadUrl", uploadUrl);
+                await uploadMedia(file);
+                await updateProfile({ coverImg: coverImgUrl });
+                toast.success('Cover image updated successfully');
+            }
+            // Refresh both auth user and profile user
+            await getUserProfile(username);
+            const { getProfile } = useAuthStore();
+            await getProfile();
+        } catch (error) {
+            console.error('Error uploading cover image:', error);
+            toast.error('Failed to upload cover image');
         }
     };
 
     const uploadAvatarImg = async (data) => {
         const useCloudinary = import.meta.env.VITE_USE_CLOUDINARY === 'true';
         
-        if (useCloudinary) {
-            // Use Cloudinary direct upload
-            const file = data.file;
-            const { uploadToCloudinary } = useMediaStore.getState();
-            const result = await uploadToCloudinary(file, 'Avatars');
-            await updateProfile({ avatarUrl: result.url });
-            setTimeout(() => getUserProfile(username), 3000);
-        } else {
-            // Use existing S3/MinIO upload logic
-            const token = localStorage.getItem("access-token");
-            const res = await axiosInstance.post("/media/upload-url", data, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const avatarUrl = res.data.publicUrl;
-            const uploadUrl = res.data.uploadUrl;
-            localStorage.setItem("uploadUrl", uploadUrl);
-            await updateProfile({ avatarUrl: avatarUrl });
-            setTimeout(() => getUserProfile(username), 3000);
+        try {
+            if (useCloudinary) {
+                // Use Cloudinary direct upload
+                const file = data.file;
+                const { uploadToCloudinary } = useMediaStore.getState();
+                const result = await uploadToCloudinary(file, 'Avatars');
+                await updateProfile({ avatarUrl: result.url });
+                toast.success('Avatar updated successfully');
+            } else {
+                // Use existing S3/MinIO upload logic
+                const token = localStorage.getItem("access-token");
+                const res = await axiosInstance.post("/media/upload-url", data, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const avatarUrl = res.data.publicUrl;
+                const uploadUrl = res.data.uploadUrl;
+                localStorage.setItem("uploadUrl", uploadUrl);
+                await uploadMedia(file);
+                await updateProfile({ avatarUrl: avatarUrl });
+                toast.success('Avatar updated successfully');
+            }
+            // Refresh both auth user and profile user
+            await getUserProfile(username);
+            const { getProfile } = useAuthStore();
+            await getProfile();
+        } catch (error) {
+            console.error('Error uploading avatar:', error);
+            toast.error('Failed to upload avatar');
         }
     };
 
