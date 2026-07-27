@@ -5,7 +5,7 @@ import {
     removePendingMessage,
     updatePendingMessageStatus,
     clearAllPendingMessages
-} from '../utils/offlineQueue.js';
+} from '../hooks/offlineQueue.js';
 import { useAuthStore } from "./useAuthStore.js";
 import { toast } from 'sonner'
 import axiosInstance from "../lib/axios.js";
