@@ -70,38 +70,73 @@ const ProfilePage = () => {
     };
 
     const uploadCoverImg = async (data) => {
-        const token = localStorage.getItem("access-token");
-        const res = await axiosInstance.post("/media/upload-url", data, {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        const coverImgUrl = res.data.publicUrl;
-        const uploadUrl = res.data.uploadUrl;
-        localStorage.setItem("uploadUrl", uploadUrl);
-        await updateProfile({ coverImg: coverImgUrl });
-        setTimeout(() => getUserProfile(username), 3000);
+        const useCloudinary = import.meta.env.VITE_USE_CLOUDINARY === 'true';
+        
+        if (useCloudinary) {
+            // Use Cloudinary direct upload
+            const file = data.file;
+            const { uploadToCloudinary } = useMediaStore.getState();
+            const result = await uploadToCloudinary(file, 'CoverImages');
+            await updateProfile({ coverImg: result.url });
+            setTimeout(() => getUserProfile(username), 3000);
+        } else {
+            // Use existing S3/MinIO upload logic
+            const token = localStorage.getItem("access-token");
+            const res = await axiosInstance.post("/media/upload-url", data, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const coverImgUrl = res.data.publicUrl;
+            const uploadUrl = res.data.uploadUrl;
+            localStorage.setItem("uploadUrl", uploadUrl);
+            await updateProfile({ coverImg: coverImgUrl });
+            setTimeout(() => getUserProfile(username), 3000);
+        }
     };
 
     const uploadAvatarImg = async (data) => {
-        const token = localStorage.getItem("access-token");
-        const res = await axiosInstance.post("/media/upload-url", data, {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        const avatarUrl = res.data.publicUrl;
-        const uploadUrl = res.data.uploadUrl;
-        localStorage.setItem("uploadUrl", uploadUrl);
-        await updateProfile({ avatarUrl: avatarUrl });
-        setTimeout(() => getUserProfile(username), 3000);
+        const useCloudinary = import.meta.env.VITE_USE_CLOUDINARY === 'true';
+        
+        if (useCloudinary) {
+            // Use Cloudinary direct upload
+            const file = data.file;
+            const { uploadToCloudinary } = useMediaStore.getState();
+            const result = await uploadToCloudinary(file, 'Avatars');
+            await updateProfile({ avatarUrl: result.url });
+            setTimeout(() => getUserProfile(username), 3000);
+        } else {
+            // Use existing S3/MinIO upload logic
+            const token = localStorage.getItem("access-token");
+            const res = await axiosInstance.post("/media/upload-url", data, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const avatarUrl = res.data.publicUrl;
+            const uploadUrl = res.data.uploadUrl;
+            localStorage.setItem("uploadUrl", uploadUrl);
+            await updateProfile({ avatarUrl: avatarUrl });
+            setTimeout(() => getUserProfile(username), 3000);
+        }
     };
 
     const handleImgChange = async (e, state) => {
         const file = e.target.files[0];
         if (!file) return;
+        
+        const useCloudinary = import.meta.env.VITE_USE_CLOUDINARY === 'true';
+        
         if (state === "coverImg") {
-            await uploadCoverImg(coverImgUploadUrlData);
-            await uploadMedia(file);
+            if (useCloudinary) {
+                await uploadCoverImg({ file, ...coverImgUploadUrlData });
+            } else {
+                await uploadCoverImg(coverImgUploadUrlData);
+                await uploadMedia(file);
+            }
         } else if (state === "avatarImg") {
-            await uploadAvatarImg(avatarImgUploadUrlData);
-            await uploadMedia(file);
+            if (useCloudinary) {
+                await uploadAvatarImg({ file, ...avatarImgUploadUrlData });
+            } else {
+                await uploadAvatarImg(avatarImgUploadUrlData);
+                await uploadMedia(file);
+            }
         }
     };
 

@@ -9,7 +9,8 @@
     "test:redis-reload": "tsx ./test/redis-reload.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "start:worker": "node dist/worker/processor.js"
+    "start:worker": "node dist/worker/processor.js",
+    "migrate-to-cloudinary": "ts-node src/scripts/migrate-to-cloudinary.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",

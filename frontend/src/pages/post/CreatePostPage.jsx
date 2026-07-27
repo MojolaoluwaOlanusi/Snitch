@@ -335,15 +335,41 @@ function CreatePostPage() {
                 const folder = file.type.startsWith("image") ? "Images"
                     : file.type.startsWith("video") ? "Videos"
                         : "Audio";
-                const token = localStorage.getItem("access-token");
-                const res = await axiosInstance.post("/media/upload-url",
-                    { contentType, folder },
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
-                const publicUrl = res.data.publicUrl;
-                const uploadUrl = res.data.uploadUrl;
-                await axiosInstance.put(uploadUrl, file, { headers: { "Content-Type": contentType } });
-                mediaUrl = publicUrl;
+                
+                const useCloudinary = import.meta.env.VITE_USE_CLOUDINARY === 'true';
+                
+                if (useCloudinary) {
+                    // Use Cloudinary direct upload with unsigned preset
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'snitch_unsigned');
+                    formData.append('folder', `snitch/posts/${folder}`);
+                    
+                    const response = await fetch(
+                        `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/auto/upload`,
+                        { method: 'POST', body: formData }
+                    );
+                    
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.error?.message || 'Cloudinary upload failed');
+                    }
+                    
+                    mediaUrl = data.secure_url;
+                } else {
+                    // Use existing S3/MinIO upload logic
+                    const token = localStorage.getItem("access-token");
+                    const res = await axiosInstance.post("/media/upload-url",
+                        { contentType, folder },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                    const publicUrl = res.data.publicUrl;
+                    const uploadUrl = res.data.uploadUrl;
+                    await axiosInstance.put(uploadUrl, file, { headers: { "Content-Type": contentType } });
+                    mediaUrl = publicUrl;
+                }
+                
                 mediaType = file.type.startsWith("image") ? "Image"
                     : file.type.startsWith("video") ? "Video"
                         : "Audio";

@@ -1,9 +1,7 @@
 import express, { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
-import s3 from '../config/s3Client.js';
+import { StorageFactory } from '../services/storage.factory.js';
 
 const router = express.Router();
 
@@ -27,20 +25,21 @@ router.post('/upload-url', async (req: Request, res: Response) => {
     const { contentType, folder } = req.body;
     if (!contentType) return res.status(400).json({ error: 'missing contentType' });
 
+    const storageService = StorageFactory.getStorageService();
     const id = randomUUID();
     const ext = (contentType || 'bin').split('/').pop();
-    const key = `${folder || 'uploads'}/${Date.now()}-${id}.${ext}`;
-    const bucket = process.env.S3_BUCKET || 'snitch-dev';
-
-    const cmd = new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType });
+    const key = `${Date.now()}-${id}.${ext}`;
 
     try {
-        const uploadUrl = await getSignedUrl(s3, cmd, { expiresIn: 300 });
-        const baseUrl = process.env.S3_ENDPOINT
-            ? `${process.env.S3_ENDPOINT.replace(/\/$/, '')}/${bucket}`
-            : `https://${bucket}.s3.amazonaws.com`;
+        const result = await storageService.generatePresignedUrl(key, contentType, {
+            folder: folder || 'uploads',
+        });
 
-        res.json({ uploadUrl, key, publicUrl: `${baseUrl}/${key}` });
+        if (!result.ok) {
+            return res.status(500).json({ error: result.message });
+        }
+
+        res.json({ uploadUrl: result.uploadUrl, key: result.key, publicUrl: result.publicUrl });
     } catch (e: any) {
         res.status(500).json({ error: e.message });
     }
@@ -50,8 +49,8 @@ router.post('/upload-url', async (req: Request, res: Response) => {
 router.post('/presign', authMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
-        const { key: clientKey, contentType, expiresInSeconds, bucket: bucketIn } = req.body;
-        const bucket = bucketIn || process.env.S3_BUCKET || 'snitch-dev';
+        const { key: clientKey, contentType, expiresInSeconds } = req.body;
+        const storageService = StorageFactory.getStorageService();
 
         // basic validation
         if (!contentType) return res.status(400).json({ ok: false, error: 'missing_content_type' });
@@ -71,12 +70,16 @@ router.post('/presign', authMiddleware, async (req: Request, res: Response) => {
 
         const expires = Math.min(Math.max(Number(expiresInSeconds) || 600, 30), 60 * 60 * 24);
 
-        const cmd = new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType });
-        const url = await getSignedUrl(s3, cmd, { expiresIn: expires });
+        const result = await storageService.generatePresignedUrl(key, contentType, {
+            folder: 'messages',
+            expiresInSeconds: expires,
+        });
 
-        const baseUrl = process.env.S3_ENDPOINT ? `${process.env.S3_ENDPOINT.replace(/\/$/, '')}/${bucket}` : `https://${bucket}.s3.amazonaws.com`;
+        if (!result.ok) {
+            return res.status(500).json({ ok: false, error: result.message });
+        }
 
-        res.json({ ok: true, url, bucket, key, publicUrl: `${baseUrl}/${key}`, expiresInSeconds: expires });
+        res.json({ ok: true, url: result.uploadUrl, key: result.key, publicUrl: result.publicUrl, expiresInSeconds: expires });
     } catch (err: any) {
         console.error('presign error', err);
         res.status(500).json({ ok: false, error: err?.message || 'presign_error' });
@@ -88,7 +91,7 @@ router.post('/chat-presign', authMiddleware, async (req: Request, res: Response)
     try {
         const userId = req.userId;
         const { conversationId, fileName, contentType, mediaType } = req.body;
-        const bucket = process.env.S3_BUCKET || 'snitch-dev';
+        const storageService = StorageFactory.getStorageService();
 
         if (!contentType || !conversationId || !mediaType) {
             return res.status(400).json({ ok: false, error: 'missing required fields' });
@@ -98,20 +101,22 @@ router.post('/chat-presign', authMiddleware, async (req: Request, res: Response)
         const dateFolder = new Date().toISOString().split('T')[0]; // "2024-01-15"
         const ext = fileName ? fileName.split('.').pop() : contentType.split('/').pop();
         const uniqueName = `${Date.now()}-${randomUUID()}.${ext}`;
-        const key = `messages/${conversationId}/${mediaType}/${dateFolder}/${uniqueName}`;
+        const key = `${conversationId}/${mediaType}/${dateFolder}/${uniqueName}`;
 
-        const cmd = new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType });
-        const url = await getSignedUrl(s3, cmd, { expiresIn: 300 });
+        const result = await storageService.generatePresignedUrl(key, contentType, {
+            folder: 'messages',
+            resourceType: mediaType === 'video' ? 'video' : mediaType === 'audio' ? 'raw' : 'image',
+        });
 
-        const baseUrl = process.env.S3_ENDPOINT
-            ? `${process.env.S3_ENDPOINT.replace(/\/$/, '')}/${bucket}`
-            : `https://${bucket}.s3.amazonaws.com`;
+        if (!result.ok) {
+            return res.status(500).json({ ok: false, error: result.message });
+        }
 
         res.json({
             ok: true,
-            uploadUrl: url,
-            key,
-            publicUrl: `${baseUrl}/${key}`,
+            uploadUrl: result.uploadUrl,
+            key: result.key,
+            publicUrl: result.publicUrl,
         });
     } catch (err: any) {
         console.error('chat-presign error', err);
@@ -124,6 +129,8 @@ router.post('/wallpaper-presign', authMiddleware, async (req: Request, res: Resp
     try {
         const userId = req.userId;
         const { conversationId, fileName, contentType } = req.body;
+        const storageService = StorageFactory.getStorageService();
+
         if (!contentType || !conversationId) {
             return res.status(400).json({ ok: false, error: 'missing required fields' });
         }
@@ -133,23 +140,24 @@ router.post('/wallpaper-presign', authMiddleware, async (req: Request, res: Resp
             return res.status(400).json({ ok: false, error: 'invalid content type, only images allowed' });
         }
 
-        const bucket = process.env.S3_BUCKET || 'snitch-dev';
         const ext = fileName ? fileName.split('.').pop() : contentType.split('/').pop();
         const uniqueName = `${Date.now()}-${randomUUID()}.${ext}`;
         const key = `wallpapers/${conversationId}/${uniqueName}`;
 
-        const cmd = new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType });
-        const url = await getSignedUrl(s3, cmd, { expiresIn: 300 });
+        const result = await storageService.generatePresignedUrl(key, contentType, {
+            folder: 'wallpapers',
+            resourceType: 'image',
+        });
 
-        const baseUrl = process.env.S3_ENDPOINT
-            ? `${process.env.S3_ENDPOINT.replace(/\/$/, '')}/${bucket}`
-            : `https://${bucket}.s3.amazonaws.com`;
+        if (!result.ok) {
+            return res.status(500).json({ ok: false, error: result.message });
+        }
 
         res.json({
             ok: true,
-            uploadUrl: url,
-            key,
-            publicUrl: `${baseUrl}/${key}`,
+            uploadUrl: result.uploadUrl,
+            key: result.key,
+            publicUrl: result.publicUrl,
         });
     } catch (err: any) {
         console.error('wallpaper-presign error', err);

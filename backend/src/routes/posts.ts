@@ -5,8 +5,7 @@ import Notification from '../models/Notification.js'
 import {User} from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import mongoose from "mongoose";
-import { DeleteObjectCommand } from '@aws-sdk/client-s3';
-import s3 from '../config/s3Client.js';
+import { StorageFactory } from '../services/storage.factory.js';
 
 const router = express.Router();
 
@@ -485,43 +484,65 @@ router.delete('/delete/:id', async (req: Request, res: Response) => {
         const post = await Post.findById(id);
         if (post && post.url) {
             try {
-                const bucket = process.env.S3_BUCKET || 'snitch-dev';
-                const s3Endpoint = process.env.S3_ENDPOINT; // may be undefined
-                let key: string | null = null;
-
-                try {
-                    const urlObj = new URL(post.url);
-                    // Case 1: custom S3 endpoint like https://s3.example.com/<bucket>/<key>
-                    if (s3Endpoint) {
-                        const base = `${s3Endpoint.replace(/\/$/, '')}/${bucket}`;
-                        if (post.url.startsWith(base)) {
-                            key = post.url.substring(base.length + 1);
+                const storageService = StorageFactory.getStorageService();
+                
+                // Extract the public ID/key from the URL
+                // For Cloudinary: public_id is in the URL path
+                // For S3: key is the path after bucket name
+                let publicId: string | null = null;
+                
+                if (StorageFactory.isCloudinaryEnabled()) {
+                    // Cloudinary URL format: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/folder/public_id.ext
+                    try {
+                        const urlObj = new URL(post.url);
+                        const pathParts = urlObj.pathname.split('/');
+                        // Find the index of 'upload' or 'video' or 'raw'
+                        const uploadIndex = pathParts.findIndex(part => ['upload', 'video', 'raw'].includes(part));
+                        if (uploadIndex !== -1 && uploadIndex < pathParts.length - 1) {
+                            // Skip the version number (v1234567890)
+                            const startIndex = uploadIndex + 2;
+                            publicId = pathParts.slice(startIndex).join('/').replace(/\.[^/.]+$/, ''); // Remove extension
                         }
-                    } else {
-                        // Case 2: aws-style https://<bucket>.s3.amazonaws.com/<key>
-                        const host = urlObj.host; // e.g., bucket.s3.amazonaws.com
-                        if (host.endsWith('.s3.amazonaws.com')) {
-                            // pathname starts with /
-                            key = urlObj.pathname.replace(/^\//, '');
-                        }
+                    } catch (parseErr) {
+                        console.log('Could not derive Cloudinary public_id from post.url:', post.url);
                     }
-                } catch (parseErr) {
-                    // fallback: try to extract after bucket/ in the string
-                    if (post.url.includes(`/${bucket}/`)) {
-                        key = post.url.split(`/${bucket}/`)[1];
-                    }
-                }
-
-                if (key) {
-                    // attempt deletion from S3/Minio
-                    const delCmd = new DeleteObjectCommand({ Bucket: bucket, Key: key });
-                    await s3.send(delCmd);
-                    console.log('Deleted media from S3', key);
                 } else {
-                    console.log('Could not derive S3 key from post.url, skipping media delete:', post.url);
+                    // S3 URL extraction
+                    const bucket = process.env.S3_BUCKET || 'snitch-dev';
+                    const s3Endpoint = process.env.S3_ENDPOINT;
+                    
+                    try {
+                        const urlObj = new URL(post.url);
+                        if (s3Endpoint) {
+                            const base = `${s3Endpoint.replace(/\/$/, '')}/${bucket}`;
+                            if (post.url.startsWith(base)) {
+                                publicId = post.url.substring(base.length + 1);
+                            }
+                        } else {
+                            const host = urlObj.host;
+                            if (host.endsWith('.s3.amazonaws.com')) {
+                                publicId = urlObj.pathname.replace(/^\//, '');
+                            }
+                        }
+                    } catch (parseErr) {
+                        if (post.url.includes(`/${bucket}/`)) {
+                            publicId = post.url.split(`/${bucket}/`)[1];
+                        }
+                    }
                 }
-            } catch (s3Err) {
-                console.log('Error deleting media from S3/Minio for post:', id, s3Err);
+
+                if (publicId) {
+                    const deleteResult = await storageService.deleteFile(publicId);
+                    if (deleteResult.ok) {
+                        console.log(`Deleted media from ${StorageFactory.getStorageBackend()}:`, publicId);
+                    } else {
+                        console.log('Error deleting media:', deleteResult.message);
+                    }
+                } else {
+                    console.log('Could not derive public ID from post.url, skipping media delete:', post.url);
+                }
+            } catch (storageErr) {
+                console.log('Error deleting media for post:', id, storageErr);
                 // continue to delete the DB record even if media deletion failed
             }
         }

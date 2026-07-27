@@ -473,26 +473,50 @@ export const useChatStore = create((set, get) => ({
         });
     },
 
-    // Upload chat media to MinIO
+    // Upload chat media to MinIO or Cloudinary
     uploadChatMedia: async ({ file, conversationId, mediaType }) => {
         try {
-            const token = localStorage.getItem('access-token');
-            const presignRes = await axiosInstance.post('/media/chat-presign', {
-                conversationId,
-                fileName: file.name || 'sticker.png',
-                contentType: file.type || 'image/png',
-                mediaType: mediaType || 'stickers',   // 👈 use 'stickers' folder
-            }, { headers: { Authorization: `Bearer ${token}` } });
+            const useCloudinary = import.meta.env.VITE_USE_CLOUDINARY === 'true';
+            
+            if (useCloudinary) {
+                // Use Cloudinary direct upload with unsigned preset
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'snitch_unsigned');
+                formData.append('folder', `snitch/messages/${conversationId}/${mediaType || 'stickers'}`);
+                
+                const response = await fetch(
+                    `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/auto/upload`,
+                    { method: 'POST', body: formData }
+                );
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error?.message || 'Cloudinary upload failed');
+                }
+                
+                return { url: data.secure_url, key: data.public_id };
+            } else {
+                // Use existing S3/MinIO upload logic
+                const token = localStorage.getItem('access-token');
+                const presignRes = await axiosInstance.post('/media/chat-presign', {
+                    conversationId,
+                    fileName: file.name || 'sticker.png',
+                    contentType: file.type || 'image/png',
+                    mediaType: mediaType || 'stickers',
+                }, { headers: { Authorization: `Bearer ${token}` } });
 
-            if (!presignRes.data.ok) throw new Error('Failed to get upload URL');
+                if (!presignRes.data.ok) throw new Error('Failed to get upload URL');
 
-            await fetch(presignRes.data.uploadUrl, {
-                method: 'PUT',
-                headers: { 'Content-Type': file.type || 'image/png' },
-                body: file,
-            });
+                await fetch(presignRes.data.uploadUrl, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': file.type || 'image/png' },
+                    body: file,
+                });
 
-            return { url: presignRes.data.publicUrl, key: presignRes.data.key };
+                return { url: presignRes.data.publicUrl, key: presignRes.data.key };
+            }
         } catch (error) {
             console.error('uploadChatMedia error:', error);
             throw error;

@@ -13,6 +13,7 @@ import searchRoutes from './routes/search.js';
 import repostsRoutes from './routes/reposts.js';
 import chatRoutes from './routes/chat.js';
 import syncRoutes from './routes/sync.js';
+import cloudinaryRoutes from './routes/cloudinary.js';
 import './config/env.js';
 import { validateTLSConfiguration } from './config/tlsValidation.js';
 import path from 'node:path';
@@ -64,6 +65,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/incognito', incognitoRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/sync', syncRoutes);
+app.use('/api/cloudinary', cloudinaryRoutes);
 
 app.use("/assets", express.static("dist/assets", {
     maxAge: "1y",
