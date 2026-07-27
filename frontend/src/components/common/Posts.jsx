@@ -155,6 +155,8 @@ const PostItem = ({ post, authUserId }) => {
         }
     };
 
+    console.log(post);
+
     const handleShare = async (postId, url) => {
         // If Web Share API is supported, use it
         if (navigator.share) {
