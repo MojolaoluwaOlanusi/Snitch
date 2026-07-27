@@ -1,11 +1,10 @@
 import {Navigate, Route, Routes} from "react-router-dom";
 import {useAuthStore} from "./store/useAuthStore.js";
-import { Toaster } from 'sonner'
+import {toast, Toaster} from 'sonner'
 import { Suspense, lazy, useEffect } from "react";
 import { Analytics } from '@vercel/analytics/react';
 import { usePushNotifications } from "./hooks/usePushNotifications.js";
 import { useCallSocketListeners } from './hooks/useCallSocketListeners.js';
-import { useUserStore } from "./store/useUserStore.js";
 import { useChatStore } from "./store/useChatStore.js";
 import { updateAppBadge } from "./utils/appBadge.js";
 import CallModal from "./components/common/CallModal.jsx";
@@ -36,9 +35,43 @@ import { useAppTheme } from "./hooks/useAppTheme.js";
 function App () {
     const { checkAuthentication, isCheckingAuth, authUserId } = useAuthStore();
     const { setupPushNotifications } = usePushNotifications();
-    const { notifications } = useUserStore();
     const totalUnread = useChatStore((state) => state.totalUnread);
     useCallSocketListeners();
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', async (event) => {
+            if (event.data?.type === 'SYNC_MESSAGES') {
+                console.log('[App] Received sync request from SW');
+                try {
+                    useChatStore.getState().syncPendingMessages();
+                } catch (error) {
+                    console.error('[App] Sync failed:', error);
+                }
+            }
+        });
+    }
+
+    useEffect(() => {
+        const handleOnline = () => {
+            console.log('[App] Online – checking for pending messages');
+            if (useChatStore.getState().syncPendingMessages) {
+                useChatStore.getState().syncPendingMessages();
+            }
+        };
+
+        const handleOffline = () => {
+            console.log('[App] Offline');
+            toast.warning('You are offline. Messages will be saved and sent when you reconnect.');
+        };
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
 
     useEffect(() => {
         checkAuthentication();

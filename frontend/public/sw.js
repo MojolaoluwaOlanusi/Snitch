@@ -222,6 +222,15 @@ self.addEventListener('sync', (event) => {
 });
 
 async function syncMessages() {
-    console.log('[SW] Syncing pending messages...');
-    // This will be implemented when we add offline message queuing
+    console.log('[SW] Background sync triggered – sending pending messages...');
+
+    // Get all clients (tabs) and send them a message to trigger sync
+    const clients = await self.clients.matchAll({ type: 'window' });
+    for (const client of clients) {
+        client.postMessage({
+            type: 'SYNC_MESSAGES',
+            payload: { trigger: 'background_sync' }
+        });
+    }
+
 }

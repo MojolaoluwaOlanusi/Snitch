@@ -1,5 +1,11 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import {
+    addPendingMessage,
+    getPendingMessages,
+    removePendingMessage,
+    updatePendingMessageStatus,
+    clearAllPendingMessages
+} from '../utils/offlineQueue.js';
 import { useAuthStore } from "./useAuthStore.js";
 import { toast } from 'sonner'
 import axiosInstance from "../lib/axios.js";
@@ -124,25 +130,159 @@ export const useChatStore = create((set, get) => ({
         });
     },
 
+    queueMessage: async (messageData) => {
+        try {
+            const id = await addPendingMessage(messageData);
+            console.log('[Offline] Message queued with id:', id);
+            // Register background sync
+            if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                const registration = await navigator.serviceWorker.ready;
+                try {
+                    await registration.sync.register('sync-messages');
+                } catch (syncError) {
+                    console.warn('[Offline] Sync registration failed:', syncError);
+                }
+            }
+            return id;
+        } catch (error) {
+            console.error('[Offline] Failed to queue message:', error);
+            throw error;
+        }
+    },
+
+    getPendingMessages: async () => {
+        return getPendingMessages();
+    },
+
+    removeQueuedMessage: async (id) => {
+        return removePendingMessage(id);
+    },
+
+    clearAllQueuedMessages: async () => {
+        return clearAllPendingMessages();
+    },
+
     // ==================== Real-time Messaging ====================
 
     sendMessage: async (data) => {
         const socket = useAuthStore.getState().socket;
-        if (!socket?.connected) { toast.error("Not connected to chat server"); throw new Error("Socket not connected"); }
+
+        // If socket is not connected, queue the message
+        if (!socket?.connected) {
+            toast.warning('You are offline. Message will be sent when you reconnect.');
+            // Queue the message
+            return get().queueMessage(data);
+        }
+
+        // If online, send normally
         return new Promise((resolve, reject) => {
             socket.emit('send_message', {
-                receiverId: data.receiverId, text: data.text, media: data.media || [],
-                conversationId: data.conversationId, replyTo: data.replyTo,
-                mentions: data.mentions || [], location: data.location,
-                contact: data.contact, isVoiceMessage: data.isVoiceMessage,
-                voiceDuration: data.voiceDuration, poll: data.poll, event: data.event,
-                call: data.call, viewOnce: data.viewOnce,
+                receiverId: data.receiverId,
+                text: data.text,
+                media: data.media || [],
+                conversationId: data.conversationId,
+                replyTo: data.replyTo,
+                mentions: data.mentions || [],
+                location: data.location,
+                contact: data.contact,
+                isVoiceMessage: data.isVoiceMessage,
+                voiceDuration: data.voiceDuration,
+                poll: data.poll,
+                event: data.event,
+                call: data.call,
+                viewOnce: data.viewOnce,
             }, (ack) => {
-                if (!ack?.ok) { toast.error(ack?.error || "Failed to send message"); reject(new Error(ack?.error || "Failed to send")); return; }
-                get().getConversations();   // refresh list after sending
+                if (!ack?.ok) {
+                    // If sending fails (e.g., server error), queue it for later
+                    toast.warning('Failed to send. Message queued.');
+                    get().queueMessage(data);
+                    reject(new Error(ack?.error || 'Failed to send'));
+                    return;
+                }
+                get().getConversations();
                 resolve(ack.message);
             });
         });
+    },
+
+    syncPendingMessages: async () => {
+        try {
+            const pendingMessages = await get().getPendingMessages();
+            if (pendingMessages.length === 0) return;
+
+            console.log(`[Offline] Syncing ${pendingMessages.length} pending messages...`);
+
+            const socket = useAuthStore.getState().socket;
+            if (!socket?.connected) {
+                console.warn('[Offline] Socket not connected, cannot sync yet');
+                return;
+            }
+
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const msg of pendingMessages) {
+                try {
+                    // Attempt to send via socket
+                    const result = await new Promise((resolve, reject) => {
+                        socket.emit('send_message', {
+                            receiverId: msg.receiverId,
+                            text: msg.text,
+                            media: msg.media || [],
+                            conversationId: msg.conversationId,
+                            replyTo: msg.replyTo,
+                            mentions: msg.mentions || [],
+                            location: msg.location,
+                            contact: msg.contact,
+                            isVoiceMessage: msg.isVoiceMessage,
+                            voiceDuration: msg.voiceDuration,
+                            poll: msg.poll,
+                            event: msg.event,
+                            call: msg.call,
+                            viewOnce: msg.viewOnce,
+                        }, (ack) => {
+                            if (ack?.ok) {
+                                resolve(ack.message);
+                            } else {
+                                reject(new Error(ack?.error || 'Send failed'));
+                            }
+                        });
+                    });
+
+                    // Success – remove from queue
+                    await removePendingMessage(msg.id);
+                    // Update UI – add the message to the chat
+                    get().addMessage(result);
+                    successCount++;
+                } catch (error) {
+                    console.error(`[Offline] Failed to send message ${msg.id}:`, error);
+                    // Update retry count and keep in queue
+                    try {
+                        await updatePendingMessageStatus(msg.id, 'pending');
+                    } catch (updateError) {
+                        console.error('[Offline] Failed to update message status:', updateError);
+                    }
+                    failCount++;
+                }
+            }
+
+            if (successCount > 0) {
+                toast.success(`${successCount} offline message(s) sent!`);
+            }
+            if (failCount > 0) {
+                toast.warning(`${failCount} message(s) failed to send and will retry later.`);
+            }
+
+            // If some messages failed, re-register sync for later
+            if (failCount > 0) {
+                if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                    const registration = await navigator.serviceWorker.ready;
+                    await registration.sync.register('sync-messages');
+                }
+            }
+        } catch (error) {
+            console.error('[Offline] Sync error:', error);
+        }
     },
 
     reactToMessage: async (data) => {
