@@ -8,6 +8,7 @@ import { BiLogOut } from "react-icons/bi";
 import axiosInstance from "../../lib/axios.js";
 import { toast } from 'sonner'
 import { useChatStore } from "../../store/useChatStore.js";
+import { getStoredBadgeCount } from "../../utils/appBadge.js";
 
 // Helper to format last sync time
 const formatLastSync = (timestamp) => {
@@ -36,6 +37,12 @@ const Sidebar = () => {
 
     // Get total unread messages and last sync time from chat store
     const { totalUnread, lastSyncTime, isSyncing } = useChatStore();
+    
+    // Get stored badge count for iOS fallback
+    const storedBadgeCount = getStoredBadgeCount();
+    
+    // Use the higher of totalUnread or storedBadgeCount for display
+    const displayBadgeCount = Math.max(totalUnread, storedBadgeCount);
 
     useEffect(() => {
         getProfile();
@@ -132,9 +139,9 @@ const Sidebar = () => {
                 <link.icon className="size-5 shrink-0" />
                 <span className="ml-2 md:hidden lg:inline">{link.label}</span>
                 {/* 🔥 Unread badge - only show on Chat button */}
-                {link.label === "Chat" && totalUnread > 0 && !link.restricted && (
+                {link.label === "Chat" && displayBadgeCount > 0 && !link.restricted && (
                     <span className="absolute top-1 right-1 md:top-0 md:right-0 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 z-10">
-                        {totalUnread > 99 ? '99+' : totalUnread}
+                        {displayBadgeCount > 99 ? '99+' : displayBadgeCount}
                     </span>
                 )}
             </NavLink>

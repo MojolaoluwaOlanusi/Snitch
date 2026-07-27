@@ -85,6 +85,11 @@
           "src": "/shortcuts/shortcut-new-post-192.png",
           "sizes": "192x192",
           "type": "image/png"
+        },
+        {
+          "src": "/shortcuts/shortcut-new-post-512.png",
+          "sizes": "512x512",
+          "type": "image/png"
         }
       ]
     },
@@ -97,6 +102,11 @@
         {
           "src": "/shortcuts/shortcut-messages-192.png",
           "sizes": "192x192",
+          "type": "image/png"
+        },
+        {
+          "src": "/shortcuts/shortcut-messages-512.png",
+          "sizes": "512x512",
           "type": "image/png"
         }
       ]
@@ -111,6 +121,11 @@
           "src": "/shortcuts/shortcut-search-192.png",
           "sizes": "192x192",
           "type": "image/png"
+        },
+        {
+          "src": "/shortcuts/shortcut-search-512.png",
+          "sizes": "512x512",
+          "type": "image/png"
         }
       ]
     },
@@ -124,9 +139,14 @@
           "src": "/shortcuts/shortcut-profile-192.png",
           "sizes": "192x192",
           "type": "image/png"
+        },
+        {
+          "src": "/shortcuts/shortcut-profile-512.png",
+          "sizes": "512x512",
+          "type": "image/png"
         }
       ]
     }
   ],
-  "note": "App shortcuts are supported on Android. iOS does not support PWA shortcuts - users can add the app to their home screen for quick access."
+  "note": "App shortcuts are supported on Android. iOS does not support PWA shortcuts - users can add the app to their home screen for quick access. Ensure all shortcut icon images are perfectly square (1:1 aspect ratio) at their specified sizes."
 }

@@ -187,7 +187,8 @@ self.addEventListener('push', (event) => {
         data: data || {},
         actions: actions || [
             { action: 'open', title: 'Open Snitch' },
-            { action: 'reply', title: 'Reply' },
+            // Only add reply action for message notifications
+            ...(data?.type === 'message' ? [{ action: 'reply', title: 'Reply' }] : []),
         ],
     };
 

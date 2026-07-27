@@ -11,17 +11,28 @@ const PeriodicSyncPrompt = () => {
 
     useEffect(() => {
         const checkPermission = async () => {
+            console.log('[PeriodicSync] Starting permission check...');
+            
             // Check if feature is supported
             if (!('periodicSync' in navigator) || !('permissions' in navigator)) {
+                console.log('[PeriodicSync] Feature not supported:', {
+                    hasPeriodicSync: 'periodicSync' in navigator,
+                    hasPermissions: 'permissions' in navigator
+                });
                 setPermissionState('unsupported');
                 return;
             }
+            console.log('[PeriodicSync] Feature is supported');
 
             // Check if previously dismissed and if enough time has passed
             const dismissedData = localStorage.getItem(DISMISSAL_KEY);
             if (dismissedData) {
                 const { timestamp } = JSON.parse(dismissedData);
                 const timeSinceDismissal = Date.now() - timestamp;
+                console.log('[PeriodicSync] Previously dismissed:', {
+                    timeSinceDismissal: Math.round(timeSinceDismissal / 1000 / 60) + ' minutes ago',
+                    required: DISMISSAL_DURATION / 1000 / 60 / 60 + ' hours'
+                });
                 if (timeSinceDismissal < DISMISSAL_DURATION) {
                     // Not enough time passed, don't show
                     setPermissionState('dismissed');
@@ -32,11 +43,13 @@ const PeriodicSyncPrompt = () => {
             // Check if app is in standalone mode (already installed)
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
                                 window.navigator.standalone === true;
+            console.log('[PeriodicSync] Standalone mode:', isStandalone);
 
             try {
                 const status = await navigator.permissions.query({
                     name: 'periodic-background-sync',
                 });
+                console.log('[PeriodicSync] Permission status:', status.state);
                 setPermissionState(status.state);
                 
                 // Only show if permission is prompt (not granted, not denied)
@@ -44,12 +57,17 @@ const PeriodicSyncPrompt = () => {
                     // If app is already installed (standalone), show immediately
                     // Otherwise, delay by 10 seconds (after install prompt)
                     const delay = isStandalone ? 0 : 10000;
-                    setTimeout(() => setIsVisible(true), delay);
+                    console.log('[PeriodicSync] Will show prompt after', delay / 1000, 'seconds');
+                    setTimeout(() => {
+                        console.log('[PeriodicSync] Setting visibility to true');
+                        setIsVisible(true);
+                    }, delay);
                 } else {
+                    console.log('[PeriodicSync] Permission not in prompt state, hiding');
                     setIsVisible(false);
                 }
             } catch (error) {
-                console.warn('Periodic sync permission check failed:', error);
+                console.warn('[PeriodicSync] Permission check failed:', error);
                 setPermissionState('unsupported');
             }
         };
