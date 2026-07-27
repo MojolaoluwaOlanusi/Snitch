@@ -47,6 +47,7 @@ const PostItem = ({ post, authUserId }) => {
     } = useUserStore();
 
     const {authUser} = useAuthStore();
+    const isOwnPost = post?.author?.username === authUser?.username;
 
     const [isBookmarked, setIsBookmarked] = useState(
         post?.bookmarkedBy?.includes(authUserId)
@@ -155,8 +156,6 @@ const PostItem = ({ post, authUserId }) => {
         }
     };
 
-    console.log(post);
-
     const handleShare = async (postId, url) => {
         // If Web Share API is supported, use it
         if (navigator.share) {
@@ -219,7 +218,7 @@ const PostItem = ({ post, authUserId }) => {
               </button>
               <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
   <li>
-    {post?.author?._id === authUser?._id && (
+    {isOwnPost && (
         <button className="text-base-content/60" onClick={(e) => {
             e.preventDefault();
             const { deletePost } = useUserStore.getState();
