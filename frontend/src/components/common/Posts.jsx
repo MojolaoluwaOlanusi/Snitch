@@ -230,7 +230,7 @@ const PostItem = ({ post, authUserId }) => {
             </div>
         </button>
     )}
-      {post?.author?._id === authUser?._id && editingPostId !== post._id && (
+      {isOwnPost && editingPostId !== post._id && (
           <EditPostModal post={post} />
       )}
       <button className="text-base-content/60" onClick={() => setShowReportModal(post._id)}>
