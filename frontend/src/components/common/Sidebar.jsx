@@ -35,7 +35,7 @@ const Sidebar = () => {
     const location = useLocation();
 
     // Get total unread messages and last sync time from chat store
-    const { totalUnread, lastSyncTime } = useChatStore();
+    const { totalUnread, lastSyncTime, isSyncing } = useChatStore();
 
     useEffect(() => {
         getProfile();
@@ -76,7 +76,7 @@ const Sidebar = () => {
     const getLinkClassName = (link, isActive) => {
         const isChat = link.label === "Chat" && link.restricted;
 
-        let buttonClass = 'btn w-full rounded-lg transition-all duration-200 border-0 shadow-none text-left';
+        let buttonClass = 'btn w-full rounded-lg transition-all duration-200 border-0 shadow-none text-left relative';
 
         // Desktop: justify-start, Mobile: justify-start (consistent)
         buttonClass += ' justify-start';
@@ -133,7 +133,7 @@ const Sidebar = () => {
                 <span className="ml-2 md:hidden lg:inline">{link.label}</span>
                 {/* 🔥 Unread badge - only show on Chat button */}
                 {link.label === "Chat" && totalUnread > 0 && !link.restricted && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                    <span className="absolute top-1 right-1 md:top-0 md:right-0 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 z-10">
                         {totalUnread > 99 ? '99+' : totalUnread}
                     </span>
                 )}
@@ -199,9 +199,9 @@ const Sidebar = () => {
                                     <div className="mt-auto pt-2 border-t border-base-300/20">
                                         <div className="flex flex-col items-start gap-0.5 px-1 py-1">
                                             <div className="flex items-center gap-1.5">
-                                                <RefreshCw className="w-3 h-3 text-base-content/30" />
+                                                <RefreshCw className={`w-3 h-3 ${isSyncing ? 'text-primary animate-spin' : 'text-base-content/30'}`} />
                                                 <span className="text-[10px] text-base-content/30">
-                                                    {lastSyncTime ? `Updated ${formatLastSync(lastSyncTime)}` : 'Updating...'}
+                                                    {isSyncing ? 'Syncing...' : (lastSyncTime ? `Updated ${formatLastSync(lastSyncTime)}` : 'Updating...')}
                                                 </span>
                                             </div>
                                             <button
@@ -212,8 +212,9 @@ const Sidebar = () => {
                                                     setMobileMenuOpen(false);
                                                 }}
                                                 className="text-[10px] text-primary/50 hover:text-primary transition-colors"
+                                                disabled={isSyncing}
                                             >
-                                                ↻ Refresh now
+                                                {isSyncing ? 'Syncing...' : '↻ Refresh now'}
                                             </button>
                                         </div>
                                     </div>
@@ -253,9 +254,9 @@ const Sidebar = () => {
                     <div className="mt-auto pt-2 border-t border-base-300/20">
                         <div className="flex flex-col items-center lg:items-start gap-0.5 px-1 py-1">
                             <div className="flex items-center gap-1.5">
-                                <RefreshCw className="w-3 h-3 text-base-content/30" />
+                                <RefreshCw className={`w-3 h-3 ${isSyncing ? 'text-primary animate-spin' : 'text-base-content/30'}`} />
                                 <span className="text-[10px] text-base-content/30 truncate">
-                                    {lastSyncTime ? `Updated ${formatLastSync(lastSyncTime)}` : 'Updating...'}
+                                    {isSyncing ? 'Syncing...' : (lastSyncTime ? `Updated ${formatLastSync(lastSyncTime)}` : 'Updating...')}
                                 </span>
                             </div>
                             <button
@@ -265,8 +266,9 @@ const Sidebar = () => {
                                     toast.success('Refreshed!');
                                 }}
                                 className="text-[10px] text-primary/50 hover:text-primary transition-colors"
+                                disabled={isSyncing}
                             >
-                                ↻ Refresh now
+                                {isSyncing ? 'Syncing...' : '↻ Refresh now'}
                             </button>
                         </div>
                     </div>

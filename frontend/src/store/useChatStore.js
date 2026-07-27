@@ -50,6 +50,7 @@ export const useChatStore = create((set, get) => ({
     unreadCounts: loadUnreadCounts(),
     totalUnread: calculateTotal(loadUnreadCounts()),
     lastSyncTime: null,
+    isSyncing: false,
 
     // ==================== Unread Count Actions with Persistence ====================
 
@@ -293,6 +294,7 @@ export const useChatStore = create((set, get) => ({
 
     refreshData: async () => {
         try {
+            set({ isSyncing: true });
             const token = localStorage.getItem('access-token');
             const since = get().lastSyncTime || Date.now() - 24 * 60 * 60 * 1000;
             const res = await axiosInstance.get('/sync/updates', {
@@ -308,6 +310,9 @@ export const useChatStore = create((set, get) => ({
             // Set last sync timestamp
             get().setLastSyncTime(res.data.timestamp || Date.now());
 
+            // Sync unread counts from server
+            await get().syncUnreadCounts();
+
             // If there are new notifications, update the user store
             if (res.data.newNotifications?.length) {
                 const { setNotifications } = useUserStore.getState();
@@ -317,6 +322,8 @@ export const useChatStore = create((set, get) => ({
             }
         } catch (error) {
             console.error('Failed to refresh data:', error);
+        } finally {
+            set({ isSyncing: false });
         }
     },
 

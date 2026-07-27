@@ -123,6 +123,37 @@ function App () {
                     break;
             }
         }
+
+        // Handle deep links from protocol handlers
+        const deepLink = params.get('deepLink');
+        if (deepLink) {
+            // Clear the URL parameter to avoid re-triggering
+            window.history.replaceState({}, document.title, '/');
+
+            try {
+                const decodedLink = decodeURIComponent(deepLink);
+                // Handle different deep link formats
+                // Format: snitch://route?params or web+snitch://route?params
+                if (decodedLink.startsWith('snitch://') || decodedLink.startsWith('web+snitch://')) {
+                    const protocol = decodedLink.startsWith('snitch://') ? 'snitch://' : 'web+snitch://';
+                    const rest = decodedLink.substring(protocol.length);
+                    
+                    // Parse the route and parameters
+                    const [route, queryString] = rest.split('?');
+                    if (queryString) {
+                        // Navigate with query parameters
+                        navigate(`/${route}?${queryString}`);
+                    } else {
+                        navigate(`/${route}`);
+                    }
+                } else {
+                    // Handle direct route
+                    navigate(decodedLink);
+                }
+            } catch (e) {
+                console.error('Failed to parse deep link:', e);
+            }
+        }
     }, [location, authUserId, authUser, navigate]);
 
     useEffect(() => {

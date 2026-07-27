@@ -13,9 +13,25 @@
   "protocol_handlers": [
     {
       "protocol": "web+snitch",
-      "url": "/?share=%s"
+      "url": "/?deepLink=%s"
     }
   ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "files",
+          "accept": ["image/*", "video/*", "audio/*", "application/pdf"]
+        }
+      ]
+    }
+  },
   "icons": [
     {
       "src": "/manifest-icon-192.maskable.png",
@@ -75,6 +91,11 @@
           "src": "/shortcuts/shortcut-new-post-192.png",
           "sizes": "192x192",
           "type": "image/png"
+        },
+        {
+          "src": "/shortcuts/shortcut-new-post-192.png",
+          "sizes": "512x512",
+          "type": "image/png"
         }
       ]
     },
@@ -87,6 +108,11 @@
         {
           "src": "/shortcuts/shortcut-messages-192.png",
           "sizes": "192x192",
+          "type": "image/png"
+        },
+        {
+          "src": "/shortcuts/shortcut-messages-192.png",
+          "sizes": "512x512",
           "type": "image/png"
         }
       ]
@@ -101,6 +127,11 @@
           "src": "/shortcuts/shortcut-search-192.png",
           "sizes": "192x192",
           "type": "image/png"
+        },
+        {
+          "src": "/shortcuts/shortcut-search-192.png",
+          "sizes": "512x512",
+          "type": "image/png"
         }
       ]
     },
@@ -113,6 +144,11 @@
         {
           "src": "/shortcuts/shortcut-profile-192.png",
           "sizes": "192x192",
+          "type": "image/png"
+        },
+        {
+          "src": "/shortcuts/shortcut-profile-192.png",
+          "sizes": "512x512",
           "type": "image/png"
         }
       ]

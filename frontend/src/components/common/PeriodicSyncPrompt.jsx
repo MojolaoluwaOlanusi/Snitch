@@ -2,24 +2,43 @@ import { useState, useEffect } from 'react';
 import { Bell, RefreshCw, X } from 'lucide-react';
 import { toast } from 'sonner';
 
+const DISMISSAL_KEY = 'periodic-sync-dismissed';
+const DISMISSAL_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
 const PeriodicSyncPrompt = () => {
     const [permissionState, setPermissionState] = useState('prompt');
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
         const checkPermission = async () => {
+            // Check if feature is supported
             if (!('periodicSync' in navigator) || !('permissions' in navigator)) {
                 setPermissionState('unsupported');
                 return;
             }
+
+            // Check if previously dismissed and if enough time has passed
+            const dismissedData = localStorage.getItem(DISMISSAL_KEY);
+            if (dismissedData) {
+                const { timestamp } = JSON.parse(dismissedData);
+                const timeSinceDismissal = Date.now() - timestamp;
+                if (timeSinceDismissal < DISMISSAL_DURATION) {
+                    // Not enough time passed, don't show
+                    setPermissionState('dismissed');
+                    return;
+                }
+            }
+
             try {
                 const status = await navigator.permissions.query({
                     name: 'periodic-background-sync',
                 });
                 setPermissionState(status.state);
-                if (status.state === 'denied' || status.state === 'prompt') {
-                    // Show the prompt to user
-                    setIsVisible(true);
+                
+                // Only show if permission is prompt (not granted, not denied)
+                if (status.state === 'prompt') {
+                    // Delay showing the prompt slightly for better UX
+                    setTimeout(() => setIsVisible(true), 2000);
                 } else {
                     setIsVisible(false);
                 }
@@ -60,14 +79,16 @@ const PeriodicSyncPrompt = () => {
 
     const handleDismiss = () => {
         setIsVisible(false);
-        // Store dismissal in session storage so it doesn't reappear for this session
-        sessionStorage.setItem('periodic-sync-dismissed', 'true');
+        // Store dismissal with timestamp in localStorage
+        localStorage.setItem(DISMISSAL_KEY, JSON.stringify({
+            timestamp: Date.now()
+        }));
     };
 
     if (permissionState === 'unsupported') return null;
     if (permissionState === 'granted') return null;
+    if (permissionState === 'dismissed') return null;
     if (!isVisible) return null;
-    if (sessionStorage.getItem('periodic-sync-dismissed') === 'true') return null;
 
     return (
         <div className="fixed bottom-20 left-4 right-4 md:bottom-6 md:left-auto md:right-6 md:max-w-sm z-40 animate-slide-up">

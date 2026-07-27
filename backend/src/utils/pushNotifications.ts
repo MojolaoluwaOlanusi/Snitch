@@ -81,18 +81,22 @@ export const sendMessagePushNotification = async (
         }
 
         const groupAvatarUrl = groupAvatar || generateGroupAvatar(groupName || 'Group', '#6366f1');
-        const notificationIcon = isGroup ? groupAvatarUrl : (senderInfo.avatarUrl || `${process.env.CLIENT_URL}/avatar-placeholder.png`);
+        const notificationIcon = isGroup ? groupAvatarUrl : (senderInfo.avatarUrl || `${process.env.CLIENT_URL}/avatar.png`);
 
         // Construct rich notification payload
         const payload = {
             title,
             body: preview,
             icon: notificationIcon,
-            image: notificationIcon,   // 🔥 iOS uses this for the big picture
-            badge: `${process.env.CLIENT_URL}/badge-icon.png`,
+            badge: `${process.env.CLIENT_URL}/badge-72.png`,
+            image: `${process.env.CLIENT_URL}/notification.png`,
             tag: `message-${conversationId}`,
             timestamp: Date.now(),
             requireInteraction: true,
+            actions: [
+                { action: 'open', title: 'Open Snitch' },
+                { action: 'reply', title: 'Reply' },
+            ],
             data: {
                 type: 'message',
                 conversationId: conversationId.toString(),
@@ -105,10 +109,6 @@ export const sendMessagePushNotification = async (
                 avatarUrl: notificationIcon,
                 url: `${process.env.CLIENT_URL}/chat?conversationId=${conversationId.toString()}`,
             },
-            actions: [
-                { action: 'open', title: 'Open Chat' },
-                { action: 'close', title: 'Close' },
-            ],
         };
 
         // Send to all subscriptions
@@ -181,4 +181,49 @@ function generateMessagePreview(message: any): string {
     return 'New message';
 }
 
-export default { sendPushNotification, sendMessagePushNotification };
+export const sendReengagementPushNotification = async (userId: string, username: string) => {
+    try {
+        const user = await User.findById(userId).select('pushSubscriptions');
+        if (!user || !user.pushSubscriptions?.length) return;
+
+        const payload = {
+            title: 'We miss you on Snitch! 🎉',
+            body: `Hi ${username}, it's been a while. Check out what's new!`,
+            icon: `${process.env.CLIENT_URL}/avatar.png`,
+            badge: `${process.env.CLIENT_URL}/badge-72.png`,
+            tag: 'reengagement',
+            timestamp: Date.now(),
+            requireInteraction: true,
+            actions: [
+                { action: 'open', title: 'Open Snitch' },
+            ],
+            data: {
+                type: 'reengagement',
+                url: `${process.env.CLIENT_URL}/`,
+            },
+        };
+
+        const subscriptions = user.pushSubscriptions as any[];
+        let validSubscriptions: any[] = [];
+
+        for (const subscription of subscriptions) {
+            try {
+                await webpush.sendNotification(subscription, JSON.stringify(payload));
+                validSubscriptions.push(subscription);
+            } catch (err: any) {
+                if (err.statusCode === 410 || err.statusCode === 404) {
+                    console.log(`Removing expired subscription for user ${userId}`);
+                } else {
+                    validSubscriptions.push(subscription);
+                }
+            }
+        }
+
+        user.pushSubscriptions = validSubscriptions;
+        await user.save();
+    } catch (error: any) {
+        console.error('Re-engagement push notification error:', error.message);
+    }
+};
+
+export default { sendPushNotification, sendMessagePushNotification, sendReengagementPushNotification };

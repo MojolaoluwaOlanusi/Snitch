@@ -174,3 +174,79 @@ export const sendPasswordResetCode = async (email: string, code: string) => {
         html,
     });
 };
+
+export const sendReengagementEmail = async (email: string, username: string) => {
+    const html = `
+        <div style="
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1e3a8a, #2563eb, #60a5fa);
+            color: white;
+            text-align: center;
+            padding: 40px 20px;
+            border-radius: 12px;
+            max-width: 600px;
+            margin: 0 auto;
+        ">
+            <!-- Logo -->
+            <div style="margin-bottom: 20px;">
+                <svg viewBox="0 0 100 100" width="80" height="80" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#1e3a8a" />
+                            <stop offset="50%" stop-color="#2563eb" />
+                            <stop offset="100%" stop-color="#60a5fa" />
+                        </linearGradient>
+                    </defs>
+                    <path
+                        d="M50 10 L85 30 L85 70 L50 90 L15 70 L15 30 Z"
+                        fill="url(#hexGradient)"
+                    />
+                    <text
+                        x="50"
+                        y="68"
+                        text-anchor="middle"
+                        fill="white"
+                        font-size="48"
+                        font-family="system-ui, -apple-system, sans-serif"
+                        font-weight="900"
+                    >
+                        SNITCH
+                    </text>
+                </svg>
+            </div>
+
+            <h1 style="font-size: 28px; margin-bottom: 10px;">We miss you on Snitch! 🎉</h1>
+            <p style="font-size: 16px; opacity: 0.9; margin-bottom: 20px;">
+                Hi ${username}, it's been a while since you've been active on Snitch.
+            </p>
+            <p style="font-size: 16px; opacity: 0.9; margin-bottom: 30px;">
+                Check out what's new and reconnect with your friends!
+            </p>
+
+            <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}" 
+               style="
+                display: inline-block;
+                background: white;
+                color: #1e3a8a;
+                font-size: 16px;
+                font-weight: bold;
+                padding: 15px 30px;
+                border-radius: 8px;
+                text-decoration: none;
+                margin-bottom: 30px;
+            ">
+                Open Snitch
+            </a>
+
+            <p style="font-size: 14px; opacity: 0.8;">
+                If you don't want to receive these emails, you can disable notifications in your settings.
+            </p>
+        </div>
+    `;
+
+    return sendEmail({
+        to: email,
+        subject: 'We miss you on Snitch! 🎉',
+        html,
+    });
+};

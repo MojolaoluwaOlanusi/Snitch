@@ -12,6 +12,7 @@ import adminRoutes from './routes/admin.js';
 import searchRoutes from './routes/search.js';
 import repostsRoutes from './routes/reposts.js';
 import chatRoutes from './routes/chat.js';
+import syncRoutes from './routes/sync.js';
 import './config/env.js';
 import { validateTLSConfiguration } from './config/tlsValidation.js';
 import path from 'node:path';
@@ -62,6 +63,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/incognito', incognitoRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/sync', syncRoutes);
 
 app.use("/assets", express.static("dist/assets", {
     maxAge: "1y",

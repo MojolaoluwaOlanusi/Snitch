@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, X, Smartphone, Monitor } from 'lucide-react';
+import { Download, X, Smartphone, Monitor, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { SnitchLogoSmall } from '../svgs/snitch.jsx';
 
@@ -8,12 +8,19 @@ const InstallPrompt = () => {
     const [isInstalled, setIsInstalled] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
     const [isDismissed, setIsDismissed] = useState(false);
+    const [showInstalledMessage, setShowInstalledMessage] = useState(false);
 
     useEffect(() => {
         // Check if already installed (standalone mode)
-        if (window.matchMedia('(display-mode: standalone)').matches) {
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                            window.navigator.standalone === true;
+        
+        if (isStandalone) {
             setIsInstalled(true);
-            return;
+            setShowInstalledMessage(true);
+            // Auto-hide the installed message after 5 seconds
+            const timer = setTimeout(() => setShowInstalledMessage(false), 5000);
+            return () => clearTimeout(timer);
         }
 
         // Check if user already dismissed this session
@@ -21,6 +28,13 @@ const InstallPrompt = () => {
             setIsDismissed(true);
             return;
         }
+
+        // Auto-show prompt after 1 second if not installed
+        const showTimer = setTimeout(() => {
+            if (!isStandalone && !isDismissed) {
+                setIsVisible(true);
+            }
+        }, 1000);
 
         const handler = (e) => {
             e.preventDefault();
@@ -37,6 +51,7 @@ const InstallPrompt = () => {
         });
 
         return () => {
+            clearTimeout(showTimer);
             window.removeEventListener('beforeinstallprompt', handler);
         };
     }, []);
@@ -64,10 +79,50 @@ const InstallPrompt = () => {
         sessionStorage.setItem('install-prompt-dismissed', 'true');
     };
 
-    if (isInstalled || !isVisible || isDismissed) return null;
+    // Auto-dismiss after 3 seconds
+    useEffect(() => {
+        if (isVisible) {
+            const timer = setTimeout(() => {
+                handleDismiss();
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [isVisible]);
+
+    if (isDismissed) return null;
 
     // Detect mobile vs desktop
     const isMobile = window.innerWidth < 768;
+
+    // Show installed message if app is installed but opened in browser
+    if (showInstalledMessage && !isVisible) {
+        return (
+            <div className="fixed bottom-4 left-4 right-4 md:bottom-6 md:left-auto md:right-6 md:max-w-sm z-50 animate-slide-up">
+                <div className="bg-base-100 rounded-2xl shadow-2xl border border-base-300 p-4 md:p-5">
+                    <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center shadow-sm">
+                            <SnitchLogoSmall className="w-8 h-8 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-base-content text-sm md:text-base">Snitch Installed</h3>
+                            <p className="text-xs text-base-content/60 mt-0.5">
+                                You have Snitch installed. Click to open the app.
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleDismiss}
+                        className="mt-3 w-full flex items-center justify-center gap-1.5 bg-primary text-primary-content rounded-lg py-2 px-3 text-sm font-medium hover:bg-primary/90 transition-colors"
+                    >
+                        <ExternalLink className="w-4 h-4" />
+                        Open App
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (!isVisible) return null;
 
     return (
         <div className="fixed bottom-4 left-4 right-4 md:bottom-6 md:left-auto md:right-6 md:max-w-sm z-50 animate-slide-up">

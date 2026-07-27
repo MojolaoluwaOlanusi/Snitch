@@ -2,7 +2,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import {
     X, Edit3, Bookmark,EyeOff,
-    Twitter, Instagram, Globe, Link as LinkIcon, Plus, AlertTriangle,
+    Twitter, Instagram, Globe, Link as LinkIcon, Plus, AlertTriangle, Download,
 } from "lucide-react";
 import axiosInstance from "../../lib/axios.js";
 import { toast } from "sonner";
@@ -43,6 +43,8 @@ const SettingsModal = ({ isOpen, onClose, authUser, onProfileUpdate, onEditProfi
     const [adminInviteCode, setAdminInviteCode] = useState("");
     const { getUserProfile, user } = useAuthStore();
     const [urlError, setUrlError] = useState('');
+    const [deferredPrompt, setDeferredPrompt] = useState(null);
+    const [isInstalled, setIsInstalled] = useState(false);
 
     const { username } = useParams();
 
@@ -52,7 +54,48 @@ const SettingsModal = ({ isOpen, onClose, authUser, onProfileUpdate, onEditProfi
             setSocialHandles(authUser.socialHandles || []);
             setIsIncognito(authUser.incognito || false);
         }
+
+        // Check if app is installed
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                            window.navigator.standalone === true;
+        setIsInstalled(isStandalone);
+
+        // Listen for install prompt
+        const handler = (e) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+        };
+
+        window.addEventListener('beforeinstallprompt', handler);
+
+        window.addEventListener('appinstalled', () => {
+            setIsInstalled(true);
+            setDeferredPrompt(null);
+        });
+
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handler);
+        };
     }, [authUser]);
+
+    const handleInstall = async () => {
+        if (!deferredPrompt) {
+            toast.info('Installation not available. Try using Chrome or Edge on desktop, or add to home screen on mobile.');
+            return;
+        }
+
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+
+        if (outcome === 'accepted') {
+            setIsInstalled(true);
+            toast.success('Snitch installed! 🎉');
+        } else {
+            toast.info('Installation declined');
+        }
+
+        setDeferredPrompt(null);
+    };
 
     useEffect(() => {
         if (activeTab === 'bookmarks') {
@@ -232,7 +275,7 @@ const handleEnableNotifications = async () => {
 
                         {/* Tabs */}
                         <div className="flex border-b px-4 gap-2 overflow-x-auto">
-                            {["profile", "bookmarks", "appearance", "notifications", "admin", "danger"].map(tab => (
+                            {["profile", "install", "bookmarks", "appearance", "notifications", "admin", "danger"].map(tab => (
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
@@ -327,6 +370,38 @@ const handleEnableNotifications = async () => {
                                     >
                                         {isSaving ? "Saving..." : "Save Changes"}
                                     </button>
+                                </>
+                            )}
+
+                            {activeTab === "install" && (
+                                <>
+                                    <div className="flex items-center justify-between px-4 py-3 hover:bg-base-200 rounded-xl">
+                                        <div>
+                                            <p className="text-sm font-medium">Install Snitch</p>
+                                            <p className="text-xs text-base-content/60">
+                                                {isInstalled ? '✅ Already installed' : '📱 Install for offline access'}
+                                            </p>
+                                        </div>
+                                        {isInstalled ? (
+                                            <span className="badge badge-success badge-sm">Installed</span>
+                                        ) : (
+                                            <button
+                                                onClick={handleInstall}
+                                                disabled={!deferredPrompt}
+                                                className="btn btn-primary btn-xs"
+                                            >
+                                                {deferredPrompt ? 'Install' : 'Not Available'}
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {!deferredPrompt && !isInstalled && (
+                                        <div className="px-4 py-2 bg-info/10 rounded-xl border border-info/20">
+                                            <p className="text-xs text-info/80">
+                                                Installation is only available on supported browsers. On mobile, use "Add to Home Screen" from your browser menu.
+                                            </p>
+                                        </div>
+                                    )}
                                 </>
                             )}
 

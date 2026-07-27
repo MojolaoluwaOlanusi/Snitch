@@ -54,6 +54,7 @@ export interface UserDocument extends Document {
     }[];
     bookmarkedPosts: mongoose.Types.ObjectId[];
     theme: string;
+    lastReengagementSent?: Date;
 }
 
 const UserSchema = new Schema<UserDocument>({
@@ -155,6 +156,7 @@ const UserSchema = new Schema<UserDocument>({
     ],
     bookmarkedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
     theme: { type: String, default: 'winter' },
+    lastReengagementSent: { type: Date },
 });
 
 // 🔥 Pre‑save middleware: Automatically set usernameLower on creation/update

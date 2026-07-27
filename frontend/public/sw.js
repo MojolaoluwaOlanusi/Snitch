@@ -7,15 +7,16 @@ const OFFLINE_URL = '/offline.html';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
-    '/src/index.css',
     '/manifest.json',
     '/favicon.ico',
     '/favicon-96x96.png',
     '/apple-icon-180.png',
-    '/web-app-manifest-192x192.png',
-    '/web-app-manifest-512x512.png',
+    '/manifest-icon-192.maskable.png',
+    '/manifest-icon-512.maskable.png',
     '/avatar-placeholder.png',
     '/login.webp',
+    '/badge-72.png',
+    '/notification.png',
 ];
 
 // ==================== Install ====================
@@ -53,36 +54,19 @@ self.addEventListener('fetch', (event) => {
     const request = event.request;
     const url = new URL(request.url);
 
-    // Skip non-GET requests
-    if (request.method !== 'GET') return;
-
-    // Skip API requests (they need fresh data)
-    if (url.pathname.startsWith('/api/')) {
-        // Network-first for API requests
-        event.respondWith(
-            fetch(request)
-                .then((response) => {
-                    // Cache successful API responses for offline fallback
-                    if (response.ok) {
-                        const clonedResponse = response.clone();
-                        caches.open(CACHE_NAME).then((cache) => {
-                            cache.put(request, clonedResponse);
-                        });
-                    }
-                    return response;
+    // Skip non-GET requests (except for specific API endpoints that need offline handling)
+    if (request.method !== 'GET') {
+        // For POST requests to API, allow them to fail gracefully when offline
+        if (url.pathname.startsWith('/api/')) {
+            event.respondWith(
+                fetch(request).catch(() => {
+                    return new Response(
+                        JSON.stringify({ offline: true, message: 'You are offline. Request queued.' }),
+                        { status: 503, headers: { 'Content-Type': 'application/json' } }
+                    );
                 })
-                .catch(() => {
-                    // Return cached API response if available
-                    return caches.match(request).then((cachedResponse) => {
-                        if (cachedResponse) return cachedResponse;
-                        // Fallback for API
-                        return new Response(
-                            JSON.stringify({ offline: true, message: 'You are offline. Please check your connection.' }),
-                            { status: 503, headers: { 'Content-Type': 'application/json' } }
-                        );
-                    });
-                })
-        );
+            );
+        }
         return;
     }
 
@@ -98,7 +82,39 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // For static assets – cache-first
+    // API requests - Network-first with cache fallback
+    if (url.pathname.startsWith('/api/')) {
+        event.respondWith(
+            fetch(request)
+                .then((response) => {
+                    // Cache successful API responses for offline fallback
+                    if (response.ok) {
+                        const clonedResponse = response.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(request, clonedResponse);
+                        });
+                    }
+                    return response;
+                })
+                .catch(() => {
+                    // Return cached API response if available
+                    return caches.match(request).then((cachedResponse) => {
+                        if (cachedResponse) {
+                            console.log('[SW] Serving cached API response:', url.pathname);
+                            return cachedResponse;
+                        }
+                        // Fallback for API
+                        return new Response(
+                            JSON.stringify({ offline: true, message: 'You are offline. Please check your connection.' }),
+                            { status: 503, headers: { 'Content-Type': 'application/json' } }
+                        );
+                    });
+                })
+        );
+        return;
+    }
+
+    // For static assets – cache-first with stale-while-revalidate
     event.respondWith(
         caches.match(request)
             .then((cachedResponse) => {
@@ -129,9 +145,16 @@ self.addEventListener('fetch', (event) => {
                 });
             })
             .catch(() => {
-                // If both cache and network fail, show offline page
+                // If both cache and network fail, show offline page for documents
                 if (request.destination === 'document') {
-                    return caches.match(OFFLINE_URL);
+                    return caches.match(OFFLINE_URL).then((offlineResponse) => {
+                        if (offlineResponse) return offlineResponse;
+                        // Create a basic offline page if none exists
+                        return new Response(
+                            '<html><body><h1>You are offline</h1><p>Please check your connection.</p></body></html>',
+                            { headers: { 'Content-Type': 'text/html' } }
+                        );
+                    });
                 }
                 return new Response('Offline', { status: 503 });
             })
