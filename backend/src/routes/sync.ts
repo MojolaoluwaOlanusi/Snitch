@@ -3,6 +3,8 @@ import { protectRoute } from '../middleware/protectRoute.js';
 import Post from '../models/Post.js';
 import Message from '../models/Message.js';
 import Notification from '../models/Notification.js';
+import {User} from '../models/User.js';          // ✅ Added import
+import Conversation from '../models/Conversation.js'; // ✅ Added import
 
 const router = express.Router();
 
@@ -11,11 +13,20 @@ const router = express.Router();
 router.get('/updates', protectRoute, async (req, res) => {
     try {
         const userId = req.user._id;
-        const since = req.query.since ? new Date(parseInt(req.query.since)) : new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+        // 🔧 Fix: Handle `since` query parameter (could be string or array)
+        const sinceParam = req.query.since;
+        let since: Date;
+        if (typeof sinceParam === 'string') {
+            since = new Date(parseInt(sinceParam, 10));
+        } else {
+            // Default to 24 hours ago
+            since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        }
 
         // Fetch new posts from followed users
         const user = await User.findById(userId).select('following');
-        const followedIds = user.following || [];
+        const followedIds = user?.following || [];
 
         const newPosts = await Post.find({
             author: { $in: followedIds },
@@ -31,7 +42,9 @@ router.get('/updates', protectRoute, async (req, res) => {
         const conversations = await Conversation.find({ participants: userId });
         let unreadCount = 0;
         for (const conv of conversations) {
-            unreadCount += conv.unreadCount.get(userId) || 0;
+            // Safely access unreadCount Map
+            const unread = conv.unreadCount?.get(userId) || 0;
+            unreadCount += unread;
         }
 
         // Fetch new notifications
