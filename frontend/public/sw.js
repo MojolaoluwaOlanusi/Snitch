@@ -54,6 +54,9 @@ self.addEventListener('fetch', (event) => {
     const request = event.request;
     const url = new URL(request.url);
 
+    // Skip requests with unsupported schemes (chrome-extension, etc.)
+    if (!url.protocol.startsWith('http')) return;
+
     // Skip non-GET requests (except for specific API endpoints that need offline handling)
     if (request.method !== 'GET') {
         // For POST requests to API, allow them to fail gracefully when offline

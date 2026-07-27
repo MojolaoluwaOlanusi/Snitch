@@ -375,6 +375,7 @@ const ChatPage = () => {
     const videoPreviewRef = useRef(null);
     const addedMessageIds = useRef(new Set());
     const groupAvatarColors = useRef(new Map());
+    const conversationsLoadedOnce = useRef(false);
 
     const [convoSettings, updateConvoSetting] = useConversationSettings(
         selectedConversation?._id,
@@ -398,15 +399,16 @@ const ChatPage = () => {
             const filtered = state.messages.filter(m => !m.isReactionNotification);
             useChatStore.setState({ messages: filtered });
 
-            getConversations();
+            // Don't refetch conversations here - it causes flickering
+            // The conversation list should be updated incrementally via socket events
             const conversationId = message.conversationId;
-    const isCurrentConversation = selectedConversation?._id === conversationId;
-    const isChatPage = window.location.pathname === '/chat';
-    const isThisConversationOpen = isCurrentConversation && isChatPage;
-    
-    if (!isThisConversationOpen && conversationId) {
-        useChatStore.getState().incrementUnread(conversationId);
-    }
+            const isCurrentConversation = selectedConversation?._id === conversationId;
+            const isChatPage = window.location.pathname === '/chat';
+            const isThisConversationOpen = isCurrentConversation && isChatPage;
+            
+            if (!isThisConversationOpen && conversationId) {
+                useChatStore.getState().incrementUnread(conversationId);
+            }
         });
 
         socket.on('message_sent', (message) => {
@@ -480,7 +482,8 @@ const ChatPage = () => {
                 const name = newMember?.displayName || newMember?.username || 'Someone';
                 toast(`${name} joined the group`, { icon: '👋' });
             }
-            getConversations();
+            // Don't refetch conversations here - it causes flickering
+            // The conversation list should be updated incrementally via socket events
         });
         socket.on('typing:start', ({ from }) => {
             addTypingUser(from);
@@ -546,7 +549,11 @@ const ChatPage = () => {
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            getConversations();
+            // Only fetch conversations if they haven't been loaded yet
+            if (!conversationsLoadedOnce.current || conversations.length === 0) {
+                getConversations();
+                conversationsLoadedOnce.current = true;
+            }
             fetchContacts();
             if (socket?.connected) {
                 setupSocketListeners();
@@ -591,6 +598,10 @@ const ChatPage = () => {
             const conversation = conversations.find(c => c._id === conversationIdFromUrl);
             if (conversation) {
                 selectConversation(conversation);
+                // Clear the URL param to prevent re-triggering
+                const newSearchParams = new URLSearchParams(window.location.search);
+                newSearchParams.delete('conversationId');
+                window.history.replaceState({}, '', `${window.location.pathname}${newSearchParams.toString() ? '?' + newSearchParams.toString() : ''}`);
             }
         }
     }, [conversationIdFromUrl, conversations, selectConversation]);
@@ -662,7 +673,12 @@ const ChatPage = () => {
     }, [location.state, conversations]);
 
     useEffect(() => {
-        getConversations(); fetchContacts();
+        // Only fetch conversations if they haven't been loaded yet
+        if (!conversationsLoadedOnce.current || conversations.length === 0) {
+            getConversations();
+            conversationsLoadedOnce.current = true;
+        }
+        fetchContacts();
         if (socket?.connected) {
             setupSocketListeners();
             socket.emit('get_online_users');
@@ -670,7 +686,10 @@ const ChatPage = () => {
         const onConnect = () => {
             setupSocketListeners();
             socket?.emit('get_online_users');
-            getConversations();
+            // Only refetch conversations on reconnect if they were empty
+            if (conversations.length === 0) {
+                getConversations();
+            }
         };
         socket?.on('connect', onConnect);
         return () => {
