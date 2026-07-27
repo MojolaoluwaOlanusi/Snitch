@@ -10,6 +10,7 @@ import { useChatStore } from "./store/useChatStore.js";
 import { updateAppBadge } from "./utils/appBadge.js";
 import CallModal from "./components/common/CallModal.jsx";
 import InstallPrompt from './components/common/InstallPrompt.jsx';
+import TitleBar from './components/common/TitleBar.jsx';
 // 👇 lazy load every page
 const HomePage = lazy(() => import("./pages/home/HomePage.jsx"));
 const LoginPage = lazy(() => import("./pages/auth/login/LoginPage.jsx"));
@@ -215,6 +216,9 @@ function App () {
 
     return (
         <div>
+            {/* Window Controls Overlay Title Bar - only shows in WCO mode on desktop */}
+            <TitleBar />
+            
             <Suspense fallback={null}>
                 <Routes>
                     <Route path='/' element={authUserId ? <HomePage /> : <Navigate to={"/login"} />} />
