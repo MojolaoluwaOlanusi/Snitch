@@ -6,40 +6,46 @@ import { useChatStore } from "../../store/useChatStore.js";
 import { useAuthStore } from "../../store/useAuthStore.js";
 import { useState } from "react";
 import FollowingPosts from "../../components/common/FollowingPosts.jsx";
-import { usePullToRefresh } from "../../hooks/usePullToRefresh.js";
+import { usePullToRefresh } from '../../hooks/usePullToRefresh.jsx';
+import PullToRefreshIndicator from '../../components/common/PullToRefreshIndicator.jsx';
 
 function HomePage() {
     const [feedType, setFeedType] = useState("forYou");
     const { authUser } = useAuthStore();
     const { getConversations } = useChatStore();
-    const { getNotifications } = useUserStore();
+    const { getPosts, getFollowingPosts, refreshData } = useUserStore();
 
     // Pull-to-refresh handler
     const handleRefresh = async () => {
         try {
-            // Refresh posts by re-fetching from the Posts/FollowingPosts components
-            // This will trigger a re-render of the feed
-            window.location.reload();
+            // Refresh posts and data
+            await Promise.all([
+                getPosts(),
+                getFollowingPosts(),
+                refreshData ? refreshData() : Promise.resolve(),
+            ]);
+            // Optionally refresh conversations
+            if (getConversations) {
+                await getConversations();
+            }
         } catch (error) {
             console.error('Refresh failed:', error);
         }
     };
 
-    const { pullIndicator, pullToRefreshProps } = usePullToRefresh(handleRefresh, {
-        threshold: 80,
-        maxPull: 120,
-        enabledWidth: 768,
-    });
+    const { pullDistance, isRefreshing } = usePullToRefresh(handleRefresh);
 
     return (
         <div className="w-full flex flex-col md:flex-row h-screen bg-base-200">
             <Sidebar />
 
-            {/* Pull-to-refresh indicator */}
-            {pullIndicator}
-
-            {/* Main feed */}
-            <main {...pullToRefreshProps} className="flex-1 bg-base-100 rounded-lg w-full h-screen overflow-y-auto">
+            {/* Main feed with pull-to-refresh container */}
+            <main className="flex-1 bg-base-100 rounded-lg w-full h-screen overflow-y-auto relative">
+                {/* Pull-to-refresh indicator */}
+                <PullToRefreshIndicator
+                    pullDistance={pullDistance}
+                    isRefreshing={isRefreshing}
+                />
 
                 <div className="items-center justify-items-center">
                     <header className="items-center justify-center w-full">
