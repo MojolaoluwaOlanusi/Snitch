@@ -29,6 +29,10 @@ const PeriodicSyncPrompt = () => {
                 }
             }
 
+            // Check if app is in standalone mode (already installed)
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                                window.navigator.standalone === true;
+
             try {
                 const status = await navigator.permissions.query({
                     name: 'periodic-background-sync',
@@ -37,8 +41,10 @@ const PeriodicSyncPrompt = () => {
                 
                 // Only show if permission is prompt (not granted, not denied)
                 if (status.state === 'prompt') {
-                    // Delay showing the prompt slightly for better UX
-                    setTimeout(() => setIsVisible(true), 2000);
+                    // If app is already installed (standalone), show immediately
+                    // Otherwise, delay by 10 seconds (after install prompt)
+                    const delay = isStandalone ? 0 : 10000;
+                    setTimeout(() => setIsVisible(true), delay);
                 } else {
                     setIsVisible(false);
                 }

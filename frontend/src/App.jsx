@@ -59,6 +59,7 @@ function App () {
     useEffect(() => {
         const handleOnline = () => {
             console.log('[App] Online – checking for pending messages');
+            toast.success('You are back online! Syncing messages...');
             if (useChatStore.getState().syncPendingMessages) {
                 useChatStore.getState().syncPendingMessages();
             }

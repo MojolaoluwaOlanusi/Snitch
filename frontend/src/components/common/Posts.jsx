@@ -164,17 +164,21 @@ const PostItem = ({ post, authUserId }) => {
                     text: 'I found this interesting post on Snitch!',
                     url: url,
                 });
+                // Exit early - don't open the modal
                 return;
             } catch (error) {
                 if (error.name !== 'AbortError') {
                     console.error('Share error:', error);
                 }
-                // Fallback to modal if share fails or is cancelled
-                // Continue to open modal
+                // If user cancelled (AbortError), don't show modal
+                if (error.name === 'AbortError') {
+                    return;
+                }
+                // Fallback to modal if share fails for other reasons
             }
         }
 
-        // Fallback: open the share modal
+        // Fallback: open the share modal (only if navigator.share not supported or failed)
         window.dispatchEvent(
             new CustomEvent("OpenShareModal", {
                 detail: { postId, url },

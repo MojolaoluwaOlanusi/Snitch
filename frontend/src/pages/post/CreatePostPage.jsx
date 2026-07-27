@@ -60,9 +60,26 @@ function CreatePostPage() {
         const timer = setTimeout(() => {
             if (text.trim()) localStorage.setItem(AUTO_SAVE_KEY, text);
             else localStorage.removeItem(AUTO_SAVE_KEY);
-        }, 2000);
+        }, 5000); // Auto-save every 5 seconds
         return () => clearTimeout(timer);
     }, [text]);
+
+    // Manual save draft
+    const handleSaveDraft = () => {
+        if (text.trim()) {
+            localStorage.setItem(AUTO_SAVE_KEY, text);
+            toast.success('Draft saved!');
+        } else {
+            toast.info('Nothing to save');
+        }
+    };
+
+    // Clear draft
+    const handleClearDraft = () => {
+        localStorage.removeItem(AUTO_SAVE_KEY);
+        setText('');
+        toast.success('Draft cleared');
+    };
 
     // ── link previews – unique, max 2, scrollable ────────
     useEffect(() => {
@@ -594,6 +611,24 @@ function CreatePostPage() {
                                 {visibility === 'Private' && 'Visible only to your followers'}
                                 {visibility === 'Friends' && 'Visible only to your friends'}
                             </p>
+                        </div>
+
+                        {/* Draft buttons */}
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={handleSaveDraft}
+                                className="flex-1 bg-base-200 hover:bg-base-300 text-base-content rounded-xl py-3 text-lg font-semibold transition-all duration-200 border-2 border-base-300"
+                            >
+                                Save Draft
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleClearDraft}
+                                className="flex-1 bg-error/10 hover:bg-error/20 text-error rounded-xl py-3 text-lg font-semibold transition-all duration-200 border-2 border-error/20"
+                            >
+                                Clear Draft
+                            </button>
                         </div>
 
                         {/* Submit button */}

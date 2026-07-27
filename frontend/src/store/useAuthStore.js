@@ -265,10 +265,15 @@ export const useAuthStore = create((set, get) => ({
     },
 
     registerPushNotifications: async () => {
-        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            console.warn('[Auth] Push notifications not supported');
+            return;
+        }
 
         try {
+            console.log('[Auth] Registering push notifications...');
             const registration = await navigator.serviceWorker.register('/sw.js');
+            console.log('[Auth] Service worker registered');
 
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
@@ -276,13 +281,23 @@ export const useAuthStore = create((set, get) => ({
                     import.meta.env.VITE_VAPID_PUBLIC_KEY
                 ),
             });
+            console.log('[Auth] Push subscription created');
 
             const token = localStorage.getItem('access-token');
+            if (!token) {
+                console.warn('[Auth] No access token, skipping subscription save');
+                return;
+            }
+
             await axiosInstance.post('/auth/push-subscription', { subscription }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            console.log('[Auth] Push subscription saved to backend');
         } catch (error) {
-            console.error('Push subscription failed:', error);
+            console.error('[Auth] Push subscription failed:', error);
+            if (error.response) {
+                console.error('[Auth] Server response:', error.response.data);
+            }
         }
     },
 

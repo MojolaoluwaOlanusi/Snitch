@@ -11,17 +11,36 @@ const InstallPrompt = () => {
     const [showInstalledMessage, setShowInstalledMessage] = useState(false);
 
     useEffect(() => {
-        // Check if already installed (standalone mode)
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                            window.navigator.standalone === true;
-        
-        if (isStandalone) {
-            setIsInstalled(true);
-            setShowInstalledMessage(true);
-            // Auto-hide the installed message after 5 seconds
-            const timer = setTimeout(() => setShowInstalledMessage(false), 5000);
-            return () => clearTimeout(timer);
-        }
+        // Check if already installed using multiple methods
+        const checkInstalled = async () => {
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                                window.navigator.standalone === true;
+            
+            // Check using getInstalledRelatedApps if available
+            let isRelatedAppInstalled = false;
+            if ('getInstalledRelatedApps' in navigator) {
+                try {
+                    const relatedApps = await navigator.getInstalledRelatedApps();
+                    isRelatedAppInstalled = relatedApps.some(app => app.id === window.location.origin);
+                } catch (e) {
+                    console.log('getInstalledRelatedApps not available or failed:', e);
+                }
+            }
+
+            // App is considered installed if in standalone mode OR related app detected
+            const installed = isStandalone || isRelatedAppInstalled;
+            setIsInstalled(installed);
+
+            // Show installed message ONLY if installed but NOT in standalone mode (user is in browser)
+            if (installed && !isStandalone) {
+                setShowInstalledMessage(true);
+                // Auto-hide the installed message after 5 seconds
+                const timer = setTimeout(() => setShowInstalledMessage(false), 5000);
+                return () => clearTimeout(timer);
+            }
+        };
+
+        checkInstalled();
 
         // Check if user already dismissed this session
         if (sessionStorage.getItem('install-prompt-dismissed') === 'true') {
@@ -29,9 +48,9 @@ const InstallPrompt = () => {
             return;
         }
 
-        // Auto-show prompt after 1 second if not installed
+        // Auto-show prompt after 1 second if not installed and not dismissed
         const showTimer = setTimeout(() => {
-            if (!isStandalone && !isDismissed) {
+            if (!isInstalled && !isDismissed) {
                 setIsVisible(true);
             }
         }, 1000);
@@ -54,7 +73,7 @@ const InstallPrompt = () => {
             clearTimeout(showTimer);
             window.removeEventListener('beforeinstallprompt', handler);
         };
-    }, []);
+    }, [isInstalled]);
 
     const handleInstall = async () => {
         if (!deferredPrompt) return;
@@ -79,12 +98,12 @@ const InstallPrompt = () => {
         sessionStorage.setItem('install-prompt-dismissed', 'true');
     };
 
-    // Auto-dismiss after 3 seconds
+    // Auto-dismiss after 8 seconds
     useEffect(() => {
         if (isVisible) {
             const timer = setTimeout(() => {
                 handleDismiss();
-            }, 3000);
+            }, 8000);
             return () => clearTimeout(timer);
         }
     }, [isVisible]);
@@ -106,7 +125,7 @@ const InstallPrompt = () => {
                         <div className="flex-1 min-w-0">
                             <h3 className="font-bold text-base-content text-sm md:text-base">Snitch Installed</h3>
                             <p className="text-xs text-base-content/60 mt-0.5">
-                                You have Snitch installed. Click to open the app.
+                                You have Snitch installed. Tap the app icon on your home screen to open it.
                             </p>
                         </div>
                     </div>

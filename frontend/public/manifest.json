@@ -18,18 +18,12 @@
   ],
   "share_target": {
     "action": "/share",
-    "method": "POST",
-    "enctype": "multipart/form-data",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
     "params": {
       "title": "title",
       "text": "text",
-      "url": "url",
-      "files": [
-        {
-          "name": "files",
-          "accept": ["image/*", "video/*", "audio/*", "application/pdf"]
-        }
-      ]
+      "url": "url"
     }
   },
   "icons": [
@@ -91,11 +85,6 @@
           "src": "/shortcuts/shortcut-new-post-192.png",
           "sizes": "192x192",
           "type": "image/png"
-        },
-        {
-          "src": "/shortcuts/shortcut-new-post-192.png",
-          "sizes": "512x512",
-          "type": "image/png"
         }
       ]
     },
@@ -108,11 +97,6 @@
         {
           "src": "/shortcuts/shortcut-messages-192.png",
           "sizes": "192x192",
-          "type": "image/png"
-        },
-        {
-          "src": "/shortcuts/shortcut-messages-192.png",
-          "sizes": "512x512",
           "type": "image/png"
         }
       ]
@@ -127,11 +111,6 @@
           "src": "/shortcuts/shortcut-search-192.png",
           "sizes": "192x192",
           "type": "image/png"
-        },
-        {
-          "src": "/shortcuts/shortcut-search-192.png",
-          "sizes": "512x512",
-          "type": "image/png"
         }
       ]
     },
@@ -145,13 +124,9 @@
           "src": "/shortcuts/shortcut-profile-192.png",
           "sizes": "192x192",
           "type": "image/png"
-        },
-        {
-          "src": "/shortcuts/shortcut-profile-192.png",
-          "sizes": "512x512",
-          "type": "image/png"
         }
       ]
     }
-  ]
+  ],
+  "note": "App shortcuts are supported on Android. iOS does not support PWA shortcuts - users can add the app to their home screen for quick access."
 }

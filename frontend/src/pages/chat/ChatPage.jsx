@@ -1054,6 +1054,11 @@ const ChatPage = () => {
     const getMessageStatusIcon = (message) => {
         if (!getIsOwn(message)) return null;
 
+        // Show clock icon for pending messages (from IndexedDB)
+        if (message.isPending) {
+            return <Clock className="w-3.5 h-3.5 text-gray-400 animate-spin" />;
+        }
+
         switch (message.status) {
             case 'read':
                 return <CheckCheck className="w-3.5 h-3.5 text-primary" />;

@@ -18,7 +18,7 @@ const SharePage = () => {
     const [sending, setSending] = useState(false);
 
     useEffect(() => {
-        // Parse shared data from URL params
+        // Parse shared data from URL params (GET method from share_target)
         const params = new URLSearchParams(location.search);
         const title = params.get('title') || '';
         const text = params.get('text') || '';

@@ -1,13 +1,13 @@
 import { useEffect, useCallback } from 'react';
 import axiosInstance from '../lib/axios';
 
-const VAPID_PUBLIC_KEY = process.env.REACT_APP_VAPID_PUBLIC_KEY || '';
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
 
 export const usePushNotifications = () => {
     const registerServiceWorker = useCallback(async () => {
         try {
             if (!('serviceWorker' in navigator)) {
-                console.warn('Service Worker not supported');
+                console.warn('[Push] Service Worker not supported');
                 return false;
             }
 
@@ -15,59 +15,86 @@ export const usePushNotifications = () => {
                 scope: '/',
             });
 
-            console.log('Service Worker registered:', registration);
+            console.log('[Push] Service Worker registered:', registration);
             return registration;
         } catch (error) {
-            console.error('Service Worker registration failed:', error);
+            console.error('[Push] Service Worker registration failed:', error);
             return null;
         }
     }, []);
 
     const requestNotificationPermission = useCallback(async () => {
         if (!('Notification' in window)) {
-            console.warn('Notifications not supported');
+            console.warn('[Push] Notifications not supported');
             return false;
         }
 
         if (Notification.permission === 'granted') {
+            console.log('[Push] Notification permission already granted');
             return true;
         }
 
         if (Notification.permission !== 'denied') {
+            console.log('[Push] Requesting notification permission...');
             const permission = await Notification.requestPermission();
+            console.log('[Push] Permission result:', permission);
             return permission === 'granted';
         }
 
+        console.warn('[Push] Notification permission denied');
         return false;
     }, []);
 
     const subscribeToPush = useCallback(async (registration) => {
         try {
-            if (!registration || !VAPID_PUBLIC_KEY) {
-                console.warn('Missing registration or VAPID key');
+            if (!registration) {
+                console.warn('[Push] Missing registration');
                 return null;
             }
+
+            if (!VAPID_PUBLIC_KEY) {
+                console.error('[Push] VAPID_PUBLIC_KEY is not set. Please check your .env file.');
+                return null;
+            }
+
+            console.log('[Push] VAPID key found, length:', VAPID_PUBLIC_KEY.length);
 
             // Check if already subscribed
             let subscription = await registration.pushManager.getSubscription();
 
             if (!subscription) {
+                console.log('[Push] No existing subscription, creating new one...');
                 // Subscribe to push
                 subscription = await registration.pushManager.subscribe({
                     userVisibleOnly: true,
                     applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
                 });
+                console.log('[Push] New subscription created');
+            } else {
+                console.log('[Push] Using existing subscription');
             }
 
             // Send subscription to backend
+            const token = localStorage.getItem('access-token');
+            if (!token) {
+                console.warn('[Push] No access token found, cannot save subscription');
+                return subscription;
+            }
+
+            console.log('[Push] Sending subscription to backend...');
             const response = await axiosInstance.post('/auth/push-subscription', {
                 subscription: subscription.toJSON(),
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
             });
 
-            console.log('Push subscription saved:', response.data);
+            console.log('[Push] Push subscription saved:', response.data);
             return subscription;
         } catch (error) {
-            console.error('Push subscription error:', error);
+            console.error('[Push] Push subscription error:', error);
+            if (error.response) {
+                console.error('[Push] Server response:', error.response.data);
+            }
             return null;
         }
     }, []);
@@ -80,32 +107,43 @@ export const usePushNotifications = () => {
                 await subscription.unsubscribe();
 
                 // Notify backend
-                await axiosInstance.delete('/auth/push-subscription', {
-                    data: { endpoint: subscription.endpoint },
-                });
+                const token = localStorage.getItem('access-token');
+                if (token) {
+                    await axiosInstance.delete('/auth/push-subscription', {
+                        data: { endpoint: subscription.endpoint },
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                }
 
-                console.log('Push subscription removed');
+                console.log('[Push] Push subscription removed');
             }
         } catch (error) {
-            console.error('Push unsubscription error:', error);
+            console.error('[Push] Push unsubscription error:', error);
         }
     }, []);
 
     const setupPushNotifications = useCallback(async () => {
         try {
+            console.log('[Push] Setting up push notifications...');
+            
             const registration = await registerServiceWorker();
-            if (!registration) return false;
+            if (!registration) {
+                console.error('[Push] Failed to register service worker');
+                return false;
+            }
 
             const hasPermission = await requestNotificationPermission();
             if (!hasPermission) {
-                console.warn('Notification permission denied');
+                console.warn('[Push] Notification permission denied');
                 return false;
             }
 
             const subscription = await subscribeToPush(registration);
-            return subscription !== null;
+            const success = subscription !== null;
+            console.log('[Push] Setup complete, success:', success);
+            return success;
         } catch (error) {
-            console.error('Push notification setup failed:', error);
+            console.error('[Push] Push notification setup failed:', error);
             return false;
         }
     }, [registerServiceWorker, requestNotificationPermission, subscribeToPush]);

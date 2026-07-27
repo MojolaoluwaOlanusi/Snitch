@@ -674,8 +674,33 @@ export const useChatStore = create((set, get) => ({
             const token = localStorage.getItem('access-token');
             const params = before ? { before, limit: 50 } : { limit: 50 };
             const res = await axiosInstance.get(`/chat/messages/${conversationId}`, { headers: { Authorization: `Bearer ${token}` }, params });
-            set({ messages: res.data, isMessagesLoading: false });
-            return res.data;
+            
+            // Merge pending messages from IndexedDB for this conversation
+            const pendingMessages = await getPendingMessages();
+            const { authUser } = useAuthStore.getState();
+            const pendingForThisConv = pendingMessages.filter(msg => 
+                msg.conversationId === conversationId && 
+                msg.senderId === authUser?._id
+            );
+            
+            // Add pending status to pending messages
+            const pendingWithStatus = pendingForThisConv.map(msg => ({
+                ...msg,
+                _id: msg.id, // Use the IndexedDB ID as _id
+                isPending: true,
+                createdAt: msg.createdAt || new Date().toISOString(),
+                senderId: msg.senderId,
+                senderName: authUser?.displayName || authUser?.username || 'You',
+                senderAvatar: authUser?.avatarUrl || '/avatar.png',
+            }));
+            
+            // Merge server messages with pending messages
+            const allMessages = [...res.data, ...pendingWithStatus];
+            // Sort by createdAt to maintain order
+            allMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+            
+            set({ messages: allMessages, isMessagesLoading: false });
+            return allMessages;
         } catch (error) { console.error('Error fetching messages:', error); set({ isMessagesLoading: false }); return []; }
     },
 
@@ -834,18 +859,32 @@ export const useChatStore = create((set, get) => ({
 
     addMessage: (message) => {
         set((state) => {
-            if (state.messages.find(m => m._id === message._id)) return state;
+            // Check if message already exists (by _id or by pending id)
+            const existingMessage = state.messages.find(m => 
+                m._id === message._id || 
+                (message.isPending && m._id === message._id)
+            );
+            if (existingMessage) {
+                // If the incoming message is not pending and we have a pending version, replace it
+                if (!message.isPending && existingMessage.isPending) {
+                    const filteredMessages = state.messages.filter(m => m._id !== message._id);
+                    return { messages: [...filteredMessages, message] };
+                }
+                return state;
+            }
             return { messages: [...state.messages, message] };
         });
         
         // Increment unread count if this message is for a different conversation
-        const { selectedConversation } = get();
+        const { selectedConversation, authUser } = get();
         const conversationId = message.conversationId;
         const isCurrentConversation = selectedConversation?._id === conversationId;
         const isChatPage = window.location.pathname === '/chat';
         const isThisConversationOpen = isCurrentConversation && isChatPage;
+        const isFromCurrentUser = message.senderId === authUser?._id;
         
-        if (!isThisConversationOpen && conversationId) {
+        // Don't increment unread for pending messages from current user
+        if (!isThisConversationOpen && conversationId && !isFromCurrentUser && !message.isPending) {
             get().incrementUnread(conversationId);
         }
     },
