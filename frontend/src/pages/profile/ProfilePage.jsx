@@ -74,11 +74,10 @@ const ProfilePage = () => {
         
         try {
             if (useCloudinary) {
-                // Use Cloudinary direct upload
+                // Use Cloudinary direct upload with automatic profile update
                 const file = data.file;
                 const { uploadToCloudinary } = useMediaStore.getState();
-                const result = await uploadToCloudinary(file, 'CoverImages');
-                await updateProfile({ coverImg: result.url });
+                const result = await uploadToCloudinary(file, 'CoverImages', 'coverImg');
                 toast.success('Cover image updated successfully');
             } else {
                 // Use existing S3/MinIO upload logic
@@ -108,11 +107,10 @@ const ProfilePage = () => {
         
         try {
             if (useCloudinary) {
-                // Use Cloudinary direct upload
+                // Use Cloudinary direct upload with automatic profile update
                 const file = data.file;
                 const { uploadToCloudinary } = useMediaStore.getState();
-                const result = await uploadToCloudinary(file, 'Avatars');
-                await updateProfile({ avatarUrl: result.url });
+                const result = await uploadToCloudinary(file, 'Avatars', 'avatarUrl');
                 toast.success('Avatar updated successfully');
             } else {
                 // Use existing S3/MinIO upload logic

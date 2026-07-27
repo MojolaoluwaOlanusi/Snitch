@@ -216,50 +216,28 @@ const PostItem = ({ post, authUserId }) => {
                   {!(editingPostId === post?._id) && !(deletingPostId === post?._id) && !(reportingPostId === post?._id) && <MoreHorizontal className="h-5 w-5" />}
               </button>
               <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
-                {post?.author?._id === authUserId ? (
-                    <>
-                        <li>
-                            <button className="text-base-content/60" onClick={(e) => {
-                                e.preventDefault();
-                                const { deletePost } = useUserStore.getState();
-                                deletePost(post?._id);
-                            }}>
-                                <div className="flex flex-row group w-40 justify-between">
-                                    <p className="group-hover:text-error">Delete post</p>
-                                    {!(deletingPostId === post?._id) && <FaTrash className="cursor-pointer group-hover:text-error" />}
-                                </div>
-                            </button>
-                        </li>
-                        <li>
-                            <button className="text-base-content/60" onClick={() => {
-                                const { setEditingPostId } = useUserStore.getState();
-                                setEditingPostId(post._id);
-                            }}>
-                                <div className="flex flex-row group w-40 justify-between">
-                                    <p className="group-hover:text-primary">Edit post</p>
-                                    <Edit className="cursor-pointer group-hover:text-primary" />
-                                </div>
-                            </button>
-                        </li>
-                    </>
-                ) : (
-                    <li>
-                        <button className="text-base-content/60" onClick={() => {
-                            setShowReportModal(post._id)
-                        }}>
-                            Report Post
-                        </button>
-                    </li>
-                )}
-                {post?.author?._id !== authUserId && (
-                    <li>
-                        <button className="text-base-content/60" onClick={() => {
-                            setShowReportModal(post._id)
-                        }}>
-                            Report Post
-                        </button>
-                    </li>
-                )}
+                <li>
+                  {post?.author?._id === authUserId && (
+                      <button className="text-base-content/60" onClick={(e) => {
+                          e.preventDefault();
+                          const { deletePost } = useUserStore.getState();
+                          deletePost(post?._id);
+                      }}>
+                          <div className="flex flex-row group w-40 justify-between">
+                              <p className="group-hover:text-error">Delete post</p>
+                              {!(deletingPostId === post?._id) && <FaTrash className="cursor-pointer group-hover:text-error" />}
+                          </div>
+                      </button>
+                  )}
+                    {post?.author?._id === authUserId && !useUserStore.getState().isEditing && (
+                        <EditPostModal post={post} />
+                    )}
+                    <button className="text-base-content/60" onClick={() => {
+                        setShowReportModal(post._id)
+                    }}>
+                        Report Post
+                    </button>
+                </li>
               </ul>
             </div>
           </span>

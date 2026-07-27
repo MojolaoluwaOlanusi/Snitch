@@ -92,7 +92,7 @@ export const useMediaStore = create((set) => ({
     },
 
     // Upload directly to Cloudinary (for avatar/cover images)
-    uploadToCloudinary: async (file, folder) => {
+    uploadToCloudinary: async (file, folder, updateProfileField = null) => {
         const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
         const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
@@ -104,30 +104,38 @@ export const useMediaStore = create((set) => ({
             formData.append('folder', `snitch/${folder}`);
             
             const response = await axios.post(
-                `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+                `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
                 formData,
                 {
                     headers: {
                         'Content-Type': 'multipart/form-data',
                     },
-                    timeout: 60000,
+                    timeout: 600000, // 10 minutes for large files
                 }
             );
             
-            const data = await response.json();
+            const data = response.data;
             
-            if (!response.ok) {
-                console.error('Cloudinary error:', data);
-                throw new Error(data.error?.message || 'Cloudinary upload failed');
+            if (!data.secure_url) {
+                throw new Error('No URL returned from Cloudinary');
+            }
+
+            // If updateProfileField is provided, update the user profile
+            if (updateProfileField) {
+                const token = localStorage.getItem('access-token');
+                await axiosInstance.put('/auth/update-profile', 
+                    { [updateProfileField]: data.secure_url },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
             }
 
             return {
-                url: response.data.secure_url,
-                publicId: response.data.public_id,
-                width: response.data.width,
-                height: response.data.height,
-                format: response.data.format,
-                bytes: response.data.bytes,
+                url: data.secure_url,
+                publicId: data.public_id,
+                width: data.width,
+                height: data.height,
+                format: data.format,
+                bytes: data.bytes,
             };
         } catch (error) {
             console.error('Cloudinary upload error:', error);

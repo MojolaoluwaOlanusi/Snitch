@@ -28,6 +28,7 @@ function CreatePostPage() {
     const [file, setFile] = useState(null);
     const [filePreview, setFilePreview] = useState(null);
     const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+    const [uploadedMediaUrl, setUploadedMediaUrl] = useState(null);
 
     const [linkPreviews, setLinkPreviews] = useState([]);
     const [isFetchingPreview, setIsFetchingPreview] = useState(false);
@@ -307,12 +308,67 @@ function CreatePostPage() {
         if (filePreview) URL.revokeObjectURL(filePreview);
         setFile(null);
         setFilePreview(null);
+        setUploadedMediaUrl(null);
+    };
+
+    // ── background media upload ───────────────────────────
+    const uploadMediaInBackground = async (fileToUpload) => {
+        if (!fileToUpload) return null;
+        
+        setIsUploadingMedia(true);
+        try {
+            const contentType = fileToUpload.type;
+            const folder = fileToUpload.type.startsWith("image") ? "Images"
+                : fileToUpload.type.startsWith("video") ? "Videos" : "Audio";
+            
+            const useCloudinary = import.meta.env.VITE_USE_CLOUDINARY === 'true';
+            
+            if (useCloudinary) {
+                // Use Cloudinary direct upload with unsigned preset
+                const formData = new FormData();
+                formData.append('file', fileToUpload);
+                formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'snitch_unsigned');
+                formData.append('folder', `snitch/posts/${folder}`);
+                
+                const response = await fetch(
+                    `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/auto/upload`,
+                    { method: 'POST', body: formData }
+                );
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error?.message || 'Cloudinary upload failed');
+                }
+                
+                setUploadedMediaUrl(data.secure_url);
+                return data.secure_url;
+            } else {
+                // Use existing S3/MinIO upload logic
+                const token = localStorage.getItem("access-token");
+                const res = await axiosInstance.post("/media/upload-url",
+                    { contentType, folder },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                const publicUrl = res.data.publicUrl;
+                const uploadUrl = res.data.uploadUrl;
+                await axiosInstance.put(uploadUrl, fileToUpload, { headers: { "Content-Type": contentType } });
+                setUploadedMediaUrl(publicUrl);
+                return publicUrl;
+            }
+        } catch (error) {
+            console.error('Media upload failed:', error);
+            throw error;
+        } finally {
+            setIsUploadingMedia(false);
+        }
     };
 
     // ── submit ───────────────────────────────────────────
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!text.trim() && !file) return;
+        if (isSending) return;
 
         // Validate scheduled time
         if (scheduledAt) {
@@ -329,51 +385,23 @@ function CreatePostPage() {
             let mediaUrl = null;
             let mediaType = "None";
 
+            // Upload media first if selected
             if (file) {
-                setIsUploadingMedia(true);
-                const contentType = file.type;
-                const folder = file.type.startsWith("image") ? "Images"
-                    : file.type.startsWith("video") ? "Videos"
-                        : "Audio";
-                
-                const useCloudinary = import.meta.env.VITE_USE_CLOUDINARY === 'true';
-                
-                if (useCloudinary) {
-                    // Use Cloudinary direct upload with unsigned preset
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'snitch_unsigned');
-                    formData.append('folder', `snitch/posts/${folder}`);
-                    
-                    const response = await fetch(
-                        `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/auto/upload`,
-                        { method: 'POST', body: formData }
-                    );
-                    
-                    const data = await response.json();
-                    
-                    if (!response.ok) {
-                        throw new Error(data.error?.message || 'Cloudinary upload failed');
-                    }
-                    
-                    mediaUrl = data.secure_url;
-                } else {
-                    // Use existing S3/MinIO upload logic
-                    const token = localStorage.getItem("access-token");
-                    const res = await axiosInstance.post("/media/upload-url",
-                        { contentType, folder },
-                        { headers: { Authorization: `Bearer ${token}` } }
-                    );
-                    const publicUrl = res.data.publicUrl;
-                    const uploadUrl = res.data.uploadUrl;
-                    await axiosInstance.put(uploadUrl, file, { headers: { "Content-Type": contentType } });
-                    mediaUrl = publicUrl;
+                try {
+                    mediaUrl = await uploadMediaInBackground(file);
+                    mediaType = file.type.startsWith("image") ? "Image"
+                        : file.type.startsWith("video") ? "Video" : "Audio";
+                } catch (uploadError) {
+                    console.error('Media upload failed:', uploadError);
+                    toast.error('Media upload failed. Please try again.');
+                    setIsSending(false);
+                    return; // Don't proceed if upload fails
                 }
-                
+            } else if (uploadedMediaUrl) {
+                // Use already uploaded media URL
+                mediaUrl = uploadedMediaUrl;
                 mediaType = file.type.startsWith("image") ? "Image"
-                    : file.type.startsWith("video") ? "Video"
-                        : "Audio";
-                setIsUploadingMedia(false);
+                    : file.type.startsWith("video") ? "Video" : "Audio";
             }
 
             const payload = {
@@ -513,6 +541,15 @@ function CreatePostPage() {
                                                 <span className="text-sm text-base-content/60">
                                                     Audio file
                                                 </span>
+                                            </div>
+                                        )}
+                                        {/* Upload progress overlay */}
+                                        {isUploadingMedia && (
+                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+                                                <div className="text-white text-center">
+                                                    <LoaderIcon className="w-6 h-6 animate-spin mx-auto" />
+                                                    <p className="mt-2 text-xs">Uploading...</p>
+                                                </div>
                                             </div>
                                         )}
                                         <button
