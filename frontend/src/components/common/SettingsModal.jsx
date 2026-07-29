@@ -309,7 +309,7 @@ const handleEnableNotifications = async () => {
                                         onClick={() => {
                                             const inviteUrl = `${window.location.origin}/profile/${authUser?.username}`;
                                             const inviteText = `Hey! I'm on Snitch – a cool new social app. Follow me @${authUser?.username} and let's connect! 🚀`;
-                                            window.dispatchEvent(new CustomEvent("OpenShareModal", {
+                                            window.dispatchEvent(new CustomEvent("prOpenShareModal", {
                                                 detail: { 
                                                     url: inviteUrl, 
                                                     title: "Invite a friend to Snitch",
