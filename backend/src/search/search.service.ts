@@ -72,7 +72,9 @@ export class SearchService {
         })
             .skip(skip)
             .limit(limit)
-            .select("text read media createdAt updatedAt conversationId");   // <-- add conversationId
+            .select("text read media createdAt updatedAt conversationId senderId")
+            .populate("senderId", "username displayName avatarUrl")
+            .populate("conversationId", "isGroup groupName groupAvatar avatarColor participants");
 
         const total = await Message.countDocuments({ text: regex });
 

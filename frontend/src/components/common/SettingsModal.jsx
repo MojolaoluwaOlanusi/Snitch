@@ -377,30 +377,32 @@ const handleEnableNotifications = async () => {
                                                 </div>
                                             ))}
                                         </div>
-                                        <div className="flex gap-2 items-center">
+                                        <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
                                             <select
                                                 value={newPlatform}
                                                 onChange={(e) => setNewPlatform(e.target.value)}
-                                                className="border border-base-300 rounded-lg px-2 py-1.5 text-sm"
+                                                className="w-full sm:w-auto border border-base-300 rounded-lg px-2 py-1.5 text-sm"
                                             >
                                                 <option value="">Select platform</option>
                                                 {SOCIAL_PLATFORMS.map(p => (
                                                     <option key={p.name} value={p.name}>{p.label}</option>
                                                 ))}
                                             </select>
-                                            <input
-                                                type="url"
-                                                placeholder="URL"
-                                                value={newUrl}
-                                                onChange={(e) => validateUrl(e.target.value)}
-                                                onBlur={(e) => validateUrl(e.target.value)}
-                                                className={`flex-1 border border-base-300 rounded-lg px-3 py-1.5 text-sm ${urlError ? 'border-red-500' : ''}`}
-                                            />
-                                            {urlError && <p className="text-error text-xs mt-1">{urlError}</p>}
+                                            <div className="flex-1 w-full">
+                                                <input
+                                                    type="url"
+                                                    placeholder="URL"
+                                                    value={newUrl}
+                                                    onChange={(e) => validateUrl(e.target.value)}
+                                                    onBlur={(e) => validateUrl(e.target.value)}
+                                                    className={`w-full border border-base-300 rounded-lg px-3 py-1.5 text-sm ${urlError ? 'border-red-500' : ''}`}
+                                                />
+                                                {urlError && <p className="text-error text-xs mt-1">{urlError}</p>}
+                                            </div>
                                             <button
                                                 onClick={addSocialHandle}
                                                 disabled={!newPlatform || !newUrl || urlError}
-                                                className="p-2 bg-primary text-primary-content rounded-lg hover:bg-primary/90 disabled:opacity-50"
+                                                className="p-2 bg-primary text-primary-content rounded-lg hover:bg-primary/90 disabled:opacity-50 w-full sm:w-auto"
                                             >
                                                 <Plus className="w-4 h-4" />
                                             </button>

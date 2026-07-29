@@ -1,16 +1,19 @@
 import Sidebar from "../../components/common/Sidebar.jsx";
-import {Search, Users, FileText, MessageCircle, AtSign, Hash, TrendingUp, MessageSquare} from "lucide-react";
+import {Search, Users, FileText, MessageCircle, AtSign, Hash, TrendingUp, MessageSquare, Users as UsersIcon} from "lucide-react";
 import {Input} from "../../components/common/input.tsx"
 import {useUserStore} from "../../store/useUserStore.js";
+import {useChatStore} from "../../store/useChatStore.js";
 import LoadingSpinner from "../../components/common/LoadingSpinner.jsx";
 import {useState, useEffect} from "react";
 import {Link, useLocation, useNavigate} from "react-router-dom";
 import {formatPostDate} from "../../utils/date/index.js";
 import axiosInstance from "../../lib/axios.js";
+import { toast } from "sonner";
 
 const SearchPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const { conversations, selectConversation, getConversation } = useChatStore();
 
     const [searchType, setSearchType] = useState("all");
     const [showSearchType, setShowSearchType] = useState(false);
@@ -135,7 +138,8 @@ const SearchPage = () => {
         getTrending(next);
     };
 
-    const loadMoreUsers = () => {
+    const loadMoreUsers = (e) => {
+        e?.preventDefault();
         const next = userSkip + 10;
         setUserSkip(next);
         searchItem({
@@ -146,7 +150,8 @@ const SearchPage = () => {
         });
     };
 
-    const loadMorePosts = () => {
+    const loadMorePosts = (e) => {
+        e?.preventDefault();
         const next = postSkip + 10;
         setPostSkip(next);
         searchItem({
@@ -157,7 +162,8 @@ const SearchPage = () => {
         });
     };
 
-    const loadMoreChats = () => {
+    const loadMoreChats = (e) => {
+        e?.preventDefault();
         const next = chatSkip + 10;
         setChatSkip(next);
         searchItem({
@@ -168,7 +174,8 @@ const SearchPage = () => {
         });
     };
 
-    const loadMoreMentions = () => {
+    const loadMoreMentions = (e) => {
+        e?.preventDefault();
         const next = mentionSkip + 10;
         setMentionSkip(next);
         searchItem({
@@ -179,7 +186,8 @@ const SearchPage = () => {
         });
     };
 
-    const loadMoreHashtags = () => {
+    const loadMoreHashtags = (e) => {
+        e?.preventDefault();
         const next = hashtagSkip + 10;
         setHashtagSkip(next);
         searchItem({
@@ -190,13 +198,33 @@ const SearchPage = () => {
         });
     };
 
-    const handleChatClick = (chat) => {
-        navigate('/chat', {
-            state: {
-                conversationId: chat.conversationId,
-                messageId: chat._id
+    const handleChatClick = async (chat) => {
+        try {
+            // First try to find the conversation in the existing conversations
+            let conv = conversations.find(c => c._id === chat.conversationId);
+            
+            // If not found, fetch it from the server
+            if (!conv) {
+                conv = await getConversation(chat.conversationId);
             }
-        });
+            
+            // If we have a conversation, select it before navigating
+            if (conv) {
+                selectConversation(conv);
+            }
+            
+            // Navigate to chat with the conversation and message info
+            navigate('/chat', {
+                state: {
+                    conversationId: chat.conversationId,
+                    messageId: chat._id,
+                    scrollToMessage: true
+                }
+            });
+        } catch (error) {
+            console.error('Error handling chat click:', error);
+            toast.error('Could not open conversation');
+        }
     };
 
     const renderSearchResult = (item, index, type) => {
@@ -259,16 +287,39 @@ const SearchPage = () => {
         }
 
         if (type === "chat") {
+            const isGroup = item.conversationId?.isGroup || false;
+            const sender = item.senderId;
+            const conversation = item.conversationId;
+            
+            // For one-on-one chats, find the other participant (not the sender)
+            const otherUser = !isGroup && conversation?.participants?.find(p => p._id !== sender?._id);
+            
             return (
                 <div key={index} onClick={() => handleChatClick(item)} className="cursor-pointer">
                     <div className="flex items-center gap-4 p-4 bg-base-100 rounded-xl border border-base-300 hover:border-primary/20 hover:shadow-md transition-all duration-200">
                         <div className="avatar">
-                            <div className="w-12 h-12 rounded-full overflow-hidden bg-primary/20 flex items-center justify-center">
-                                <MessageSquare className="w-6 h-6 text-base-content/70" />
-                            </div>
+                            {isGroup ? (
+                                <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center" style={{ backgroundColor: conversation?.avatarColor || '#6366f1' }}>
+                                    {conversation?.groupAvatar ? (
+                                        <img src={conversation.groupAvatar} alt={conversation.groupName || 'Group'} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span>{conversation.groupName?.charAt(0) || 'G'}</span>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="w-12 h-12 rounded-full overflow-hidden bg-primary/20">
+                                    <img 
+                                        src={otherUser?.avatarUrl || sender?.avatarUrl || "/avatar-placeholder.png"} 
+                                        alt={otherUser?.displayName || sender?.displayName || 'User'} 
+                                        className="w-full h-full object-cover" 
+                                    />
+                                </div>
+                            )}
                         </div>
                         <div className="flex-1">
-                            <h3 className="font-semibold text-base-content">Message</h3>
+                            <h3 className="font-semibold text-base-content">
+                                {isGroup ? (conversation?.groupName || 'Group Chat') : (otherUser?.displayName || sender?.displayName || 'User')}
+                            </h3>
                             <p className="text-sm text-base-content/60 line-clamp-1">{item.text}</p>
                             <p className="text-xs text-base-content/50 mt-1">{formatPostDate(item.createdAt)}</p>
                         </div>
