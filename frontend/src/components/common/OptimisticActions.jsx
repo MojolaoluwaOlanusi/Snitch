@@ -31,10 +31,10 @@ export const OptimisticLikeButton = ({ post, authUserId, onLike }) => {
     };
 
     return (
-        <div className="flex gap-1 items-center cursor-pointer group" onClick={handleClick}>
+        <button className="flex items-center justify-center gap-2 text-base-content/60 hover:text-secondary transition-colors group flex-1 py-2 hover:bg-base-200 rounded-lg" onClick={handleClick}>
             <div className={`relative ${isAnimating ? 'animate-bounce' : ''}`}>
                 <FaRegHeart
-                    className={`w-4 h-4 transition-transform duration-200 ${
+                    className={`w-5 h-5 transition-transform duration-200 ${
                         isLiked ? "text-secondary scale-110" : "text-base-content/60"
                     } group-hover:text-secondary group-hover:scale-110`}
                 />
@@ -49,7 +49,7 @@ export const OptimisticLikeButton = ({ post, authUserId, onLike }) => {
             }`}>
                 {likeCount}
             </span>
-        </div>
+        </button>
     );
 };
 
@@ -73,16 +73,16 @@ export const OptimisticRepostButton = ({ post, onRepost }) => {
     };
 
     return (
-        <div className="flex gap-1 items-center cursor-pointer group" onClick={handleClick}>
+        <button className="flex items-center justify-center gap-2 text-base-content/60 hover:text-success transition-colors group flex-1 py-2 hover:bg-base-200 rounded-lg" onClick={handleClick}>
             <BiRepost
-                className={`w-6 h-6 transition-all duration-300 ${
+                className={`w-5 h-5 transition-all duration-300 ${
                     isAnimating ? 'text-success rotate-180 scale-110' : 'text-base-content/60'
                 } group-hover:text-success group-hover:scale-110`}
             />
             <span className="text-sm group-hover:text-success text-base-content/60 transition-colors">
                 {repostCount}
             </span>
-        </div>
+        </button>
     );
 };
 
@@ -111,7 +111,7 @@ export const OptimisticBookmarkButton = ({ post, authUserId, onBookmark }) => {
 
     return (
         <button
-            className={`flex items-center justify-center gap-2 transition-colors group py-2 hover:bg-base-200 rounded-lg ${
+            className={`flex items-center justify-center gap-2 transition-colors group flex-1 py-2 hover:bg-base-200 rounded-lg ${
                 isBookmarked ? "text-primary" : "text-base-content/60 hover:text-primary"
             }`}
             onClick={handleClick}
@@ -146,16 +146,16 @@ export const OptimisticReactionButton = ({ post, onReact, onTogglePicker }) => {
     };
 
     return (
-        <div className="flex gap-1 items-center cursor-pointer group" onClick={onTogglePicker}>
+        <button className="flex items-center justify-center gap-2 text-base-content/60 hover:text-yellow-500 transition-colors group flex-1 py-2 hover:bg-base-200 rounded-lg" onClick={onTogglePicker}>
             <MdAddReaction
-                className={`w-6 h-6 transition-all duration-200 ${
+                className={`w-5 h-5 transition-all duration-200 ${
                     isAnimating ? 'text-yellow-500 scale-125' : 'text-base-content/60'
                 } group-hover:text-yellow-500 group-hover:scale-110`}
             />
             <span className="text-sm text-base-content/60 group-hover:text-yellow-500 transition-colors">
                 {reactionCount}
             </span>
-        </div>
+        </button>
     );
 };
 

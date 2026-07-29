@@ -515,14 +515,14 @@ const PostPage = () => {
 
                             {/* Share */}
                             <button
-                                className="flex items-center justify-center gap-2 text-base-content/60 hover:text-sky-500 transition-colors group flex-1 py-2 hover:bg-base-200 rounded-lg"
+                                className="flex items-center justify-center gap-2 text-base-content/60 hover:text-primary transition-colors group flex-1 py-2 hover:bg-base-200 rounded-lg"
                                 onClick={(e) => {
                                     e.preventDefault();
                                     const postUrl = `${window.location.origin}/post/${singlePost?._id}`;
                                     handleShare(singlePost?._id, postUrl, singlePost?.text);
                                 }}
                             >
-                                <Share2 className="w-4 h-4 text-base-content/60 group-hover:text-primary" />
+                                <Share2 className="w-5 h-5 text-base-content/60 group-hover:text-primary" />
                             </button>
 
                             {/* Bookmark */}
