@@ -3,7 +3,7 @@ import { useUserStore } from "@/store/useUserStore.js";
 import { useEffect, useState, Suspense, useMemo } from "react";
 import PostSkeleton from "../../components/skeletons/PostSkeleton.jsx";
 import { Link, useNavigate } from "react-router-dom";
-import { Share2, Copy, Check, Bookmark, Sticker } from "lucide-react";
+import { Share2, Copy, Check, Bookmark, Sticker, ChevronDown, ChevronUp } from "lucide-react";
 import { FaFacebook, FaXTwitter, FaWhatsapp, FaTelegram, FaEnvelope } from "react-icons/fa6";
 import { FaRegComment, FaRegHeart, FaTrash } from "react-icons/fa";
 import { OptimisticLikeButton, OptimisticRepostButton, OptimisticBookmarkButton, OptimisticReactionButton, OptimisticDeleteButton } from "./OptimisticActions.jsx";

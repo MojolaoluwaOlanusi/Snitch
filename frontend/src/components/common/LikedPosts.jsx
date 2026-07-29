@@ -13,7 +13,7 @@ import { formatPostDate } from "../../utils/date/index.js";
 import { useAuthStore } from "@/store/useAuthStore.js";
 import { MdAddReaction, MdReportProblem } from "react-icons/md";
 import { IoClose } from "react-icons/io5";
-import { Hash, MoreHorizontal } from "lucide-react";
+import { Hash, MoreHorizontal, ChevronDown, ChevronUp } from "lucide-react";
 import EditPostModal from "../../components/common/EditPostModal.jsx";
 import ReactionEmojiPicker from "./ReactionEmojiPicker.tsx";
 import ReportModal from "./ReportModal.jsx"
