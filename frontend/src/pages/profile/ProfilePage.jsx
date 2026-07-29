@@ -32,7 +32,7 @@ import axiosInstance from "../../lib/axios.js";
 import { toast } from "sonner";
 
 const ProfilePage = () => {
-    const { getUserProfile, isGettingUserProfile, user, isUpdatingProfile, updateProfile, authUser } = useAuthStore();
+    const { getUserProfile, isGettingUserProfile, user, isUpdatingProfile, updateProfile, authUser, invitedCount } = useAuthStore();
     const { userPosts, followUser, isFollowingUser } = useUserStore();
     const { uploadMedia } = useMediaStore();
     const { username } = useParams();
@@ -443,7 +443,7 @@ const ProfilePage = () => {
                                     )}
                                 </div>
 
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 items-center">
                                     <div 
                                         className="flex gap-1 items-center cursor-pointer hover:underline"
                                         onClick={() => setShowFollowersModal(true)}
@@ -458,6 +458,28 @@ const ProfilePage = () => {
                                         <span className="font-bold text-xs">{user?.followers?.length}</span>
                                         <span className="text-base-content/60 text-xs">Followers</span>
                                     </div>
+                                    {isMyProfile && (
+                                        <div className="flex gap-1 items-center">
+                                            <span className="font-bold text-xs">{invitedCount}</span>
+                                            <span className="text-base-content/60 text-xs">Invited</span>
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={() => {
+                                            const inviteUrl = `${window.location.origin}/profile/${authUser?.username}`;
+                                            const inviteText = `Hey! I'm on Snitch – a cool new social app. Follow me @${authUser?.username} and let's connect! 🚀`;
+                                            window.dispatchEvent(new CustomEvent("OpenShareModal", {
+                                                detail: { 
+                                                    url: inviteUrl, 
+                                                    title: "Invite a friend to Snitch",
+                                                    text: inviteText
+                                                }
+                                            }));
+                                        }}
+                                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                                    >
+                                        Invite a friend
+                                    </button>
                                 </div>
                             </div>
 

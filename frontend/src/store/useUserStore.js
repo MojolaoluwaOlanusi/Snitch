@@ -1,6 +1,7 @@
 import {create} from "zustand";
 import axiosInstance  from "../lib/axios.js";
 import { toast } from 'sonner'
+import { useAuthStore } from './useAuthStore.js'
 
 export const useUserStore = create((set, get) => ({
     searchResults: {
@@ -303,6 +304,27 @@ export const useUserStore = create((set, get) => ({
                 await refreshLikedPosts(user);
                 await refreshTruncatedPosts(user);
             }
+            
+            // Show invite toast after successful post creation
+            const { authUser } = useAuthStore.getState();
+            toast.success("Loved posting? Invite a friend to see it! 👀", {
+                action: {
+                    label: "Invite",
+                    onClick: () => {
+                        const inviteUrl = `${window.location.origin}/profile/${authUser?.username}`;
+                        const inviteText = `Hey! I'm on Snitch – a cool new social app. Follow me @${authUser?.username} and let's connect! 🚀`;
+                        window.dispatchEvent(new CustomEvent("OpenShareModal", {
+                            detail: { 
+                                url: inviteUrl, 
+                                title: "Invite a friend to Snitch",
+                                text: inviteText
+                            }
+                        }));
+                    }
+                },
+                duration: 5000,
+            });
+            
             return res.data; // Return the created post
         } catch (error) {
             console.log("Error in Creating Post:", error);

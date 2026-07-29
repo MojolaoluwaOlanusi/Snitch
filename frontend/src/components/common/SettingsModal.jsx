@@ -2,7 +2,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import {
     X, Edit3, Bookmark,EyeOff,
-    Twitter, Instagram, Globe, Link as LinkIcon, Plus, AlertTriangle, Download,
+    Twitter, Instagram, Globe, Link as LinkIcon, Plus, AlertTriangle, Download, UserPlus,
 } from "lucide-react";
 import axiosInstance from "../../lib/axios.js";
 import { toast } from "sonner";
@@ -302,6 +302,25 @@ const handleEnableNotifications = async () => {
                                     >
                                         <Edit3 className="w-5 h-5 text-base-content/60" />
                                         <span className="text-sm">Edit Profile</span>
+                                    </button>
+
+                                    {/* Invite Friends button */}
+                                    <button
+                                        onClick={() => {
+                                            const inviteUrl = `${window.location.origin}/profile/${authUser?.username}`;
+                                            const inviteText = `Hey! I'm on Snitch – a cool new social app. Follow me @${authUser?.username} and let's connect! 🚀`;
+                                            window.dispatchEvent(new CustomEvent("OpenShareModal", {
+                                                detail: { 
+                                                    url: inviteUrl, 
+                                                    title: "Invite a friend to Snitch",
+                                                    text: inviteText
+                                                }
+                                            }));
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-base-200 rounded-xl"
+                                    >
+                                        <UserPlus className="w-5 h-5 text-base-content/60" />
+                                        <span className="text-sm">Invite Friends</span>
                                     </button>
 
                                     {/* Gender */}

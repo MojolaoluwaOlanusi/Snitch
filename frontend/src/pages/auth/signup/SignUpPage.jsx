@@ -1,11 +1,14 @@
-import {useState} from "react";
+import {useState, useEffect} from "react";
 import { useAuthStore } from "../../../store/useAuthStore.js";
 import {MessageCircleIcon, LockIcon, MailIcon, UserIcon, LoaderIcon, Briefcase, User2Icon} from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 function SignUpPage() {
+    const [searchParams] = useSearchParams();
+    const refUsername = searchParams.get('ref');
+    
     const [formData, setFormData] = useState({ username: "", email: "", password: "", accountType: "", displayName: "" });
-    const submitData = { ...formData, username: formData.username.trim() };
+    const submitData = { ...formData, username: formData.username.trim(), ref: refUsername };
     const { signup, isSigningUp } = useAuthStore();
     const [usernameError, setUsernameError] = useState('');
     const [emailError, setEmailError] = useState('');

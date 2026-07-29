@@ -24,6 +24,7 @@ export const useAuthStore = create((set, get) => ({
     hasBlockedUser: false,
     socket: null,
     isSocketConnected: false,
+    invitedCount: 0,
 
     checkAuthentication: async () => {
         try {
@@ -66,6 +67,20 @@ export const useAuthStore = create((set, get) => ({
             toast.success("Account created successfully!");
             await get().registerPushNotifications();
             await useChatStore.getState().syncUnreadCounts();
+            
+            // Handle invite tracking if ref parameter was used
+            if (data.ref) {
+                try {
+                    // Try to call the backend invite tracking endpoint
+                    await axiosInstance.post("/invite/track", { referrer: data.ref });
+                    // If successful, the backend should handle incrementing the count
+                } catch (error) {
+                    // If backend endpoint doesn't exist, we'll handle it locally for now
+                    console.log("Invite tracking endpoint not available, using local tracking");
+                    // Store the ref for later tracking when backend is available
+                    localStorage.setItem('inviteRef', data.ref);
+                }
+            }
         } catch (error) {
             toast.error(error.response?.data?.message || "Signup failed");
         } finally {
