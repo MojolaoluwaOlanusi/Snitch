@@ -1194,7 +1194,7 @@ export const useUserStore = create((set, get) => ({
                             users:
                                 skip === 0
                                     ? res.data.users
-                                    : [...current.users, ...res.data.users]
+                                    : [...(current.users || []), ...res.data.users]
                         },
                         searchHasMore: {
                             ...get().searchHasMore,
@@ -1210,7 +1210,7 @@ export const useUserStore = create((set, get) => ({
                             posts:
                                 skip === 0
                                     ? res.data.posts
-                                    : [...current.posts, ...res.data.posts]
+                                    : [...(current.posts || []), ...res.data.posts]
                         },
                         searchHasMore: {
                             ...get().searchHasMore,
@@ -1226,7 +1226,7 @@ export const useUserStore = create((set, get) => ({
                             chats:
                                 skip === 0
                                     ? res.data.chats
-                                    : [...current.chats, ...res.data.chats]
+                                    : [...(current.chats || []), ...res.data.chats]
                         },
                         searchHasMore: {
                             ...get().searchHasMore,
@@ -1242,7 +1242,7 @@ export const useUserStore = create((set, get) => ({
                             mentions:
                                 skip === 0
                                     ? res.data.posts
-                                    : [...current.mentions, ...res.data.posts]
+                                    : [...(current.mentions || []), ...res.data.posts]
                         },
                         searchHasMore: {
                             ...get().searchHasMore,
@@ -1279,17 +1279,17 @@ export const useUserStore = create((set, get) => ({
                                 users:
                                     skip === 0
                                         ? res.data.users
-                                        : [...current.all.users, ...res.data.users],
+                                        : [...(current.all?.users || []), ...res.data.users],
 
                                 posts:
                                     skip === 0
                                         ? res.data.posts
-                                        : [...current.all.posts, ...res.data.posts],
+                                        : [...(current.all?.posts || []), ...res.data.posts],
 
                                 chats:
                                     skip === 0
                                         ? res.data.chats
-                                        : [...current.all.chats, ...res.data.chats]
+                                        : [...(current.all?.chats || []), ...res.data.chats]
                             }
                         },
 
