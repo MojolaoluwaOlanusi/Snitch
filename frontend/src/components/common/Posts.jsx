@@ -153,13 +153,13 @@ const PostItem = ({ post, authUserId }) => {
         }
     };
 
-    const handleShare = async (postId, url) => {
+    const handleShare = async (postId, url, title = 'Check out this post on Snitch', text = 'I found this interesting post on Snitch!') => {
         // If Web Share API is supported, use it
         if (navigator.share) {
             try {
                 await navigator.share({
-                    title: 'Check out this post on Snitch',
-                    text: 'I found this interesting post on Snitch!',
+                    title: title,
+                    text: text,
                     url: url,
                 });
                 // Exit early - don't open the modal
@@ -179,7 +179,7 @@ const PostItem = ({ post, authUserId }) => {
         // Fallback: open the share modal (only if navigator.share not supported or failed)
         window.dispatchEvent(
             new CustomEvent("OpenShareModal", {
-                detail: { postId, url },
+                detail: { postId, url, title, text },
             })
         );
     };
@@ -626,13 +626,7 @@ const Posts = () => {
                                     const { authUser } = useAuthStore.getState();
                                     const inviteUrl = `${window.location.origin}/profile/${authUser?.username}`;
                                     const inviteText = `Hey! I'm on Snitch – a cool new social app. Follow me @${authUser?.username} and let's connect! 🚀`;
-                                    window.dispatchEvent(new CustomEvent("OpenShareModal", {
-                                        detail: { 
-                                            url: inviteUrl, 
-                                            title: "Invite a friend to Snitch",
-                                            text: inviteText
-                                        }
-                                    }));
+                                    handleShare(null, inviteUrl, "Invite a friend to Snitch", inviteText);
                                 }}
                                 className="btn btn-primary"
                             >
