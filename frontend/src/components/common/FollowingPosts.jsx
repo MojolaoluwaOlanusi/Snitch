@@ -54,6 +54,7 @@ const FollowingPostItem = ({ post, authUserId }) => {
     const [replyToCommentId, setReplyToCommentId] = useState(null);
     const [replyText, setReplyText] = useState("");
     const [replyMedia, setReplyMedia] = useState(null);
+    const [showReplies, setShowReplies] = useState({});
     const [showCommentStickerPicker, setShowCommentStickerPicker] = useState(false);
     const [showReplyStickerPicker, setShowReplyStickerPicker] = useState(false);
     const [showReportModal, setShowReportModal] = useState(null);
@@ -282,7 +283,7 @@ const FollowingPostItem = ({ post, authUserId }) => {
                                     <h3 className="font-bold text-lg mb-4">Comments</h3>
                                     <div>
                                         <form method="dialog" className="modal-backdrop">
-                                            <button className="outline-none"><IoClose className="text-base-content" /></button>
+                                            <button className="outline-none p-2 hover:bg-base-200 rounded-full"><IoClose className="text-base-content w-6 h-6" /></button>
                                         </form>
                                     </div>
                                 </div>
@@ -306,26 +307,6 @@ const FollowingPostItem = ({ post, authUserId }) => {
                                     </div>
                                 </form>
 
-                                {/* Sticker / GIF picker for new comment */}
-                                <AnimatePresence>
-                                    {showCommentStickerPicker && (
-                                        <div className="max-h-48 overflow-y-auto border border-base-content/30 rounded-lg p-1">
-                                            <Suspense fallback={null}>
-                                                <GifStickerPicker
-                                                    onSelect={({ type, url }) => {
-                                                        setCommentData(prev => ({
-                                                            ...prev,
-                                                            media: { url, type },   // directly store the media object
-                                                        }));
-                                                        setShowCommentStickerPicker(false);
-                                                    }}
-                                                    isOpen={showCommentStickerPicker}
-                                                    onClose={() => setShowCommentStickerPicker(false)}
-                                                />
-                                            </Suspense>
-                                        </div>
-                                    )}
-                                </AnimatePresence>
 
                                 {/* Comments list */}
                                 <div className="flex flex-col gap-3 max-h-60 overflow-auto">
@@ -399,7 +380,20 @@ const FollowingPostItem = ({ post, authUserId }) => {
                                                         </AnimatePresence>
                                                     </div>
                                                 )}
-                                                {comment.replies?.length > 0 && (
+                                                <div className="flex w-full justify-between">
+                                                    {/* Show replies */}
+                                                    {comment.replies?.length > 0 && (
+                                                        <button onClick={() => setShowReplies(prev => ({ ...prev, [comment._id]: !prev[comment._id] }))} className="p-1">
+                                                            {showReplies[comment._id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                                        </button>
+                                                    )}
+
+                                                    {/* Reply button */}
+                                                    <button className="text-xs text-primary hover:underline mt-1" onClick={() => setReplyToCommentId(replyToCommentId === comment._id ? null : comment._id)}>
+                                                        Reply
+                                                    </button>
+                                                </div>
+                                                {showReplies[comment._id] && (
                                                     <div className="ml-4 mt-2 space-y-2">
                                                         {comment.replies.map(reply => (
                                                             <div key={reply._id} className="flex gap-2 items-start">
@@ -434,6 +428,27 @@ const FollowingPostItem = ({ post, authUserId }) => {
                                 </div>
                             </div>
                         </dialog>
+
+                        {/* Sticker / GIF picker for new comment - outside modal */}
+                        <AnimatePresence>
+                            {showCommentStickerPicker && (
+                                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] bg-base-100 rounded-lg shadow-xl border border-base-content/30 p-2 max-w-md w-full">
+                                    <Suspense fallback={null}>
+                                        <GifStickerPicker
+                                            onSelect={({ type, url }) => {
+                                                setCommentData(prev => ({
+                                                    ...prev,
+                                                    media: { url, type },
+                                                }));
+                                                setShowCommentStickerPicker(false);
+                                            }}
+                                            isOpen={showCommentStickerPicker}
+                                            onClose={() => setShowCommentStickerPicker(false)}
+                                        />
+                                    </Suspense>
+                                </div>
+                            )}
+                        </AnimatePresence>
 
                         {/* Repost */}
                         <OptimisticRepostButton post={post} onRepost={repost} />

@@ -27,7 +27,7 @@ const PostPage = () => {
     const [replyToCommentId, setReplyToCommentId] = useState(null);
     const [replyText, setReplyText] = useState("");
     const [replyMedia, setReplyMedia] = useState(null);
-    const [showReplies, setShowReplies] = useState(false);
+    const [showReplies, setShowReplies] = useState({});
     const [showCommentStickerPicker, setShowCommentStickerPicker] = useState(false);
     const [showReplyStickerPicker, setShowReplyStickerPicker] = useState(false);
 
@@ -752,8 +752,8 @@ const PostPage = () => {
                                         </div>
                                         <div className="flex items-center gap-4 mt-1 text-xs text-base-content/60">
                                             {comment.replies?.length > 0 && (
-                                                <button onClick={() => setShowReplies(!showReplies)} className="p-1">
-                                                    {showReplies ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                                <button onClick={() => setShowReplies(prev => ({ ...prev, [comment._id]: !prev[comment._id] }))} className="p-1">
+                                                    {showReplies[comment._id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                                 </button>
                                             )}
                                             <span>
@@ -811,7 +811,7 @@ const PostPage = () => {
                                             </div>
                                         )}
 
-                                        {showReplies && (
+                                        {showReplies[comment._id] && (
                                             <div className="ml-4 mt-2 space-y-2">
                                                 {comment.replies.map(reply => (
                                                     <div key={reply._id} className="flex gap-2 items-start">
