@@ -33,6 +33,7 @@ const SearchPage = () => {
     const [loadingMoreChats, setLoadingMoreChats] = useState(false);
     const [loadingMoreMentions, setLoadingMoreMentions] = useState(false);
     const [loadingMoreHashtags, setLoadingMoreHashtags] = useState(false);
+    const [isInitialSearch, setIsInitialSearch] = useState(false);
     const {
         searchItem,
         searchResults,
@@ -461,12 +462,15 @@ const SearchPage = () => {
                                         setMentionSkip(0);
                                         setHashtagSkip(0);
                                         setCurrentSearchWord(cleaned);
+                                        setIsInitialSearch(true);
 
                                         searchItem({
                                             searchWord: cleaned,
                                             searchType,
                                             limit: 10,
                                             skip: 0
+                                        }).finally(() => {
+                                            setIsInitialSearch(false);
                                         });
                                     }}
                                     placeholder="Search for people, hashtags, mentions, chats, or posts..."
@@ -502,14 +506,14 @@ const SearchPage = () => {
                 <div className="flex-1 overflow-y-auto p-4 md:p-6">
                     <div className="w-full">
                         <div className="space-y-4">
-                            {isSearching && (
+                            {isInitialSearch && (
                                 <div className="flex flex-col items-center justify-center py-12">
                                     <LoadingSpinner size="lg" />
                                     <p className="mt-4 text-base-content/60">Searching...</p>
                                 </div>
                             )}
 
-                            {!isSearching && !showSearchType && (
+                            {!isInitialSearch && !showSearchType && (
                                 <div className="space-y-6">
                                     <div className="bg-base-100 rounded-2xl shadow-sm p-8 sm:p-12 text-center">
                                         <Search className="w-16 h-16 mx-auto text-gray-300 mb-4" />
@@ -607,7 +611,7 @@ const SearchPage = () => {
                                 </div>
                             )}
 
-                            {!isSearching &&
+                            {!isInitialSearch &&
                                 showSearchType &&
                                 hasNoResults() && (
                                     <div className="bg-base-100 rounded-2xl shadow-sm p-8 sm:p-12 text-center">
@@ -617,7 +621,7 @@ const SearchPage = () => {
                                     </div>
                                 )}
 
-                            {!isSearching && searchResults && (
+                            {searchResults && (
                                 <div className="space-y-3">
                                     {searchType === "all" && typeof searchResults === 'object' && !Array.isArray(searchResults) ? (
                                         <>

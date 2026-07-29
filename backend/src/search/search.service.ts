@@ -74,7 +74,14 @@ export class SearchService {
             .limit(limit)
             .select("text read media createdAt updatedAt conversationId senderId")
             .populate("senderId", "username displayName avatarUrl")
-            .populate("conversationId", "isGroup groupName groupAvatar avatarColor participants");
+            .populate({
+                path: "conversationId",
+                select: "isGroup groupName groupAvatar avatarColor participants",
+                populate: {
+                    path: "participants",
+                    select: "username displayName avatarUrl"
+                }
+            });
 
         const total = await Message.countDocuments({ text: regex });
 
