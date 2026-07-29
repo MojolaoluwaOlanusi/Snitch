@@ -151,7 +151,7 @@ const SearchPage = () => {
         setUserSkip(next);
         await searchItem({
             searchWord: currentSearchWord,
-            searchType: "user",
+            searchType: searchType === "all" ? "all" : "user",
             limit: 10,
             skip: next
         });
@@ -165,7 +165,7 @@ const SearchPage = () => {
         setPostSkip(next);
         await searchItem({
             searchWord: currentSearchWord,
-            searchType: "post",
+            searchType: searchType === "all" ? "all" : "post",
             limit: 10,
             skip: next
         });
@@ -179,7 +179,7 @@ const SearchPage = () => {
         setChatSkip(next);
         await searchItem({
             searchWord: currentSearchWord,
-            searchType: "chat",
+            searchType: searchType === "all" ? "all" : "chat",
             limit: 10,
             skip: next
         });
