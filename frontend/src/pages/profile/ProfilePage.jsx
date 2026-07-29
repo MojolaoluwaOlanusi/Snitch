@@ -14,7 +14,7 @@ import FollowersModal from "../../components/common/FollowersModal.jsx";
 
 import {
     AlertTriangle, Briefcase, Building, CheckCircle2, User, Shield, MapPin,
-    MessageCircle, Settings, Copy, Check,
+    MessageCircle, Settings, Copy, Check, ChevronDown,
 } from "lucide-react";
 
 import {FaArrowLeft, FaEnvelope, FaFacebook, FaTelegram, FaWhatsapp, FaXTwitter} from "react-icons/fa6";
