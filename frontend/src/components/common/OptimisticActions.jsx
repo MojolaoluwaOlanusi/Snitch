@@ -127,7 +127,7 @@ export const OptimisticBookmarkButton = ({ post, authUserId, onBookmark }) => {
 };
 
 // Optimistic Reaction Button with bounce animation
-export const OptimisticReactionButton = ({ post, onReact, onTogglePicker }) => {
+export const OptimisticReactionButton = ({ post, onReact, onTogglePicker, children }) => {
     const [reactionCount, setReactionCount] = useState(post?.reaction?.length || 0);
     const [isAnimating, setIsAnimating] = useState(false);
 
@@ -146,16 +146,19 @@ export const OptimisticReactionButton = ({ post, onReact, onTogglePicker }) => {
     };
 
     return (
-        <button className="flex items-center justify-center gap-2 text-base-content/60 hover:text-yellow-500 transition-colors group flex-1 py-2 hover:bg-base-200 rounded-lg" onClick={onTogglePicker}>
-            <MdAddReaction
-                className={`w-5 h-5 transition-all duration-200 ${
-                    isAnimating ? 'text-yellow-500 scale-125' : 'text-base-content/60'
-                } group-hover:text-yellow-500 group-hover:scale-110`}
-            />
-            <span className="text-sm text-base-content/60 group-hover:text-yellow-500 transition-colors">
-                {reactionCount}
-            </span>
-        </button>
+        <div className="relative">
+            <button className="flex items-center justify-center gap-2 text-base-content/60 hover:text-yellow-500 transition-colors group flex-1 py-2 hover:bg-base-200 rounded-lg w-full" onClick={onTogglePicker}>
+                <MdAddReaction
+                    className={`w-5 h-5 transition-all duration-200 ${
+                        isAnimating ? 'text-yellow-500 scale-125' : 'text-base-content/60'
+                    } group-hover:text-yellow-500 group-hover:scale-110`}
+                />
+                <span className="text-sm text-base-content/60 group-hover:text-yellow-500 transition-colors">
+                    {reactionCount}
+                </span>
+            </button>
+            {children}
+        </div>
     );
 };
 

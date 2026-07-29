@@ -534,23 +534,24 @@ const PostPage = () => {
                                     post={singlePost} 
                                     onReact={reactToPost} 
                                     onTogglePicker={() => setEmojiPickerOpen(emojiPickerOpen === singlePost._id ? null : singlePost._id)}
-                                />
-                                <ReactionEmojiPicker
-                                    postId={singlePost._id}
-                                    isOpen={
-                                        emojiPickerOpen === singlePost._id
-                                    }
-                                    onClose={() =>
-                                        setEmojiPickerOpen(null)
-                                    }
-                                    onReact={(emoji) => {
-                                        setActionPostId(singlePost._id);
-                                        reactToPost({
-                                            id: singlePost._id,
-                                            reaction: emoji,
-                                        });
-                                    }}
-                                />
+                                >
+                                    <ReactionEmojiPicker
+                                        postId={singlePost._id}
+                                        isOpen={
+                                            emojiPickerOpen === singlePost._id
+                                        }
+                                        onClose={() =>
+                                            setEmojiPickerOpen(null)
+                                        }
+                                        onReact={(emoji) => {
+                                            setEmojiPickerOpen(null);
+                                            reactToPost({
+                                                id: singlePost._id,
+                                                reaction: emoji,
+                                            });
+                                        }}
+                                    />
+                                </OptimisticReactionButton>
                             </div>
                         </div>
                     </div>
