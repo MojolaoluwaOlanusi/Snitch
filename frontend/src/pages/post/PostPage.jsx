@@ -7,7 +7,7 @@ import {MoreHorizontal, Hash, Sticker, ChevronUp, ChevronDown, Share2, Bookmark,
 import {Suspense, useEffect, useState} from "react";
 import PostPageSkeleton from "../../components/skeletons/PostPageSkeleton.jsx";
 import Sidebar from "../../components/common/Sidebar.jsx";
-import LoadingSpinner from "../../components/common/LoadingSpinner.jsx";
+import { OptimisticLikeButton, OptimisticRepostButton, OptimisticBookmarkButton, OptimisticReactionButton, OptimisticDeleteButton } from "../../components/common/OptimisticActions.jsx";
 import { formatPostDate } from "../../utils/date/index.js";
 import { useAuthStore } from "../../store/useAuthStore.js";
 import EditPostModal from "../../components/common/EditPostModal.jsx";
@@ -37,26 +37,17 @@ const PostPage = () => {
         singlePost,
         isGettingSinglePost,
         likePost,
-        isLiking,
         bookmarkPost,
-        isCommenting,
         repost,
-        isReposting,
         reactToPost,
-        isReacting,
-        isDeleting,
         reportPost,
         deletePost,
-        editingPostId,
-        deletingPostId,
-        reportingPostId,
         getAllUsers,
         users,
     } = useUserStore();
 
     const [commentData, setCommentData] = useState({ text: "", postId: "" });
     const [reportSelectVisible, setReportSelectVisible] = useState(false);
-    const [actionPostId, setActionPostId] = useState(null);
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(null);
     const [authorData, setAuthorData] = useState(null);
     const [shareModal, setShareModal] = useState({ open: false, postId: null, url: "", postText: "" });
@@ -332,20 +323,7 @@ const PostPage = () => {
                                     setReportSelectVisible(!reportSelectVisible)
                                 }
                             >
-                                {editingPostId === singlePost?._id && (
-                                    <LoadingSpinner size="sm" />
-                                )}
-                                {deletingPostId === singlePost?._id && (
-                                    <LoadingSpinner size="sm" />
-                                )}
-                                {reportingPostId === singlePost?._id && (
-                                    <LoadingSpinner size="sm" />
-                                )}
-                                {!(
-                                    editingPostId === singlePost?._id
-                                ) && !(deletingPostId === singlePost?._id) && !(reportingPostId === singlePost?._id) && (
-                                    <MoreHorizontal className="h-5 w-5 text-base-content/80" />
-                                )}
+                                <MoreHorizontal className="h-5 w-5 text-base-content/80" />
                             </button>
 
                             {/* Dropdown Menu */}
@@ -353,22 +331,16 @@ const PostPage = () => {
                                 <div className="absolute right-0 mt-2 w-52 bg-base-100 rounded-xl shadow-lg border border-base-200 z-50">
                                     <div className="p-2">
                                         {isPostOwner && (
-                                            <button
-                                                onClick={() => {
-                                                    setActionPostId(singlePost._id);
-                                                    deletePost(singlePost._id);
-                                                }}
-                                                className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-base-200 rounded-lg transition-colors text-error"
-                                            >
+                                            <OptimisticDeleteButton post={singlePost} onDelete={deletePost}>
                                                 <div className="flex flex-row group w-40 justify-between items-center">
                                                     <p className="group-hover:text-primary font-medium">
                                                         Delete post
                                                     </p>
                                                     <FaTrash className="h-4 w-4 group-hover:text-error" />
                                                 </div>
-                                            </button>
+                                            </OptimisticDeleteButton>
                                         )}
-                                        {isPostOwner && !isDeleting && (
+                                        {isPostOwner && (
                                             <div className="px-3 py-2">
                                                 <EditPostModal post={singlePost} />
                                             </div>
@@ -536,54 +508,10 @@ const PostPage = () => {
                             </button>
 
                             {/* Repost */}
-                            <button
-                                className="flex items-center justify-center gap-2 text-base-content/60 hover:text-success transition-colors group flex-1 py-2 hover:bg-base-200 rounded-lg"
-                                onClick={() => {
-                                    setActionPostId(singlePost._id);
-                                    repost(singlePost._id);
-                                }}
-                            >
-                                {isReposting &&
-                                    actionPostId === singlePost._id && (
-                                        <LoadingSpinner size="sm" />
-                                    )}
-                                {!isReposting && (
-                                    <BiRepost className="w-5 h-5 group-hover:text-success" />
-                                )}
-                                <span className="text-sm">
-                                    {singlePost?.repostCount || 0}
-                                </span>
-                            </button>
+                            <OptimisticRepostButton post={singlePost} onRepost={repost} />
 
                             {/* Like */}
-                            <button
-                                className={`flex items-center justify-center gap-2 transition-colors group flex-1 py-2 hover:bg-base-200 rounded-lg ${
-                                    isLikedByMe
-                                        ? "text-secondary"
-                                        : "text-base-content/60 hover:text-secondary"
-                                }`}
-                                onClick={() => {
-                                    setActionPostId(singlePost._id);
-                                    likePost(singlePost._id);
-                                }}
-                            >
-                                {isLiking &&
-                                    actionPostId === singlePost._id && (
-                                        <LoadingSpinner size="sm" />
-                                    )}
-                                {!isLiking && (
-                                    <FaRegHeart
-                                        className={`w-5 h-5 ${
-                                            isLikedByMe
-                                                ? "text-secondary"
-                                                : "group-hover:text-secondary"
-                                        }`}
-                                    />
-                                )}
-                                <span className="text-sm">
-                                    {singlePost?.likes?.length || 0}
-                                </span>
-                            </button>
+                            <OptimisticLikeButton post={singlePost} authUserId={authUserId} onLike={likePost} />
 
                             {/* Share */}
                             <button
@@ -598,48 +526,15 @@ const PostPage = () => {
                             </button>
 
                             {/* Bookmark */}
-                            <button
-                                className={`flex items-center justify-center gap-2 transition-colors group flex-1 py-2 hover:bg-base-200 rounded-lg ${
-                                    isBookmarked
-                                        ? "text-secondary"
-                                        : "text-base-content/60 hover:text-secondary"
-                                }`}
-                                onClick={async () => {
-                                    const data = await bookmarkPost(singlePost._id);
-                                    if (data) {
-                                        setIsBookmarked(data.bookmarked);
-                                        setBookmarkCount(data.bookmarksCount);
-                                    }
-                                }}
-                            >
-                                <Bookmark className={`w-5 h-5 ${isBookmarked ? "fill-current" : ""}`} />
-                                <span className="text-sm">{bookmarkCount}</span>
-                            </button>
+                            <OptimisticBookmarkButton post={singlePost} authUserId={authUserId} onBookmark={bookmarkPost} />
 
                             {/* React */}
                             <div className="relative flex-1">
-                                <button
-                                    className="flex items-center justify-center gap-2 text-base-content/60 hover:text-warning transition-colors group w-full py-2 hover:bg-base-200 rounded-lg"
-                                    onClick={() =>
-                                        setEmojiPickerOpen(
-                                            emojiPickerOpen ===
-                                            singlePost._id
-                                                ? null
-                                                : singlePost._id
-                                        )
-                                    }
-                                >
-                                    {isReacting &&
-                                        actionPostId === singlePost._id && (
-                                            <LoadingSpinner size="sm" />
-                                        )}
-                                    {!isReacting && (
-                                        <MdAddReaction className="w-5 h-5 group-hover:text-warning" />
-                                    )}
-                                    <span className="text-sm">
-                                        {reactionCount}
-                                    </span>
-                                </button>
+                                <OptimisticReactionButton 
+                                    post={singlePost} 
+                                    onReact={reactToPost} 
+                                    onTogglePicker={() => setEmojiPickerOpen(emojiPickerOpen === singlePost._id ? null : singlePost._id)}
+                                />
                                 <ReactionEmojiPicker
                                     postId={singlePost._id}
                                     isOpen={
@@ -697,16 +592,9 @@ const PostPage = () => {
                                 <button
                                     type="submit"
                                     className="mt-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-content rounded-full font-medium transition-colors disabled:opacity-50"
-                                    disabled={
-                                        isCommenting ||
-                                        !commentData.text.trim()
-                                    }
+                                    disabled={!commentData.text.trim()}
                                 >
-                                    {isCommenting ? (
-                                        <LoadingSpinner size="sm" />
-                                    ) : (
-                                        "Post"
-                                    )}
+                                    Post
                                 </button>
                             </div>
                         </form>

@@ -326,10 +326,13 @@ const ProfilePage = () => {
                                 {!isMyProfile && (
                                     <>
                                         <button
-                                            className="btn btn-outline bg-base-100 hover:bg-primary rounded-full btn-sm"
+                                            className={`btn btn-outline rounded-full btn-sm transition-all duration-200 ${
+                                                isFollowing ? 'bg-base-100 hover:bg-base-200' : 'bg-base-100 hover:bg-primary hover:text-primary-content'
+                                            } ${isFollowingUser ? 'scale-95 opacity-70' : ''}`}
                                             onClick={isFollowing ? handleUnfollow : handleFollow}
+                                            disabled={isFollowingUser}
                                         >
-                                            {isFollowingUser ? "Loading..." : isFollowing ? "Unfollow" : "Follow"}
+                                            {isFollowing ? 'Unfollow' : 'Follow'}
                                         </button>
                                         <button
                                             onClick={handleChatWithUser}

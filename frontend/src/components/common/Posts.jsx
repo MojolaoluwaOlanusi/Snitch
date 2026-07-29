@@ -6,8 +6,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { FaFacebook, FaXTwitter, FaWhatsapp, FaTelegram, FaEnvelope } from "react-icons/fa6";
 import { FaRegComment, FaRegHeart, FaTrash } from "react-icons/fa";
 import { toast } from "sonner";
-import LoadingSpinner from "../../components/common/LoadingSpinner.jsx";
 import { BiRepost } from "react-icons/bi";
+import { OptimisticLikeButton, OptimisticRepostButton, OptimisticBookmarkButton, OptimisticReactionButton, OptimisticDeleteButton } from "./OptimisticActions.jsx";
 import { formatPostDate } from "../../utils/date/index.js";
 import { useAuthStore } from "@/store/useAuthStore.js";
 import { MdAddReaction, MdReportProblem } from "react-icons/md";
@@ -40,10 +40,8 @@ const getInsertionPoints = (totalPosts) => {
 // ── Single post item (extracted to avoid hook-in-loop) ──
 const PostItem = ({ post, authUserId }) => {
     const {
-        isReposting, isLiking, isReacting, isCommenting,
         repost, likePost, reactToPost, bookmarkPost,
-        reportPost,
-        editingPostId, deletingPostId, reportingPostId,
+        reportPost, deletePost,
     } = useUserStore();
 
     const {authUser} = useAuthStore();
@@ -53,7 +51,6 @@ const PostItem = ({ post, authUserId }) => {
         post?.bookmarkedBy?.includes(authUserId)
     );
     const [bookmarkCount, setBookmarkCount] = useState(post?.bookmarksCount || 0);
-    const [actionPostId, setActionPostId] = useState(null);
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(null);
     const [commentData, setCommentData] = useState({ text: "", postId: "", media: null });
     const [replyToCommentId, setReplyToCommentId] = useState(null);
@@ -211,26 +208,19 @@ const PostItem = ({ post, authUserId }) => {
                     <span className="flex justify-end flex-1 space-x-2">
             <div className="dropdown dropdown-end">
               <button tabIndex={0} className="btn btn-ghost btn-sm" aria-label="Post functions">
-                {(editingPostId === post?._id) && <LoadingSpinner size="sm" />}
-                  {(deletingPostId === post?._id) && <LoadingSpinner size="sm" />}
-                  {(reportingPostId === post?._id) && <LoadingSpinner size="sm" />}
-                  {!(editingPostId === post?._id) && !(deletingPostId === post?._id) && !(reportingPostId === post?._id) && <MoreHorizontal className="h-5 w-5" />}
+                  <MoreHorizontal className="h-5 w-5" />
               </button>
               <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
   <li>
     {isOwnPost && (
-        <button className="text-base-content/60" onClick={(e) => {
-            e.preventDefault();
-            const { deletePost } = useUserStore.getState();
-            deletePost(post?._id);
-        }}>
+        <OptimisticDeleteButton post={post} onDelete={deletePost}>
             <div className="flex flex-row group w-40 justify-between">
                 <p className="group-hover:text-error">Delete post</p>
-                {!(deletingPostId === post?._id) && <FaTrash className="cursor-pointer group-hover:text-error" />}
+                <FaTrash className="cursor-pointer group-hover:text-error" />
             </div>
-        </button>
+        </OptimisticDeleteButton>
     )}
-      {isOwnPost && editingPostId !== post._id && (
+      {isOwnPost && (
           <EditPostModal post={post} />
       )}
       <button className="text-base-content/60" onClick={() => setShowReportModal(post._id)}>
@@ -323,7 +313,7 @@ const PostItem = ({ post, authUserId }) => {
                                             <Sticker className="w-5 h-5 text-base-content/60" />
                                         </button>
                                         <button type="submit" className="btn btn-primary rounded-full btn-sm text-primary-content px-4">
-                                            {isCommenting ? <LoadingSpinner size="md" /> : "Post"}
+                                            Post
                                         </button>
                                     </div>
                                 </form>
@@ -474,48 +464,10 @@ const PostItem = ({ post, authUserId }) => {
                         </dialog>
 
                         {/* Repost */}
-                        <div
-                            className="flex gap-1 items-center cursor-pointer group"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                setActionPostId(post._id);
-                                repost(post?._id);
-                            }}
-                        >
-                            {isReposting && actionPostId === post._id && <LoadingSpinner size="sm" />}
-                            {!isReposting && (
-                                <BiRepost className="w-6 h-6 text-base-content/60 group-hover:text-success" />
-                            )}
-                            <span className="text-sm group-hover:text-success text-base-content/60">
-        {post?.repostCount}
-      </span>
-                        </div>
+                        <OptimisticRepostButton post={post} onRepost={repost} />
 
                         {/* Like */}
-                        <div
-                            className="flex gap-1 items-center cursor-pointer group"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                setActionPostId(post._id);
-                                likePost(post?._id);
-                            }}
-                        >
-                            {isLiking && actionPostId === post._id && <LoadingSpinner size="sm" />}
-                            {!isLiking && (
-                                <FaRegHeart
-                                    className={`w-4 h-4 cursor-pointer ${
-                                        isLikedByMe ? "text-secondary" : "text-base-content/60"
-                                    } group-hover:text-secondary`}
-                                />
-                            )}
-                            <span
-                                className={`text-sm group-hover:text-secondary ${
-                                    isLikedByMe ? "text-secondary" : "text-base-content/60"
-                                }`}
-                            >
-        {post?.likes?.length}
-      </span>
-                        </div>
+                        <OptimisticLikeButton post={post} authUserId={authUserId} onLike={likePost} />
 
                         {/* Share */}
                         <div
@@ -530,38 +482,14 @@ const PostItem = ({ post, authUserId }) => {
                         </div>
 
                         {/* Bookmark */}
-                        <button
-                            className={`flex items-center justify-center gap-2 transition-colors group py-2 hover:bg-base-200 rounded-lg ${
-                                isBookmarked ? "text-primary" : "text-base-content/60 hover:text-primary"
-                            }`}
-                            onClick={async () => {
-                                const data = await bookmarkPost(post._id);
-                                if (data) {
-                                    setIsBookmarked(data.bookmarked);
-                                    setBookmarkCount(data.bookmarksCount);
-                                }
-                            }}
-                        >
-                            <Bookmark className={`w-5 h-5 ${isBookmarked ? "fill-current" : ""}`} />
-                            <span className="text-sm">{bookmarkCount}</span>
-                        </button>
+                        <OptimisticBookmarkButton post={post} authUserId={authUserId} onBookmark={bookmarkPost} />
 
                         {/* React / Emoji picker */}
-                        <div
-                            className="flex gap-1 items-center cursor-pointer group"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                setEmojiPickerOpen(emojiPickerOpen === post._id ? null : post._id);
-                            }}
-                        >
-                            {isReacting && actionPostId === post._id && <LoadingSpinner size="sm" />}
-                            {!isReacting && (
-                                <MdAddReaction className="w-6 h-6 text-base-content/60 group-hover:text-yellow-500" />
-                            )}
-                            <span className="text-sm text-base-content/60 group-hover:text-yellow-500">
-        {post?.reaction?.length}
-      </span>
-                        </div>
+                        <OptimisticReactionButton 
+                            post={post} 
+                            onReact={reactToPost} 
+                            onTogglePicker={() => setEmojiPickerOpen(emojiPickerOpen === post._id ? null : post._id)}
+                        />
 
                         {/* Top‑3 reactions display (inline) */}
                         <ReactionsDisplay reactions={post?.reaction} />

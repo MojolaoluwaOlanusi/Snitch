@@ -221,7 +221,7 @@ function App () {
             
             <Suspense fallback={null}>
                 <Routes>
-                    <Route path='/' element={authUserId ? <HomePage /> : <Navigate to={"/login"} />} />
+                    <Route path='/' element={authUserId ? <HomePage /> : <Navigate to={"/signup"} />} />
                     <Route path='/login' element={!authUserId ? <LoginPage /> : <Navigate to={"/"} />} />
                     <Route path='/signup' element={!authUserId ? <SignUpPage /> : <Navigate to={"/"} />} />
                     <Route path='/chat' element={authUserId ? <ChatPage /> : <Navigate to={"/login"} />} />
