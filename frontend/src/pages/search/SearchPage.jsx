@@ -28,6 +28,11 @@ const SearchPage = () => {
     const [selectedHashtag, setSelectedHashtag] = useState(null);
     const [hashtagPosts, setHashtagPosts] = useState([]);
     const [loadingHashtagPosts, setLoadingHashtagPosts] = useState(false);
+    const [loadingMoreUsers, setLoadingMoreUsers] = useState(false);
+    const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+    const [loadingMoreChats, setLoadingMoreChats] = useState(false);
+    const [loadingMoreMentions, setLoadingMoreMentions] = useState(false);
+    const [loadingMoreHashtags, setLoadingMoreHashtags] = useState(false);
     const {
         searchItem,
         searchResults,
@@ -138,85 +143,104 @@ const SearchPage = () => {
         getTrending(next);
     };
 
-    const loadMoreUsers = (e) => {
+    const loadMoreUsers = async (e) => {
         e?.preventDefault();
+        setLoadingMoreUsers(true);
         const next = userSkip + 10;
         setUserSkip(next);
-        searchItem({
+        await searchItem({
             searchWord: currentSearchWord,
             searchType: "user",
             limit: 10,
             skip: next
         });
+        setLoadingMoreUsers(false);
     };
 
-    const loadMorePosts = (e) => {
+    const loadMorePosts = async (e) => {
         e?.preventDefault();
+        setLoadingMorePosts(true);
         const next = postSkip + 10;
         setPostSkip(next);
-        searchItem({
+        await searchItem({
             searchWord: currentSearchWord,
             searchType: "post",
             limit: 10,
             skip: next
         });
+        setLoadingMorePosts(false);
     };
 
-    const loadMoreChats = (e) => {
+    const loadMoreChats = async (e) => {
         e?.preventDefault();
+        setLoadingMoreChats(true);
         const next = chatSkip + 10;
         setChatSkip(next);
-        searchItem({
+        await searchItem({
             searchWord: currentSearchWord,
             searchType: "chat",
             limit: 10,
             skip: next
         });
+        setLoadingMoreChats(false);
     };
 
-    const loadMoreMentions = (e) => {
+    const loadMoreMentions = async (e) => {
         e?.preventDefault();
+        setLoadingMoreMentions(true);
         const next = mentionSkip + 10;
         setMentionSkip(next);
-        searchItem({
+        await searchItem({
             searchWord: currentSearchWord,
             searchType: "mention",
             limit: 10,
             skip: next
         });
+        setLoadingMoreMentions(false);
     };
 
-    const loadMoreHashtags = (e) => {
+    const loadMoreHashtags = async (e) => {
         e?.preventDefault();
+        setLoadingMoreHashtags(true);
         const next = hashtagSkip + 10;
         setHashtagSkip(next);
-        searchItem({
+        await searchItem({
             searchWord: currentSearchWord,
             searchType: "hashtag",
             limit: 10,
             skip: next
         });
+        setLoadingMoreHashtags(false);
     };
 
     const handleChatClick = async (chat) => {
         try {
-            // First try to find the conversation in the existing conversations
-            let conv = conversations.find(c => c._id === chat.conversationId);
+            // The conversation is already populated in the search results
+            const conversation = chat.conversationId;
             
-            // If not found, fetch it from the server
+            if (!conversation) {
+                toast.error('Conversation not found');
+                return;
+            }
+            
+            // Check if conversation exists in local conversations
+            let conv = conversations.find(c => c._id === conversation._id);
+            
+            // If not found locally, add it to the store
             if (!conv) {
-                conv = await getConversation(chat.conversationId);
+                useChatStore.setState(state => ({
+                    conversations: [...state.conversations, conversation]
+                }));
+                conv = conversation;
             }
             
-            // If we have a conversation, select it before navigating
-            if (conv) {
-                selectConversation(conv);
-            }
+            // Select the conversation
+            selectConversation(conv);
             
             // Navigate to chat with the conversation and message info
             navigate('/chat', {
                 state: {
-                    conversationId: chat.conversationId,
+                    conversationId: conversation._id,
                     messageId: chat._id,
                     scrollToMessage: true
                 }
@@ -606,14 +630,14 @@ const SearchPage = () => {
                                                     {searchHasMore.users && (
                                                         <button
                                                             onClick={loadMoreUsers}
-                                                            disabled={isSearching}
+                                                            disabled={loadingMoreUsers}
                                                             className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                                                isSearching
+                                                                loadingMoreUsers
                                                                     ? "bg-base-300 cursor-not-allowed"
                                                                     : "bg-primary/10 hover:bg-primary/20 text-primary"
                                                             }`}
                                                         >
-                                                            Load More
+                                                            {loadingMoreUsers ? 'Loading...' : 'Load More'}
                                                         </button>
                                                     )}
                                                 </div>
@@ -627,14 +651,14 @@ const SearchPage = () => {
                                                     {searchHasMore.posts && (
                                                         <button
                                                             onClick={loadMorePosts}
-                                                            disabled={isSearching}
+                                                            disabled={loadingMorePosts}
                                                             className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                                                isSearching
+                                                                loadingMorePosts
                                                                     ? "bg-base-300 cursor-not-allowed"
                                                                     : "bg-primary/10 hover:bg-primary/20 text-primary"
                                                             }`}
                                                         >
-                                                            Load More
+                                                            {loadingMorePosts ? 'Loading...' : 'Load More'}
                                                         </button>
                                                     )}
                                                 </div>
@@ -648,14 +672,14 @@ const SearchPage = () => {
                                                     {searchHasMore.chats && (
                                                         <button
                                                             onClick={loadMoreChats}
-                                                            disabled={isSearching}
+                                                            disabled={loadingMoreChats}
                                                             className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                                                isSearching
+                                                                loadingMoreChats
                                                                     ? "bg-base-300 cursor-not-allowed"
                                                                     : "bg-primary/10 hover:bg-primary/20 text-primary"
                                                             }`}
                                                         >
-                                                            Load More
+                                                            {loadingMoreChats ? 'Loading...' : 'Load More'}
                                                         </button>
                                                     )}
                                                 </div>
@@ -672,14 +696,14 @@ const SearchPage = () => {
                                                     {searchHasMore.hashtags && (
                                                         <button
                                                             onClick={loadMoreHashtags}
-                                                            disabled={isSearching}
+                                                            disabled={loadingMoreHashtags}
                                                             className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                                                isSearching
+                                                                loadingMoreHashtags
                                                                     ? "bg-base-300 cursor-not-allowed"
                                                                     : "bg-primary/10 hover:bg-primary/20 text-primary"
                                                             }`}
                                                         >
-                                                            Load More
+                                                            {loadingMoreHashtags ? 'Loading...' : 'Load More'}
                                                         </button>
                                                     )}
                                                 </div>
@@ -729,14 +753,14 @@ const SearchPage = () => {
                                             {searchHasMore.users && (
                                                 <button
                                                     onClick={loadMoreUsers}
-                                                    disabled={isSearching}
+                                                    disabled={loadingMoreUsers}
                                                     className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                                        isSearching
+                                                        loadingMoreUsers
                                                             ? "bg-base-300 cursor-not-allowed"
                                                             : "bg-primary/10 hover:bg-primary/20 text-primary"
                                                     }`}
                                                 >
-                                                    Load More
+                                                    {loadingMoreUsers ? 'Loading...' : 'Load More'}
                                                 </button>
                                             )}
                                         </>
@@ -744,11 +768,11 @@ const SearchPage = () => {
                                         <>
                                             {searchResults.posts.map((item, index) => renderSearchResult(item, index, 'post'))}
                                             {searchHasMore.posts && (
-                                                <button onClick={loadMorePosts} disabled={isSearching}
+                                                <button onClick={loadMorePosts} disabled={loadingMorePosts}
                                                         className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                                            isSearching ? "bg-base-300 cursor-not-allowed" : "bg-primary/10 hover:bg-primary/20 text-primary"
+                                                            loadingMorePosts ? "bg-base-300 cursor-not-allowed" : "bg-primary/10 hover:bg-primary/20 text-primary"
                                                         }`}>
-                                                    Load More
+                                                    {loadingMorePosts ? 'Loading...' : 'Load More'}
                                                 </button>
                                             )}
                                         </>
@@ -756,11 +780,11 @@ const SearchPage = () => {
                                         <>
                                             {searchResults.chats.map((item, index) => renderSearchResult(item, index, 'chat'))}
                                             {searchHasMore.chats && (
-                                                <button onClick={loadMoreChats} disabled={isSearching}
+                                                <button onClick={loadMoreChats} disabled={loadingMoreChats}
                                                         className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                                            isSearching ? "bg-base-300 cursor-not-allowed" : "bg-primary/10 hover:bg-primary/20 text-primary"
+                                                            loadingMoreChats ? "bg-base-300 cursor-not-allowed" : "bg-primary/10 hover:bg-primary/20 text-primary"
                                                         }`}>
-                                                    Load More
+                                                    {loadingMoreChats ? 'Loading...' : 'Load More'}
                                                 </button>
                                             )}
                                         </>
@@ -768,11 +792,11 @@ const SearchPage = () => {
                                         <>
                                             {searchResults.mentions.map((item, index) => renderSearchResult(item, index, 'mention'))}
                                             {searchHasMore.mentions && (
-                                                <button onClick={loadMoreMentions} disabled={isSearching}
+                                                <button onClick={loadMoreMentions} disabled={loadingMoreMentions}
                                                         className={`w-full mt-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                                            isSearching ? "bg-base-300 cursor-not-allowed" : "bg-primary/10 hover:bg-primary/20 text-primary"
+                                                            loadingMoreMentions ? "bg-base-300 cursor-not-allowed" : "bg-primary/10 hover:bg-primary/20 text-primary"
                                                         }`}>
-                                                    Load More
+                                                    {loadingMoreMentions ? 'Loading...' : 'Load More'}
                                                 </button>
                                             )}
                                         </>
