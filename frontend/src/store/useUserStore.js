@@ -1171,8 +1171,6 @@ export const useUserStore = create((set, get) => ({
 
     searchItem: async (data) => {
         try {
-            set({ isSearching: true });
-
             const token = localStorage.getItem("access-token");
 
             const skip = data.skip || 0;
@@ -1306,8 +1304,6 @@ export const useUserStore = create((set, get) => ({
             }
         } catch (e) {
             console.log(e);
-        } finally {
-            set({ isSearching: false });
         }
     },
 
