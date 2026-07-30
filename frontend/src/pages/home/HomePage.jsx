@@ -42,7 +42,7 @@ function HomePage() {
             <Sidebar />
 
             {/* Main feed with pull-to-refresh container */}
-            <main className="flex-1 bg-base-100 rounded-lg w-full h-screen overflow-y-auto relative" ref={feedContainerRef}>
+            <main className="flex-1 bg-base-100 rounded-lg w-full h-screen overflow-y-scroll relative" ref={feedContainerRef}>
                 {/* Pull-to-refresh indicator */}
                 <PullToRefreshIndicator
                     pullDistance={pullDistance}
