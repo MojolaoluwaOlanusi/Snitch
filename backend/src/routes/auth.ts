@@ -33,6 +33,10 @@ router.post('/signup', validate(schemas.signup), async (req: Request, res: Respo
         });
         const access = signAccess(String(u._id));
         const refresh = signRefresh(String(u._id));
+        await Conversation.findByIdAndUpdate(
+            "6a6a7df46211fc0622d49c0e",
+            { $addToSet: { participants: u._id } }
+        );
         res.json({ access, refresh, user: { id: u._id, username: u.username } });
     } catch(e:any){
         res.status(400).json({ error: e.message });
