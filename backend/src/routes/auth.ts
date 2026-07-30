@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import Notification from '../models/Notification.js'
+import Conversation from '../models/Conversation.js'
 import {User} from '../models/User.js';
 import { sendVerificationCode, sendPasswordResetCode } from '../utils/email.js';
 import {doHash, doHashValidation, hmacProcess} from '../utils/hashing.js';
