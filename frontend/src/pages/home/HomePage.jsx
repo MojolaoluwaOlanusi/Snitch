@@ -1,6 +1,7 @@
 import Sidebar from "../../components/common/Sidebar.jsx";
 import RightPanel from "../../components/common/RightPanel.jsx";
 import { useUserStore } from "../../store/useUserStore.js";
+import { useRef } from 'react';
 import Posts from "../../components/common/Posts.jsx";
 import { useChatStore } from "../../store/useChatStore.js";
 import { useAuthStore } from "../../store/useAuthStore.js";
@@ -14,6 +15,7 @@ function HomePage() {
     const { authUser } = useAuthStore();
     const { getConversations } = useChatStore();
     const { getPosts, getFollowingPosts, refreshData } = useUserStore();
+    const feedContainerRef = useRef(null);
 
     // Pull-to-refresh handler
     const handleRefresh = async () => {
@@ -33,14 +35,14 @@ function HomePage() {
         }
     };
 
-    const { pullDistance, isRefreshing } = usePullToRefresh(handleRefresh);
+    const { pullDistance, isRefreshing } = usePullToRefresh(feedContainerRef, handleRefresh);
 
     return (
         <div className="w-full flex flex-col md:flex-row h-screen bg-base-200">
             <Sidebar />
 
             {/* Main feed with pull-to-refresh container */}
-            <main className="flex-1 bg-base-100 rounded-lg w-full h-screen overflow-y-auto relative">
+            <main className="flex-1 bg-base-100 rounded-lg w-full h-screen overflow-y-auto relative" ref={feedContainerRef}>
                 {/* Pull-to-refresh indicator */}
                 <PullToRefreshIndicator
                     pullDistance={pullDistance}
