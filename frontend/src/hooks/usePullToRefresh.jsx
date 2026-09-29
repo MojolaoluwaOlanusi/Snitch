@@ -32,7 +32,7 @@ export const usePullToRefresh = (containerRef, onRefresh, threshold = 80) => {
         const deltaY = e.touches[0].clientY - startYRef.current;
         if (deltaY > 0) {
             // Resist the pull slightly for a natural feel
-            setPullDistance(Math.min(deltaY * 0.5, 150));
+            setPullDistance(Math.min(deltaY * 0.5, 130));
             e.preventDefault();
         }
     }, [containerRef]);
@@ -44,7 +44,7 @@ export const usePullToRefresh = (containerRef, onRefresh, threshold = 80) => {
         if (pullDistance > threshold && !isRefreshingRef.current) {
             isRefreshingRef.current = true;
             setIsRefreshing(true);
-            setPullDistance(60); // keep indicator visible during refresh
+            setPullDistance(50); // keep indicator visible during refresh
             onRefresh().finally(() => {
                 isRefreshingRef.current = false;
                 setIsRefreshing(false);
