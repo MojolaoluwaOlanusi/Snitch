@@ -6,12 +6,16 @@ export const usePullToRefresh = (containerRef, onRefresh, threshold = 80) => {
     const startYRef = useRef(0);
     const isPullingRef = useRef(false);
     const isRefreshingRef = useRef(false);
+    const initialScrollTopRef = useRef(0);
 
     const handleTouchStart = useCallback((e) => {
         const container = containerRef?.current;
         if (!container) return;
-        if (container.scrollTop <= 0) {
+        
+        // Only enable pull-to-refresh if user is at the very top
+        if (container.scrollTop === 0) {
             startYRef.current = e.touches[0].clientY;
+            initialScrollTopRef.current = container.scrollTop;
             isPullingRef.current = true;
         } else {
             isPullingRef.current = false;
@@ -22,7 +26,7 @@ export const usePullToRefresh = (containerRef, onRefresh, threshold = 80) => {
         const container = containerRef?.current;
         if (!container || !isPullingRef.current) return;
 
-        // If user scrolled away during the gesture, cancel
+        // If user scrolled away during the gesture, cancel immediately
         if (container.scrollTop > 0) {
             isPullingRef.current = false;
             setPullDistance(0);
@@ -30,10 +34,17 @@ export const usePullToRefresh = (containerRef, onRefresh, threshold = 80) => {
         }
 
         const deltaY = e.touches[0].clientY - startYRef.current;
-        if (deltaY > 0) {
+        
+        // Only trigger pull-to-refresh if the user is clearly pulling down
+        // (moving finger downward, delta > 0) and we're still at the top
+        if (deltaY > 0 && container.scrollTop === 0) {
             // Resist the pull slightly for a natural feel
-            setPullDistance(Math.min(deltaY * 0.5, 130));
+            setPullDistance(Math.min(deltaY * 0.4, 120));
             e.preventDefault();
+        } else {
+            // User is scrolling up or not pulling down, cancel the pull
+            isPullingRef.current = false;
+            setPullDistance(0);
         }
     }, [containerRef]);
 
