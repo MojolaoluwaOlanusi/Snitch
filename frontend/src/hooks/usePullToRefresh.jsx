@@ -32,7 +32,7 @@ export const usePullToRefresh = (containerRef, onRefresh, threshold = 80) => {
         const deltaY = e.touches[0].clientY - startYRef.current;
         if (deltaY > 0) {
             // Resist the pull slightly for a natural feel
-            setPullDistance(Math.min(deltaY * 0.5, 130));
+            setPullDistance(Math.min(deltaY * 0.5, 150));
             e.preventDefault();
         }
     }, [containerRef]);
